@@ -3,11 +3,11 @@ package dev.eriksonn.aeronautics.content.display_sources;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.source.NumericSingleLineDisplaySource;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
-import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
+import com.simibubi.create.content.redstone.displayLink.DisplaySourceConfiguration;
+import java.util.List;
 import dev.eriksonn.aeronautics.content.blocks.hot_air.balloon.ServerBalloon;
 import dev.eriksonn.aeronautics.content.blocks.hot_air.BlockEntityLiftingGasProvider;
 import dev.eriksonn.aeronautics.data.AeroLang;
-import joptsimple.internal.Strings;
 import net.createmod.catnip.lang.LangNumberFormat;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -26,7 +26,7 @@ public class GasDisplaySource extends NumericSingleLineDisplaySource {
             return noBalloon();
         }
 
-        switch (displayLinkContext.sourceConfig().getInt("GasDataSelection")) {
+        switch (displayLinkContext.sourceConfig().getIntOr("GasDataSelection", 0)) {
             case 0 -> { // volume
                 final int totalBar = 15;
                 final int capacity = info.getCapacity();
@@ -62,20 +62,17 @@ public class GasDisplaySource extends NumericSingleLineDisplaySource {
     }
 
     private static MutableComponent bars(final int count, final ChatFormatting format, final char ch) {
-        return Component.literal(Strings.repeat(ch, count))
+        return Component.literal(String.valueOf(ch).repeat(count))
                 .withStyle(format);
     }
 
     @Override
-    public void initConfigurationWidgets(final DisplayLinkContext context, final ModularGuiLineBuilder builder, final boolean isFirstLine) {
-        super.initConfigurationWidgets(context, builder, isFirstLine);
-        if (isFirstLine) {
-            return;
-        }
-
-        builder.addSelectionScrollInput(0, 60, (selectionScrollInput, label) -> {
-            selectionScrollInput.forOptions(AeroLang.translatedOptions("display_source.lifting_gas", "volume", "total_lift"));
-        }, "GasDataSelection");
+    public List<DisplaySourceConfiguration> configuration(final DisplayLinkContext context) {
+        final var options = new java.util.ArrayList<>(super.configuration(context));
+        options.add(new DisplaySourceConfiguration("GasDataSelection",
+                List.of("aeronautics.display_source.lifting_gas.volume", "aeronautics.display_source.lifting_gas.total_lift"),
+                0, 0, 0, 1, 0, 1, 0, 60, "", ""));
+        return List.copyOf(options);
     }
 
     @Override

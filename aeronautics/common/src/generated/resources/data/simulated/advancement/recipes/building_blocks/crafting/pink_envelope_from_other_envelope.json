@@ -13,7 +13,7 @@
     },
     "has_the_recipe": {
       "conditions": {
-        "recipe": "simulated:crafting/pink_envelope_from_other_envelope"
+        "recipes": "simulated:crafting/pink_envelope_from_other_envelope"
       },
       "trigger": "minecraft:recipe_unlocked"
     }

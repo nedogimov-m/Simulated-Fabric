@@ -1,7 +1,7 @@
 package dev.eriksonn.aeronautics.content.blocks.propeller.bearing.gyroscopic_propeller_bearing;
 
 import com.simibubi.create.content.contraptions.bearing.BearingBlock;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.api.CustomStressImpactTooltipProvider;
 import dev.eriksonn.aeronautics.data.AeroLang;
 import dev.eriksonn.aeronautics.index.AeroBlockEntityTypes;
@@ -10,7 +10,6 @@ import net.createmod.catnip.lang.LangBuilder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
@@ -22,7 +21,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class GyroscopicPropellerBearingBlock extends BearingBlock implements IBE<GyroscopicPropellerBearingBlockEntity>, CustomStressImpactTooltipProvider {
+public class GyroscopicPropellerBearingBlock extends BearingBlock implements dev.simulated_team.simulated.fabric.block.NativeWrenchable, NativeEntityBlock<GyroscopicPropellerBearingBlockEntity>, CustomStressImpactTooltipProvider {
     public GyroscopicPropellerBearingBlock(final Properties properties) {
         super(properties);
     }
@@ -42,14 +41,14 @@ public class GyroscopicPropellerBearingBlock extends BearingBlock implements IBE
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
+    protected InteractionResult useItemOn(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
         if (!player.mayBuild())
-            return ItemInteractionResult.FAIL;
+            return InteractionResult.FAIL;
         if (player.isShiftKeyDown())
-            return ItemInteractionResult.FAIL;
+            return InteractionResult.FAIL;
         if (stack.isEmpty()) {
-            if (level.isClientSide) {
-                return ItemInteractionResult.SUCCESS;
+            if (level.isClientSide()) {
+                return InteractionResult.SUCCESS;
             }
             this.withBlockEntityDo(level, pos, te -> {
                 if (te.isRunning()) {
@@ -60,17 +59,17 @@ public class GyroscopicPropellerBearingBlock extends BearingBlock implements IBE
                 te.setAssembleNextTick(true);
 
             });
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     @Override
     public InteractionResult onWrenched(final BlockState state, final UseOnContext context) {
-        final InteractionResult result = super.onWrenched(state, context);
+        final InteractionResult result = dev.simulated_team.simulated.fabric.block.NativeWrenchable.super.onWrenched(state, context);
 
         final Level level = context.getLevel();
-        if (level.isClientSide && result.consumesAction()) {
+        if (level.isClientSide() && result.consumesAction()) {
             final BlockState newState = this.getRotatedBlockState(state, context.getClickedFace());
             level.setBlock(context.getClickedPos(), newState, 2);
             this.withBlockEntityDo(context.getLevel(), context.getClickedPos(), be -> be.forceTilt(newState));
@@ -92,7 +91,19 @@ public class GyroscopicPropellerBearingBlock extends BearingBlock implements IBE
 
     @Override
     public BlockEntityType<? extends GyroscopicPropellerBearingBlockEntity> getBlockEntityType() {
-        return AeroBlockEntityTypes.GYROSCOPIC_PROPELLER_BEARING.get();
+        return AeroBlockEntityTypes.GYROSCOPIC_PROPELLER_BEARING;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }
 

@@ -12,7 +12,7 @@ import net.minecraft.world.phys.Vec3;
 public class ColoredValueSlotInstruction extends PonderInstruction {
 
     public ColoredValueSlotInstruction(final SceneBuilder scene, final Vec3 location, final Direction side, final Vec3 rotation, final PonderPalette color, final int duration) {
-        final Vec3 vec = location.add(Vec3.atLowerCornerOf(side.getNormal())
+        final Vec3 vec = location.add(Vec3.atLowerCornerOf(side.getUnitVec3i())
                 .scale(-3 / 128f));
         final Vec3 expands = VecHelper.axisAlingedPlaneOf(side)
                 .scale(11 / 128f);

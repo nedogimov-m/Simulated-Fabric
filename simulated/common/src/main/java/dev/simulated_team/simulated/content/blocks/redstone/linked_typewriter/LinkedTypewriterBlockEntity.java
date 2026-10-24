@@ -66,7 +66,7 @@ public class LinkedTypewriterBlockEntity extends SmartBlockEntity implements Men
         assert this.level != null;
         this.entryMap.updateNetworks(this.level);
 
-        if (!this.level.isClientSide) {
+        if (!this.level.isClientSide()) {
             if (this.getBlockState().getValue(LinkedTypewriterBlock.POWERED) != this.powered) {
                 this.level.setBlockAndUpdate(this.getBlockPos(), this.getBlockState().setValue(LinkedTypewriterBlock.POWERED, this.powered));
             }
@@ -113,10 +113,10 @@ public class LinkedTypewriterBlockEntity extends SmartBlockEntity implements Men
 
                 this.powered = true;
                 playerEx.simulated$setCurrentTypewriter(this.getBlockPos());
-                if (this.level.isClientSide) {
+                if (this.level.isClientSide()) {
                     LinkedTypewriterInteractionHandler.associateTypewriter(this);
                 } else {
-                    this.level.playSound(null, this.worldPosition, AllSoundEvents.CONTROLLER_PUT.getMainEvent(), SoundSource.BLOCKS, 1.0F, 0.95F + 0.1F * this.level.getRandom().nextFloat());
+                    this.level.playSound(null, this.worldPosition, AllSoundEvents.CONTROLLER_PUT, SoundSource.BLOCKS, 1.0F, 0.95F + 0.1F * this.level.getRandom().nextFloat());
                     this.sendConnectMessage(player);
                 }
 
@@ -129,12 +129,12 @@ public class LinkedTypewriterBlockEntity extends SmartBlockEntity implements Men
 
     public void sendConnectMessage(final Player player) {
         final Component customName = this.components().getOrDefault(DataComponents.CUSTOM_NAME, SimLang.translate("linked_typewriter.title").component());
-        player.displayClientMessage(SimLang.translate("linked_typewriter.start_controlling", customName.getString()).component(), true);
+        player.sendOverlayMessage(SimLang.translate("linked_typewriter.start_controlling", customName.getString()).component());
     }
 
     public void sendDisconnectMessage(final Player player) {
         final Component customName = this.components().getOrDefault(DataComponents.CUSTOM_NAME, SimLang.translate("linked_typewriter.title").component());
-        player.displayClientMessage(SimLang.translate("linked_typewriter.stop_controlling", customName.getString()).component(), true);
+        player.sendOverlayMessage(SimLang.translate("linked_typewriter.stop_controlling", customName.getString()).component());
     }
 
     public boolean checkUser(final UUID user) {
@@ -149,7 +149,7 @@ public class LinkedTypewriterBlockEntity extends SmartBlockEntity implements Men
      * Disconnects the current user.
      */
     public void disconnectUser() {
-        if (!this.level.isClientSide) {
+        if (!this.level.isClientSide()) {
             this.pressedKeys.clear();
             this.entryMap.deactivateAll();
             this.setChanged();
@@ -203,13 +203,7 @@ public class LinkedTypewriterBlockEntity extends SmartBlockEntity implements Men
      */
     public void pressKey(final int key) {
         this.pressedKeys.add(key);
-        if (key == 259) {
-            if (!this.typedEntry.isEmpty()) {
-                this.typedEntry = this.typedEntry.substring(0, this.typedEntry.length() - 1);
-            }
-        } else {
-            this.typedEntry = this.typedEntry + ((char) key);
-        }
+        this.typedEntry = dev.simulated_team.simulated.util.KeyboardScanCodes.editLegacyText(this.typedEntry, key);
         if (this.typedEntry.length() >= 25) {
             this.typedEntry = this.typedEntry.substring(1);
         }
@@ -231,28 +225,24 @@ public class LinkedTypewriterBlockEntity extends SmartBlockEntity implements Men
     }
 
     @Override
-    protected void write(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(tag, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput tag, final boolean clientPacket) {
+        super.write(tag, clientPacket);
 
         tag.putString("typedEntry", this.typedEntry);
-        tag.put("Keys", this.entryMap.saveKeys(registries));
+        this.entryMap.writeKeys(tag, "Keys");
 
         if (this.currentUser != null) {
-            tag.putUUID("CurrentUser", this.currentUser);
+            tag.store("CurrentUser", net.minecraft.core.UUIDUtil.CODEC, this.currentUser);
         }
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(tag, registries, clientPacket);
+    protected void read(final net.minecraft.world.level.storage.ValueInput tag, final boolean clientPacket) {
+        super.read(tag, clientPacket);
 
-        this.typedEntry = tag.getString("typedEntry");
-        this.entryMap = LinkedTypewriterEntries.readKeys(registries, tag.getList("Keys", 10), this.getBlockPos());
-        if (tag.contains("CurrentUser")) {
-            this.currentUser = tag.getUUID("CurrentUser");
-        } else {
-            this.currentUser = null;
-        }
+        this.typedEntry = tag.getStringOr("typedEntry", "");
+        this.entryMap = LinkedTypewriterEntries.readKeys(tag, "Keys", this.getBlockPos());
+        this.currentUser = tag.read("CurrentUser", net.minecraft.core.UUIDUtil.CODEC).orElse(null);
     }
 
     public String getTypedEntry() {
@@ -284,7 +274,7 @@ public class LinkedTypewriterBlockEntity extends SmartBlockEntity implements Men
 
     @Override
     public Component getDisplayName() {
-        return SimBlocks.LINKED_TYPEWRITER.get().getName();
+        return SimBlocks.LINKED_TYPEWRITER.getName();
     }
 
     @Override
@@ -303,7 +293,7 @@ public class LinkedTypewriterBlockEntity extends SmartBlockEntity implements Men
         if (simulate) {
             return true;
         }
-        this.entryMap = LinkedTypewriterEntries.readKeys(registries, tag.getList("Keys", 10), this.getBlockPos());
+        this.entryMap = LinkedTypewriterEntries.readKeys(registries, tag.getListOrEmpty("Keys"), this.getBlockPos());
         return true;
     }
 

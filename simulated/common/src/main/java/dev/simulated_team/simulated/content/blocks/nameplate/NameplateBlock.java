@@ -2,18 +2,17 @@ package dev.simulated_team.simulated.content.blocks.nameplate;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
-import com.simibubi.create.foundation.block.IBE;
-import com.tterrag.registrate.util.entry.BlockEntry;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.api.block.BlockSubLevelAssemblyListener;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.index.SimBlockShapes;
 import dev.simulated_team.simulated.index.SimBlocks;
-import net.createmod.catnip.placement.IPlacementHelper;
-import net.createmod.catnip.placement.PlacementHelpers;
-import net.createmod.catnip.placement.PlacementOffset;
+import dev.simulated_team.simulated.api.AssistedPlacement.Helper;
+import dev.simulated_team.simulated.api.AssistedPlacement;
+import dev.simulated_team.simulated.api.AssistedPlacement.Offset;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -22,7 +21,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.DyeColor;
@@ -53,12 +52,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Predicate;
 
-public class NameplateBlock extends HorizontalDirectionalBlock implements IBE<NameplateBlockEntity>, IWrenchable, BlockSubLevelAssemblyListener {
+public class NameplateBlock extends HorizontalDirectionalBlock implements NativeEntityBlock<NameplateBlockEntity>, NativeWrenchable, BlockSubLevelAssemblyListener {
 
     public static final EnumProperty<Position> POSITION = EnumProperty.create("position", Position.class);
-    public static final MapCodec<NameplateBlock> CODEC = RecordCodecBuilder.mapCodec((instance) -> instance.group(propertiesCodec(), DyeColor.CODEC.fieldOf("DyeColor").forGetter(NameplateBlock::getColor)).apply(instance, NameplateBlock::new));
 
-    private static final int placementHelperId = PlacementHelpers.register(new PlacementHelper());
+    private static final int placementHelperId = AssistedPlacement.register(new PlacementHelper());
 
     protected final DyeColor color;
 
@@ -123,11 +121,11 @@ public class NameplateBlock extends HorizontalDirectionalBlock implements IBE<Na
         return SimBlockShapes.NAMEPLATE.get(pState.getValue(FACING));
     }
 
-    public Position getPositionState(final LevelAccessor level, final BlockPos pos, final Direction facing) {
+    public Position getPositionState(final net.minecraft.world.level.LevelReader level, final BlockPos pos, final Direction facing) {
         Position outPos = Position.SINGLE;
 
-        final BlockState leftState = level.getBlockState(pos.offset(facing.getClockWise(Direction.Axis.Y).getNormal()));
-        final BlockState rightState = level.getBlockState(pos.offset(facing.getCounterClockWise(Direction.Axis.Y).getNormal()));
+        final BlockState leftState = level.getBlockState(pos.offset(facing.getClockWise(Direction.Axis.Y).getUnitVec3i()));
+        final BlockState rightState = level.getBlockState(pos.offset(facing.getCounterClockWise(Direction.Axis.Y).getUnitVec3i()));
 
         final boolean left = leftState.getBlock() instanceof final NameplateBlock npb && npb.getColor() == this.getColor();
         final boolean right = rightState.getBlock() instanceof final NameplateBlock npb && npb.getColor() == this.getColor();
@@ -149,20 +147,20 @@ public class NameplateBlock extends HorizontalDirectionalBlock implements IBE<Na
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
+    protected InteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
         if (!player.isShiftKeyDown() && player.mayBuild()) {
-            final IPlacementHelper placementHelper = PlacementHelpers.get(placementHelperId);
+            final Helper placementHelper = AssistedPlacement.get(placementHelperId);
             if (itemStack.getItem() instanceof final BlockItem bi && blockState.is(bi.getBlock()) && placementHelper.matchesItem(itemStack)) {
-                final ItemInteractionResult result = placementHelper.getOffset(player, level, blockState, blockPos, blockHitResult)
+                final InteractionResult result = placementHelper.getOffset(player, level, blockState, blockPos, blockHitResult, itemStack)
                         .placeInWorld(level, (BlockItem) itemStack.getItem(), player, interactionHand, blockHitResult);
-                if (result == ItemInteractionResult.SUCCESS) {
-                    return ItemInteractionResult.SUCCESS;
+                if (result == InteractionResult.SUCCESS) {
+                    return InteractionResult.SUCCESS;
                 }
             }
         }
 
         if (player.isShiftKeyDown()) {
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
 
         final ItemStack heldItem = player.getItemInHand(interactionHand);
@@ -175,15 +173,14 @@ public class NameplateBlock extends HorizontalDirectionalBlock implements IBE<Na
 
                     final SignBlockEntity dummySign = new SignBlockEntity(blockPos, Blocks.OAK_SIGN.defaultBlockState());
                     dummySign.setLevel(controller.getLevel());
-                    SignText text = dummySign.getFrontText()
-                            .setMessage(0, Component.literal(controller.getName()))
-                            .setColor(controller.getTextColor())
-                            .setHasGlowingText(controller.glowing);
-                    dummySign.setText(text, true);
+                    final java.util.List<Component> messages = java.util.List.of(Component.literal(controller.getName() == null ? "" : controller.getName()),
+                            Component.empty(), Component.empty(), Component.empty());
+                    SignText text = new SignText(messages, messages, controller.getTextColor(), controller.glowing);
+                    dummySign.setText(text, net.minecraft.world.level.block.entity.SignTextSlot.FRONT);
                     dummySign.setWaxed(controller.waxed);
 
-                    if (signApplicator.canApplyToSign(text, player) && signApplicator.tryApplyToSign(controller.getLevel(), dummySign, true, player)) {
-                        text = dummySign.getFrontText();
+                    if (signApplicator.canApplyToSign(text, itemStack, player) && signApplicator.tryApplyToSign(controller.getLevel(), dummySign, net.minecraft.world.level.block.entity.SignTextSlot.FRONT, itemStack, player)) {
+                        text = dummySign.getText(net.minecraft.world.level.block.entity.SignTextSlot.FRONT);
                         controller.setTextColor(text.getColor(), true);
                         controller.glowing = text.hasGlowingText();
                         controller.waxed = dummySign.isWaxed();
@@ -193,10 +190,10 @@ public class NameplateBlock extends HorizontalDirectionalBlock implements IBE<Na
                     nbe.sendData();
                 }
             });
-            return success.booleanValue() ? ItemInteractionResult.SUCCESS : ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return success.booleanValue() ? InteractionResult.SUCCESS : InteractionResult.TRY_WITH_EMPTY_HAND;
         }
 
-        if (level.isClientSide) {
+        if (level.isClientSide()) {
             this.withBlockEntityDo(level, blockPos, nbe -> {
                 final NameplateBlockEntity controller = nbe.findController();
                 if(!controller.waxed) {
@@ -207,19 +204,17 @@ public class NameplateBlock extends HorizontalDirectionalBlock implements IBE<Na
             });
         }
 
-        return ItemInteractionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
 
     @Override
-    public void neighborChanged(final BlockState state, final Level level, final BlockPos selfPos, final Block neighborBlock, final BlockPos neighborPos, final boolean pMovedByPiston) {
-        super.neighborChanged(state, level, selfPos, neighborBlock, neighborPos, pMovedByPiston);
+    public void neighborChanged(final BlockState state, final Level level, final BlockPos selfPos, final Block neighborBlock,final net.minecraft.world.level.redstone.Orientation orientation, final boolean pMovedByPiston) {
+        super.neighborChanged(state, level, selfPos, neighborBlock, orientation, pMovedByPiston);
         if (level.getBlockEntity(selfPos) instanceof NameplateBlockEntity nbe) {
 
-            if (neighborPos.equals(selfPos.relative(state.getValue(FACING).getClockWise(Direction.Axis.Y)))) {
-                nbe.checkAndUpdateController(this.color, state.getValue(FACING));
-            } else {
-                nbe.findController().checkAndUpdateController(this.color, state.getValue(FACING));
-            }
+            nbe.checkAndUpdateController(this.color, state.getValue(FACING));
+            final var controller = nbe.findController();
+            if (controller != nbe) controller.checkAndUpdateController(this.color, state.getValue(FACING));
 
             if (!NameplateBlockEntity.hasSupport(nbe)) {
                 level.destroyBlock(selfPos, true);
@@ -228,9 +223,9 @@ public class NameplateBlock extends HorizontalDirectionalBlock implements IBE<Na
     }
 
     @Override
-    public BlockState updateShape(final BlockState pState, final Direction pDirection, final BlockState pNeighborState, final LevelAccessor pLevel, final BlockPos pPos, final BlockPos pNeighborPos) {
+    public BlockState updateShape(final BlockState pState, final net.minecraft.world.level.LevelReader pLevel, final net.minecraft.world.level.ScheduledTickAccess tickAccess, final BlockPos pPos, final Direction pDirection, final BlockPos pNeighborPos, final BlockState pNeighborState, final net.minecraft.util.RandomSource random) {
         final Position posState = this.getPositionState(pLevel, pPos, pState.getValue(FACING));
-        return super.updateShape(pState, pDirection, pNeighborState, pLevel, pPos, pNeighborPos).setValue(POSITION, posState);
+        return super.updateShape(pState, pLevel, tickAccess, pPos, pDirection, pNeighborPos, pNeighborState, random).setValue(POSITION, posState);
     }
 
     @Override
@@ -240,17 +235,13 @@ public class NameplateBlock extends HorizontalDirectionalBlock implements IBE<Na
 
     @Override
     public BlockEntityType<? extends NameplateBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.NAMEPLATE.get();
+        return SimBlockEntityTypes.NAMEPLATE;
     }
 
     public DyeColor getColor() {
         return this.color;
     }
 
-    @Override
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-        return CODEC;
-    }
 
     @Override
     public void afterMove(final ServerLevel serverLevel, final ServerLevel resultingLevel, final BlockState blockState, final BlockPos oldPos, final BlockPos newPos) {
@@ -274,12 +265,12 @@ public class NameplateBlock extends HorizontalDirectionalBlock implements IBE<Na
         }
     }
 
-    private static class PlacementHelper implements IPlacementHelper {
+    private static class PlacementHelper implements Helper {
         @Override
         public Predicate<ItemStack> getItemPredicate() {
             return stack -> {
-                for (final BlockEntry<NameplateBlock> nameplate : SimBlocks.NAMEPLATES) {
-                    if (nameplate.is(stack.getItem())) {
+                for (final NameplateBlock nameplate : SimBlocks.NAMEPLATES) {
+                    if (stack.is(nameplate.asItem())) {
                         return true;
                     }
                 }
@@ -290,8 +281,8 @@ public class NameplateBlock extends HorizontalDirectionalBlock implements IBE<Na
         @Override
         public Predicate<BlockState> getStatePredicate() {
             return state -> {
-                for (final BlockEntry<NameplateBlock> nameplate : SimBlocks.NAMEPLATES) {
-                    if (nameplate.has(state)) {
+                for (final NameplateBlock nameplate : SimBlocks.NAMEPLATES) {
+                    if (state.is(nameplate)) {
                         return true;
                     }
                 }
@@ -300,18 +291,18 @@ public class NameplateBlock extends HorizontalDirectionalBlock implements IBE<Na
         }
 
         @Override
-        public PlacementOffset getOffset(final Player player, final Level world, final BlockState state, final BlockPos pos, final BlockHitResult ray, final ItemStack heldItem) {
+        public Offset getOffset(final Player player, final Level world, final BlockState state, final BlockPos pos, final BlockHitResult ray, final ItemStack heldItem) {
             if (heldItem.getItem() instanceof final BlockItem bi) {
                 if (state.is(bi.getBlock())) {
-                    return IPlacementHelper.super.getOffset(player, world, state, pos, ray, heldItem);
+                    return Helper.super.getOffset(player, world, state, pos, ray, heldItem);
                 }
             }
-            return PlacementOffset.fail();
+            return Offset.fail();
         }
 
         @Override
-        public PlacementOffset getOffset(final Player player, final Level level, final BlockState blockState, final BlockPos blockPos, final BlockHitResult blockHitResult) {
-            final List<Direction> directions = IPlacementHelper.orderedByDistance(blockPos, blockHitResult.getLocation(), dir -> {
+        public Offset getOffset(final Player player, final Level level, final BlockState blockState, final BlockPos blockPos, final BlockHitResult blockHitResult) {
+            final List<Direction> directions = Helper.orderedByDistance(blockPos, blockHitResult.getLocation(), dir -> {
                 if (dir.getAxis() != blockState.getValue(FACING).getClockWise().getAxis()) {
                     return false;
                 }
@@ -319,11 +310,23 @@ public class NameplateBlock extends HorizontalDirectionalBlock implements IBE<Na
                 return level.getBlockState(relPos).canBeReplaced() && blockState.canSurvive(level, relPos);
             });
             if (directions.isEmpty())
-                return PlacementOffset.fail();
+                return Offset.fail();
             else {
-                return PlacementOffset.success(blockPos.relative(directions.getFirst()),
+                return Offset.success(blockPos.relative(directions.getFirst()),
                         s -> s.setValue(FACING, blockState.getValue(FACING)));
             }
         }
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

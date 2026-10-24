@@ -1,182 +1,75 @@
 package dev.simulated_team.simulated.content.blocks.portable_engine;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 import com.simibubi.create.AllPartialModels;
-import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
-import com.simibubi.create.foundation.blockEntity.behaviour.filtering.FilteringRenderer;
+import dev.simulated_team.simulated.fabric.registry.NativePartsRenderer;
+import dev.simulated_team.simulated.fabric.registry.NativePartTransforms;
 import dev.simulated_team.simulated.index.SimPartialModels;
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.math.AngleHelper;
-import net.createmod.catnip.render.CachedBuffers;
-import net.createmod.catnip.render.SuperByteBuffer;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.fabricmc.fabric.api.client.model.loading.v1.ExtraModelKey;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.RedstoneTorchBlock;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import org.joml.Vector3f;
 
-public class PortableEngineRenderer extends KineticBlockEntityRenderer<PortableEngineBlockEntity> {
-
-    public PortableEngineRenderer(final BlockEntityRendererProvider.Context context) {
-        super(context);
+/** Source hatch, independent pipe/outlet pulses, heated overlays and current rotating shaft. */
+public final class PortableEngineRenderer extends NativePartsRenderer<PortableEngineBlockEntity> {
+    private static final int FULL_BRIGHT=0xF000F0;
+    public PortableEngineRenderer(BlockEntityRendererProvider.Context context) { }
+    protected static float getHatchOpenProgress(PortableEngineBlockEntity entity,float partial) {
+        return Mth.sin(entity.getHatchOpenTime(partial)/10*Mth.HALF_PI);
     }
-
-    protected static float getHatchOpenProgress(final PortableEngineBlockEntity engine, final float partialTicks) {
-        return Mth.sin(engine.getHatchOpenTime(partialTicks) / 10 * Mth.HALF_PI);
-    }
-
-    @Override
-    protected void renderSafe(final PortableEngineBlockEntity be, final float partialTicks, final PoseStack ms, final MultiBufferSource buffer,
-                              final int light, final int overlay) {
-        final BlockState state = this.getRenderedBlockState(be);
-        final RenderType type = this.getRenderType(be, state);
-        renderRotatingBuffer(be, this.getRotatedModel(be, state), ms, buffer.getBuffer(type), light);
-
-        FilteringRenderer.renderOnBlockEntity(be, partialTicks, ms, buffer, light, overlay);
-        final VertexConsumer cutout = buffer.getBuffer(RenderType.cutout());
-
-        final Direction direction = be.getBlockState()
-                .getValue(BlockStateProperties.HORIZONTAL_FACING);
-        final BlockState blockState = be.getBlockState();
-
-        SimPartialModels.EngineParts engineParts = SimPartialModels.ENGINE_PARTS;
-
-        final float visualStrength = be.visualStrength.getValue(partialTicks);
-
-        final boolean lit = blockState.getValue(RedstoneTorchBlock.LIT);
-        this.renderHatch(be, partialTicks, ms, light, blockState, direction, cutout, 255, engineParts, !lit, false);
-        this.renderPipes(be, partialTicks, ms, light, blockState, direction, cutout, 255, engineParts, false);
-
-        final float hatchOpenProgress = 1.0f - getHatchOpenProgress(be, partialTicks);
-        if (visualStrength > 0) {
-            final VertexConsumer translucent = buffer.getBuffer(RenderType.translucent());
-            engineParts = be.isSuperHeated() ? SimPartialModels.ENGINE_PARTS_SUPERHEATED : SimPartialModels.ENGINE_PARTS_HEATED;
-
-            this.renderPipes(be, partialTicks, ms, LightTexture.FULL_BRIGHT, blockState, direction, translucent, (int) (visualStrength * 255), engineParts, true);
+    @Override protected void extractParts(PortableEngineBlockEntity entity,float partial,Parts parts) {
+        final var state=entity.getBlockState();final var facing=state.getValue(BlockStateProperties.HORIZONTAL_FACING);
+        final var shaft=rotating(entity,partial,rotationAxis(entity));NativePartTransforms.partialFacing(shaft,facing);parts.add(AllPartialModels.SHAFT_HALF,shaft);
+        final float heat=entity.visualStrength.getValue(partial);final float hatch=getHatchOpenProgress(entity,partial);
+        final boolean lit=state.getValue(BlockStateProperties.LIT);
+        var models=SimPartialModels.ENGINE_PARTS;
+        hatch(entity,parts,facing,models,hatch,255,!lit,false,parts.light());
+        pipes(entity,parts,facing,models,partial,255,false,parts.light());
+        if(heat>0) {
+            models=entity.isSuperHeated()?SimPartialModels.ENGINE_PARTS_SUPERHEATED:SimPartialModels.ENGINE_PARTS_HEATED;
+            pipes(entity,parts,facing,models,partial,(int)(heat*255),true,FULL_BRIGHT);
         }
-
-        if (lit) {
-            final VertexConsumer translucent = buffer.getBuffer(RenderType.translucent());
-            this.renderHatch(be, partialTicks, ms, LightTexture.FULL_BRIGHT, blockState, direction, translucent, (int) (hatchOpenProgress * 255), engineParts, lit, true);
-        }
+        if(lit)hatch(entity,parts,facing,models,hatch,(int)((1-hatch)*255),true,true,FULL_BRIGHT);
+        // The unchanged Create native global behaviour renderer owns filtering/value boxes.
     }
-
-    private void renderHatch(final PortableEngineBlockEntity be, final float partialTicks, final PoseStack ms, final int light, final BlockState blockState, final Direction direction, final VertexConsumer consumer, final int alpha, final SimPartialModels.EngineParts parts, final boolean renderInner, boolean lit) {
-        if (be.isVirtual()) lit = false;
-
-        final double hatchPivotY = 4.9f / 16.0f;
-        final double hatchPivotZ = 3.7f / 16.0f;
-
-        final float hatchOpenAmount = getHatchOpenProgress(be, partialTicks) * 0.65f;
-
-        final SuperByteBuffer hatchBottom = this.rotateToFacing(CachedBuffers.partial(parts.hatchBottom, blockState), direction);
-        if (lit) hatchBottom.disableDiffuse();
-        hatchBottom
-                .translate(0.0f, hatchPivotY, hatchPivotZ)
-                .rotate(-hatchOpenAmount, Direction.EAST)
-                .translate(-0.0f, -hatchPivotY, -hatchPivotZ)
-                .light(light)
-                .color(255, 255, 255, alpha)
-                .renderInto(ms, consumer);
-
-        final SuperByteBuffer hatchTop = this.rotateToFacing(CachedBuffers.partial(parts.hatchTop, blockState), direction);
-        if (lit) hatchTop.disableDiffuse();
-        hatchTop
-                .light(light)
-                .color(255, 255, 255, alpha)
-                .renderInto(ms, consumer);
-
-        if (renderInner) {
-            final SuperByteBuffer mouth = this.rotateToFacing(CachedBuffers.partial(parts.mouth, blockState), direction.getOpposite());
-            if (lit) mouth.disableDiffuse();
-            mouth
-                    .light(light)
-                    .renderInto(ms, consumer);
+    private static PoseStack facing(Direction facing) {
+        final var pose=new PoseStack();rotateCentered(pose,Direction.Axis.Y,AngleHelper.horizontalAngle(facing));return pose;
+    }
+    private static void add(Parts parts,ExtraModelKey<BlockStateModel> model,PoseStack pose,int alpha,boolean overlay,boolean emissive,int light) {
+        parts.add(model,pose,(alpha<<24)|0xFFFFFF,overlay?ChunkSectionLayer.TRANSLUCENT:ChunkSectionLayer.CUTOUT,emissive,light);
+    }
+    private static void hatch(PortableEngineBlockEntity entity,Parts parts,Direction facing,SimPartialModels.EngineParts models,
+                              float progress,int alpha,boolean inner,boolean overlay,int light) {
+        final boolean emissive=overlay&&!entity.isVirtual();
+        final var bottom=facing(facing);bottom.translate(0,4.9f/16,3.7f/16);bottom.rotate(Axis.XP.rotation(-progress*.65f));bottom.translate(0,-4.9f/16,-3.7f/16);
+        add(parts,models.hatchBottom,bottom,alpha,overlay,emissive,light);
+        add(parts,models.hatchTop,facing(facing),alpha,overlay,emissive,light);
+        if(inner)add(parts,models.mouth,facing(facing.getOpposite()),255,overlay,emissive,light);
+    }
+    private static void pipes(PortableEngineBlockEntity entity,Parts parts,Direction facing,SimPartialModels.EngineParts models,
+                              float partial,int alpha,boolean overlay,int light) {
+        final float time=AnimationTickHolder.getRenderTime(entity.getLevel())/20;
+        final float strength=.03f*entity.visualStrength.getValue(partial);
+        final float pipeScale=(float)(Math.max(Math.sin(time*7)+.65,0)-.65)*strength*1.1f+1;
+        final float outletScale=(float)(Math.max(Math.sin(time*7-1.15)+.65,0)-.65)*strength+1;
+        final boolean emissive=overlay&&!entity.isVirtual();
+        for(boolean right:new boolean[]{true,false}) {
+            final float centerX=(right?14:2)/16f;
+            final var pipe=facing(facing);scaleAbout(pipe,centerX,10/16f,8/16f,pipeScale);
+            add(parts,right?models.pipeRight:models.pipeLeft,pipe,alpha,overlay,emissive,light);
+            final var outlet=facing(facing);scaleAbout(outlet,centerX,10/16f,8/16f,outletScale);
+            final float pivotX=(right?13.6f:2.2f)/16;
+            outlet.translate(pivotX,10.2f/16,11/16f);outlet.rotate(Axis.YP.rotationDegrees(right?-7.5f:7.5f));outlet.translate(-pivotX,-10.2f/16,-11/16f);
+            add(parts,right?models.outletRight:models.outletLeft,outlet,alpha,overlay,emissive,light);
         }
     }
-
-    private void renderPipes(final PortableEngineBlockEntity be, final float partialTicks, final PoseStack ms, final int light, final BlockState blockState, final Direction direction, final VertexConsumer consumer, final int alpha, final SimPartialModels.EngineParts parts, boolean lit) {
-        final float renderTime = AnimationTickHolder.getRenderTime(be.getLevel()) / 20;
-
-        final double pulseTime = renderTime * 7.0;
-        final double clipHeight = 0.65;
-        final float pulseStrength = 0.03f * be.visualStrength.getValue(partialTicks);
-        final float pipePulseStrength = pulseStrength * 1.1f;
-
-        final float pipeScale = (float) (Math.max(Math.sin(pulseTime) + clipHeight, 0.0) - clipHeight) * pipePulseStrength + 1.0f;
-        final float outletScale = (float) (Math.max(Math.sin(pulseTime - 1.15) + clipHeight, 0.0) - clipHeight) * pulseStrength + 1.0f;
-
-        final Vector3f outletRotationPointLeft = new Vector3f(2.2f, 10.2f, 11.0f).div(16.0f);
-        final Vector3f outletRotationPointRight = new Vector3f(13.6f, 10.2f, 11.0f).div(16.0f);
-
-        final float outletRotation = (float) Math.toRadians(7.5);
-
-        final Vector3f pipeCenterRight = new Vector3f(14.0f, 10.0f, 8.0f).div(16.0f);
-        final Vector3f pipeCenterLeft = new Vector3f(16.0f - 14.0f, 10.0f, 8.0f).div(16.0f);
-
-        if (be.isVirtual()) lit = false;
-
-        final SuperByteBuffer pipeRight = this.rotateToFacing(CachedBuffers.partial(parts.pipeRight, blockState), direction);
-        if (lit) pipeRight.disableDiffuse();
-        pipeRight
-                .translate(pipeCenterRight)
-                .scale(pipeScale)
-                .translateBack(pipeCenterRight)
-                .light(light)
-                .color(255, 255, 255, alpha)
-                .renderInto(ms, consumer);
-
-        final SuperByteBuffer outletRight = this.rotateToFacing(CachedBuffers.partial(parts.outletRight, blockState), direction);
-        if (lit) outletRight.disableDiffuse();
-        outletRight
-                .translate(pipeCenterRight)
-                .scale(outletScale)
-                .translateBack(pipeCenterRight)
-                .translate(outletRotationPointRight)
-                .rotateY(-outletRotation)
-                .translateBack(outletRotationPointRight)
-                .light(light)
-                .color(255, 255, 255, alpha)
-                .renderInto(ms, consumer);
-
-        final SuperByteBuffer pipeLeft = this.rotateToFacing(CachedBuffers.partial(parts.pipeLeft, blockState), direction);
-        if (lit) pipeLeft.disableDiffuse();
-        pipeLeft
-                .translate(pipeCenterLeft)
-                .scale(pipeScale)
-                .translateBack(pipeCenterLeft)
-                .light(light)
-                .color(255, 255, 255, alpha)
-                .renderInto(ms, consumer);
-
-        final SuperByteBuffer outletLeft = this.rotateToFacing(CachedBuffers.partial(parts.outletLeft, blockState), direction);
-        if (lit) outletLeft.disableDiffuse();
-        outletLeft
-                .translate(pipeCenterLeft)
-                .scale(outletScale)
-                .translateBack(pipeCenterLeft)
-                .translate(outletRotationPointLeft)
-                .rotateY(outletRotation)
-                .translateBack(outletRotationPointLeft)
-                .light(light)
-                .color(255, 255, 255, alpha)
-                .renderInto(ms, consumer);
-    }
-
-    @Override
-    protected SuperByteBuffer getRotatedModel(final PortableEngineBlockEntity te, final BlockState state) {
-        return CachedBuffers.partialFacing(AllPartialModels.SHAFT_HALF, te.getBlockState(), te.getBlockState()
-                .getValue(BlockStateProperties.HORIZONTAL_FACING));
-    }
-
-    protected SuperByteBuffer rotateToFacing(final SuperByteBuffer buffer, final Direction facing) {
-        buffer.rotateCentered(AngleHelper.rad(AngleHelper.horizontalAngle(facing)), Direction.UP);
-        return buffer;
+    private static void scaleAbout(PoseStack pose,float x,float y,float z,float scale) {
+        pose.translate(x,y,z);pose.scale(scale,scale,scale);pose.translate(-x,-y,-z);
     }
 }

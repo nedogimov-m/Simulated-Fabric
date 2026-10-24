@@ -7,7 +7,7 @@ import dev.simulated_team.simulated.util.SimCodecUtil;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.ExtraCodecs;
 import net.minecraft.world.item.Item;
@@ -45,7 +45,7 @@ public record SearchAlias(List<String> terms, List<ExtraCodecs.TagOrElementLocat
                     return true;
                 }
             } else {
-                ResourceLocation key = BuiltInRegistries.ITEM.getKey(stack.getItem());
+                Identifier key = BuiltInRegistries.ITEM.getKey(stack.getItem());
                 if(key.equals(result.id())) {
                     return true;
                 }
@@ -59,7 +59,7 @@ public record SearchAlias(List<String> terms, List<ExtraCodecs.TagOrElementLocat
         for (ExtraCodecs.TagOrElementLocation result : this.results()) {
             if(result.tag()) {
                 TagKey<Item> tag = TagKey.create(Registries.ITEM, result.id());
-                BuiltInRegistries.ITEM.getTag(tag).ifPresent(set -> {
+                BuiltInRegistries.ITEM.get(tag).ifPresent(set -> {
                     for (Holder<Item> holder : set) {
                         if(holder.isBound()) {
                             list.add(holder.value().getDefaultInstance());
@@ -67,7 +67,7 @@ public record SearchAlias(List<String> terms, List<ExtraCodecs.TagOrElementLocat
                     }
                 });
             } else {
-                Item item = BuiltInRegistries.ITEM.get(result.id());
+                Item item = BuiltInRegistries.ITEM.getValue(result.id());
                 list.add(item.getDefaultInstance());
             }
         }

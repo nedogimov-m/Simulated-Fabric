@@ -2,14 +2,15 @@ package dev.simulated_team.simulated.multiloader.tanks;
 
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.DataResult;
-import dev.simulated_team.simulated.Simulated;
+import com.mojang.logging.LogUtils;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.FlowingFluid;
 import net.minecraft.world.level.material.Fluids;
 
 /**
@@ -17,7 +18,7 @@ import net.minecraft.world.level.material.Fluids;
  */
 public record CFluidType(Fluid fluid, DataComponentPatch data) {
     public boolean isBlank() {
-        return this.equals(BLANK);
+        return this.fluid == Fluids.EMPTY;
     }
 
     public static final CFluidType BLANK = new CFluidType(Fluids.EMPTY, DataComponentPatch.EMPTY);
@@ -28,7 +29,7 @@ public record CFluidType(Fluid fluid, DataComponentPatch data) {
 
         final DataResult<Tag> result = DataComponentPatch.CODEC.encodeStart(NbtOps.INSTANCE, this.data);
         if (result.isError()) {
-            Simulated.LOGGER.warn(result.error().get().message());
+            LogUtils.getLogger().warn(result.error().get().message());
         } else {
             tag.put("data", result.result().get());
         }
@@ -37,12 +38,19 @@ public record CFluidType(Fluid fluid, DataComponentPatch data) {
     }
 
     public static CFluidType read(final CompoundTag tag) {
-        final Fluid fluid = BuiltInRegistries.FLUID.get(ResourceLocation.parse(tag.getString("Fluid")));
+        final Identifier id = Identifier.tryParse(tag.getStringOr("Fluid", ""));
+        if (id == null) {
+            return BLANK;
+        }
+        final Fluid fluid = BuiltInRegistries.FLUID.getValue(id);
+        if (fluid == Fluids.EMPTY) {
+            return BLANK;
+        }
         DataComponentPatch data = DataComponentPatch.EMPTY;
         if (tag.contains("data")) {
-            final DataResult<Pair<DataComponentPatch, Tag>> result = DataComponentPatch.CODEC.decode(NbtOps.INSTANCE, tag.getCompound("data"));
+            final DataResult<Pair<DataComponentPatch, Tag>> result = DataComponentPatch.CODEC.decode(NbtOps.INSTANCE, tag.getCompoundOrEmpty("data"));
             if (result.isError()) {
-                Simulated.LOGGER.warn(result.error().get().message());
+                LogUtils.getLogger().warn(result.error().get().message());
             } else {
                 data = result.result().get().getFirst();
             }
@@ -62,5 +70,11 @@ public record CFluidType(Fluid fluid, DataComponentPatch data) {
             return this.fluid.isSame(fluid1) && this.data.equals(data1);
         }
         return false;
+    }
+
+    @Override
+    public int hashCode() {
+        final Fluid canonical = this.fluid instanceof FlowingFluid flowing ? flowing.getSource() : this.fluid;
+        return 31 * canonical.hashCode() + this.data.hashCode();
     }
 }

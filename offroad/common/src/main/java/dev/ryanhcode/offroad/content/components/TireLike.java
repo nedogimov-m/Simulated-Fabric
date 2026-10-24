@@ -4,28 +4,28 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.simibubi.create.Create;
 import dev.ryanhcode.offroad.Offroad;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 import java.util.function.Function;
 
-public record TireLike(float radius, Vec3 rotation, Vec3 offset, Optional<ResourceLocation> model, float minimumFriction) {
+public record TireLike(float radius, Vec3 rotation, Vec3 offset, Optional<Identifier> model, float minimumFriction) {
     public static final Codec<TireLike> CODEC = RecordCodecBuilder.create(
             i -> i.group(
                     Codec.FLOAT.optionalFieldOf("radius", 1.0f).forGetter(TireLike::radius),
                     Vec3.CODEC.optionalFieldOf("rotation", new Vec3(90, 0, 0)).forGetter(TireLike::rotation),
                     Vec3.CODEC.optionalFieldOf("offset", new Vec3(0, 0, 0)).forGetter(TireLike::offset),
-                    ResourceLocation.CODEC.optionalFieldOf("model").forGetter(TireLike::model),
+                    Identifier.CODEC.optionalFieldOf("model").forGetter(TireLike::model),
                     Codec.FLOAT.optionalFieldOf("minimumFriction", 0.0f).forGetter(TireLike::minimumFriction)
             ).apply(i, TireLike::new));
 
-    public TireLike(float radius, Vec3 rotation, Vec3 offset, @Nullable ResourceLocation model, float minimumFriction) {
+    public TireLike(float radius, Vec3 rotation, Vec3 offset, @Nullable Identifier model, float minimumFriction) {
         this(radius, rotation, offset, Optional.ofNullable(model), minimumFriction);
     }
 
-    public TireLike(float radius, Vec3 rotation, Vec3 offset, @Nullable ResourceLocation model) {
+    public TireLike(float radius, Vec3 rotation, Vec3 offset, @Nullable Identifier model) {
         this(radius, rotation, offset, Optional.ofNullable(model), 0.0f);
     }
 
@@ -33,7 +33,7 @@ public record TireLike(float radius, Vec3 rotation, Vec3 offset, Optional<Resour
         this(radius, new Vec3(90, 0, 0), new Vec3(0, 0, 0), Optional.empty(), 0.0f);
     }
 
-    public TireLike(final float radius, final ResourceLocation model) {
+    public TireLike(final float radius, final Identifier model) {
         this(radius, new Vec3(90, 0, 0), new Vec3(0, 0, 0), Optional.of(model), 0.0f);
     }
 

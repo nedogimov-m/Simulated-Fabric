@@ -1,7 +1,7 @@
 package dev.simulated_team.simulated.content.blocks.lasers.optical_sensor;
 
 import com.simibubi.create.content.redstone.DirectedDirectionalBlock;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.multiloader.CommonRedstoneBlock;
 import net.minecraft.core.BlockPos;
@@ -9,7 +9,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -26,7 +26,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.NotNull;
 
-public class OpticalSensorBlock extends DirectedDirectionalBlock implements IBE<OpticalSensorBlockEntity>, CommonRedstoneBlock  {
+public class OpticalSensorBlock extends DirectedDirectionalBlock implements NativeEntityBlock<OpticalSensorBlockEntity>, CommonRedstoneBlock  {
 
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
@@ -41,12 +41,12 @@ public class OpticalSensorBlock extends DirectedDirectionalBlock implements IBE<
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
+    protected InteractionResult useItemOn(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
         if (level.getBlockEntity(pos) instanceof final OpticalSensorBlockEntity be) {
             if (be.tryApplyDye(stack)) {
                 level.playLocalSound(pos.getX(), pos.getY(), pos.getZ(), SoundEvents.DYE_USE, SoundSource.PLAYERS,
                         0.3f, 1.0f, false);
-                return ItemInteractionResult.SUCCESS;
+                return InteractionResult.SUCCESS;
             }
         }
         return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
@@ -73,14 +73,6 @@ public class OpticalSensorBlock extends DirectedDirectionalBlock implements IBE<
     public boolean commonConnectRedstone(final BlockState state, final BlockGetter world, final BlockPos pos, final Direction side) {
         return side != state.getValue(FACING)
                 .getOpposite();
-    }
-
-    @Override
-    public void onRemove(final BlockState state, final @NotNull Level level, final @NotNull BlockPos pos, final @NotNull BlockState newState, final boolean isMoving) {
-        if (state.hasBlockEntity() && state.getBlock() != newState.getBlock()) {
-            IBE.onRemove(state, level, pos, newState);
-            level.removeBlockEntity(pos);
-        }
     }
 
     @Override
@@ -112,6 +104,18 @@ public class OpticalSensorBlock extends DirectedDirectionalBlock implements IBE<
 
     @Override
     public BlockEntityType<? extends OpticalSensorBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.OPTICAL_SENSOR.get();
+        return SimBlockEntityTypes.OPTICAL_SENSOR;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

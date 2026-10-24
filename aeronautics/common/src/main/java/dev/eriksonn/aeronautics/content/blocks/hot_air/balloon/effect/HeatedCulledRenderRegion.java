@@ -1,7 +1,11 @@
 package dev.eriksonn.aeronautics.content.blocks.hot_air.balloon.effect;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import com.mojang.renderpearl.api.vertex.VertexFormat;
+import dev.eriksonn.aeronautics.fabric.registry.NativeBalloonHeatPass;
+import foundry.veil.api.client.render.vertex.VertexArray;
 import dev.eriksonn.aeronautics.content.blocks.hot_air.balloon.Balloon;
 import dev.eriksonn.aeronautics.content.blocks.hot_air.balloon.graph.BalloonLayerData;
 import dev.eriksonn.aeronautics.content.blocks.hot_air.balloon.graph.BalloonLayerGraph;
@@ -11,11 +15,10 @@ import dev.ryanhcode.sable.companion.math.Pose3dc;
 import dev.ryanhcode.sable.render.region.SimpleCulledRenderRegionBuilder;
 import dev.ryanhcode.sable.sublevel.ClientSubLevel;
 import dev.ryanhcode.sable.util.LevelAccelerator;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
 import org.joml.Vector3i;
 import org.lwjgl.system.NativeResource;
@@ -26,7 +29,7 @@ import java.util.List;
 public class HeatedCulledRenderRegion implements NativeResource {
     private Balloon balloon;
     private boolean built = false;
-    private VertexBuffer buffer;
+    private VertexArray buffer;
     private Vec3 origin;
     private final LevelAccelerator accelerator;
 
@@ -35,48 +38,26 @@ public class HeatedCulledRenderRegion implements NativeResource {
         this.balloon = balloon;
     }
 
-    public void render(final Matrix4f modelView, final Matrix4f projectionMatrix) {
-        if (!this.built) {
-            this.build();
-        }
-
-        if (this.buffer == null) {
-            return;
-        }
-
-
-        final ShaderInstance shader = RenderSystem.getShader();
-        assert shader != null;
-
-        final Minecraft client = Minecraft.getInstance();
+    public NativeBalloonHeatPass.Geometry geometry(CommandEncoder encoder, Matrix4fc viewRotation, Vec3 camera, float cutoffY) {
+        if (!this.built) this.build(encoder);
+        if (this.buffer == null) return null;
         final ClientSubLevel subLevel = Sable.HELPER.getContainingClient(this.origin);
-
         Vec3 globalOrigin = this.origin;
         final Quaternionf globalOrientation = new Quaternionf();
-
         if (subLevel != null) {
             final Pose3dc renderPose = subLevel.renderPose();
             globalOrigin = renderPose.transformPosition(globalOrigin);
             globalOrientation.set(renderPose.orientation());
         }
-
-        final Vec3 relativePos = globalOrigin.subtract(client.gameRenderer.getMainCamera().getPosition());
-
-        final Matrix4f modelViewMatrix = new Matrix4f(modelView)
-                .setTranslation(0.0f, 0.0f, 0.0f)
+        final Vec3 relativePos = globalOrigin.subtract(camera);
+        final Matrix4f modelViewMatrix = new Matrix4f(viewRotation)
+                .setTranslation(0, 0, 0)
                 .translate((float) relativePos.x, (float) relativePos.y, (float) relativePos.z)
                 .rotate(globalOrientation);
-
-        shader.setDefaultUniforms(VertexFormat.Mode.QUADS, modelViewMatrix, projectionMatrix, client.getWindow());
-        shader.apply();
-
-        this.buffer.bind();
-        this.buffer.draw();
-
-        VertexBuffer.unbind();
+        return new NativeBalloonHeatPass.Geometry(this.buffer, modelViewMatrix, cutoffY);
     }
 
-    public void build() {
+    public void build(CommandEncoder encoder) {
         final BoundingBox3ic bounds = this.balloon.getBounds();
         final Vector3i minBlock = new Vector3i(bounds.minX(), bounds.minY(), bounds.minZ());
         final Vector3i maxBlock = new Vector3i(bounds.maxX(), bounds.maxY(), bounds.maxZ());
@@ -111,20 +92,19 @@ public class HeatedCulledRenderRegion implements NativeResource {
 
         builder.buildNoGreedy();
 
-        final BufferBuilder bufferBuilder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, this.getVertexFormat());
-        builder.render(new Matrix4f(), bufferBuilder);
-
-        this.balloon = null;
-        final MeshData builtData = bufferBuilder.build();
-
-        if (builtData != null) {
-            this.buffer = new VertexBuffer(VertexBuffer.Usage.STATIC);
-            this.buffer.bind();
-            this.buffer.upload(builtData);
-        } else {
-            this.buffer = null;
+        try (final ByteBufferBuilder cpu = new ByteBufferBuilder(4096)) {
+            final BufferBuilder bufferBuilder = new BufferBuilder(cpu, PrimitiveTopology.QUADS, this.getVertexFormat());
+            builder.render(new Matrix4f(), bufferBuilder);
+            final MeshData builtData = bufferBuilder.build();
+            if (builtData != null) {
+                final VertexArray mesh = VertexArray.create();
+                try {
+                    mesh.upload(encoder, builtData, VertexArray.DrawUsage.STATIC);
+                    this.buffer = mesh;
+                } catch (RuntimeException | Error failure) { mesh.close(); throw failure; }
+            }
         }
-
+        this.balloon = null;
         this.built = true;
     }
 
@@ -144,6 +124,7 @@ public class HeatedCulledRenderRegion implements NativeResource {
     public void free() {
         if (this.built && this.buffer != null) {
             this.buffer.close();
+            this.buffer = null;
         }
     }
 }

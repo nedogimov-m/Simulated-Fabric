@@ -2,7 +2,6 @@ package dev.simulated_team.simulated.multiloader.tanks;
 
 import dev.simulated_team.simulated.service.SimFluidService;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Tuple;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -14,13 +13,16 @@ public class SingleTank {
     public CFluidType type = CFluidType.BLANK;
 
     public SingleTank(final int capacity) {
+        if (capacity < 0) {
+            throw new IllegalArgumentException("Negative tank capacity");
+        }
         this.capacity = SimFluidService.INSTANCE.mbToLoaderUnits(capacity);
     }
 
     // helper methods
     public static long calculateInsert(final SingleTank tank, final CFluidType insertedType, final long maxAmount) {
-        if (insertedType.equals(tank.type) || tank.type.isBlank()) {
-            return Math.min(maxAmount, tank.capacity - tank.amount);
+        if (maxAmount > 0 && !insertedType.isBlank() && (insertedType.equals(tank.type) || tank.type.isBlank())) {
+            return Math.max(0, Math.min(maxAmount, tank.capacity - tank.amount));
         }
 
         return 0;
@@ -32,8 +34,8 @@ public class SingleTank {
     }
 
     public static long calculateExtract(final SingleTank tank, final CFluidType extractedType, final long maxAmount) {
-        if (extractedType.equals(tank.type)) {
-            return Math.min(maxAmount, tank.amount);
+        if (maxAmount > 0 && !extractedType.isBlank() && extractedType.equals(tank.type)) {
+            return Math.max(0, Math.min(maxAmount, tank.amount));
         }
         return 0;
     }
@@ -55,7 +57,7 @@ public class SingleTank {
      */
     public long insert(final CFluidType insertedType, final long maxAmount, final boolean simulate, @Nullable final Runnable beforeApply) {
         final long v = calculateInsert(this, insertedType, maxAmount);
-        if (!simulate) {
+        if (!simulate && v > 0) {
             if (beforeApply != null)
                 beforeApply.run();
             applyInsert(this, insertedType, v);
@@ -77,7 +79,7 @@ public class SingleTank {
      */
     public long extract(final CFluidType extractedType, final long maxAmount, final boolean simulate, @Nullable final Runnable beforeApply) {
         final long v = calculateExtract(this, extractedType, maxAmount);
-        if (!simulate) {
+        if (!simulate && v > 0) {
             if (beforeApply != null)
                 beforeApply.run();
             applyExtract(this, v);
@@ -90,8 +92,12 @@ public class SingleTank {
     }
 
     public void read(final CompoundTag tag) {
-        this.amount = tag.getInt("Amount");
-        this.type = CFluidType.read(tag.getCompound("Variant"));
+        this.amount = Math.clamp(tag.getLongOr("Amount", 0), 0, this.capacity);
+        this.type = CFluidType.read(tag.getCompoundOrEmpty("Variant"));
+        if (this.amount == 0 || this.type.isBlank()) {
+            this.amount = 0;
+            this.type = CFluidType.BLANK;
+        }
     }
 
     public CompoundTag write() {
@@ -104,8 +110,8 @@ public class SingleTank {
     /**
      * @return Type and amount of fluid to be snapshotted for fabrics fluid API
      */
-    public Tuple<CFluidType, Long> createSnapshot() {
-        return new Tuple<>(this.type, this.amount);
+    public Snapshot createSnapshot() {
+        return new Snapshot(this.type, this.amount);
     }
 
     /**
@@ -115,4 +121,6 @@ public class SingleTank {
         this.type = type;
         this.amount = amount;
     }
+
+    public record Snapshot(CFluidType type, long amount) {}
 }

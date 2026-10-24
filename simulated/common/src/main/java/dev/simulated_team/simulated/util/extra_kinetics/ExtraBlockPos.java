@@ -9,6 +9,8 @@ import net.minecraft.core.Vec3i;
 //TODO: really should remove this and replace it with something more concise.
 public class ExtraBlockPos extends BlockPos {
 
+    @Override public BlockPos immutable() { return this; }
+
     public ExtraBlockPos(final Vec3i blockPos) {
         super(blockPos.getX(), blockPos.getY(), blockPos.getZ());
     }

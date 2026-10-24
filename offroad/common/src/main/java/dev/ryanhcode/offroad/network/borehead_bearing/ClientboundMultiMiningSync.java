@@ -91,7 +91,7 @@ public final class ClientboundMultiMiningSync implements CustomPacketPayload {
     }
 
     public void handle(final PacketContext context) {
-        if (context.player() == null || !context.level().isClientSide /*how?*/ || this.clientInData == null) {
+        if (context.player() == null || !context.level().isClientSide() /*how?*/ || this.clientInData == null) {
             return;
         }
 

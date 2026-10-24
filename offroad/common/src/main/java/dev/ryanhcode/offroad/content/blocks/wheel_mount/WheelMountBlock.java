@@ -3,7 +3,7 @@ package dev.ryanhcode.offroad.content.blocks.wheel_mount;
 import com.simibubi.create.api.schematic.requirement.SpecialBlockItemRequirement;
 import com.simibubi.create.content.kinetics.base.HorizontalKineticBlock;
 import com.simibubi.create.content.schematics.requirement.ItemRequirement;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.ryanhcode.offroad.content.components.TireLike;
 import dev.ryanhcode.offroad.index.OffroadBlockEntityTypes;
 import dev.ryanhcode.offroad.index.OffroadBlocks;
@@ -15,7 +15,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -35,7 +35,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-public class WheelMountBlock extends HorizontalKineticBlock implements IBE<WheelMountBlockEntity>, SpecialBlockItemRequirement {
+public class WheelMountBlock extends HorizontalKineticBlock implements NativeEntityBlock<WheelMountBlockEntity>, SpecialBlockItemRequirement {
 
     public WheelMountBlock(final Properties properties) {
         super(properties);
@@ -46,26 +46,7 @@ public class WheelMountBlock extends HorizontalKineticBlock implements IBE<Wheel
         super.createBlockStateDefinition(builder);
     }
 
-    @Override
-    public void onRemove(final BlockState state, final Level level, final BlockPos pos, final BlockState newState, final boolean isMoving) {
-        if (state.hasBlockEntity() && state.getBlock() != newState.getBlock()) {
-            final WheelMountBlockEntity be = (WheelMountBlockEntity) level.getBlockEntity(pos);
 
-            if (be != null && !be.getHeldItem().isEmpty()) {
-                final Direction facing = state.getValue(WheelMountBlock.HORIZONTAL_FACING);
-
-                BlockPos dropPos = pos;
-
-                if (facing != null) {
-                    dropPos = dropPos.relative(facing);
-                }
-
-                Containers.dropItemStack(level, dropPos.getX(), dropPos.getY(), dropPos.getZ(), be.getHeldItem());
-            }
-
-            level.removeBlockEntity(pos);
-        }
-    }
 
     @Override
     public boolean hasShaftTowards(final LevelReader world, final BlockPos pos, final BlockState state, final Direction face) {
@@ -91,7 +72,7 @@ public class WheelMountBlock extends HorizontalKineticBlock implements IBE<Wheel
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack heldItem, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
+    protected InteractionResult useItemOn(final ItemStack heldItem, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
         final Direction hitDirection = blockHitResult.getDirection();
 
         if(!hitDirection.equals(blockState.getValue(HORIZONTAL_FACING)) && hitDirection != Direction.DOWN) {
@@ -105,7 +86,7 @@ public class WheelMountBlock extends HorizontalKineticBlock implements IBE<Wheel
                         || (heldItem.has(OffroadDataComponents.TIRE) && potentialTire.has(OffroadDataComponents.TIRE))
                         || (heldItem.has(OffroadDataComponents.TIRE) && potentialTire.isEmpty())
                 ) {
-                    return ItemInteractionResult.SUCCESS;
+                    return InteractionResult.SUCCESS;
                 }
 
                 return super.useItemOn(heldItem, blockState, level, blockPos, player, interactionHand, blockHitResult);
@@ -113,7 +94,7 @@ public class WheelMountBlock extends HorizontalKineticBlock implements IBE<Wheel
         }
 
         if (this.switchStacks(level, blockPos, player, interactionHand)) {
-            return ItemInteractionResult.CONSUME;
+            return InteractionResult.CONSUME;
         }
 
         return super.useItemOn(heldItem, blockState, level, blockPos, player, interactionHand, blockHitResult);
@@ -135,14 +116,14 @@ public class WheelMountBlock extends HorizontalKineticBlock implements IBE<Wheel
                 if (!player.hasInfiniteMaterials()) {
                     heldItem.shrink(1);
                 }
-                player.getInventory().placeItemBackInInventory(save);
+                player.getInventory().placeItemBackInInventory(save, net.minecraft.util.Prediction.SERVER_ONLY);
 
                 final ItemStack newSlotItem = slot.getStack();
                 mount.setChanged();
                 mount.sendData();
                 passed[0] = true;
 
-                final float pitch = 0.8f + level.random.nextFloat() * 0.4f;
+                final float pitch = 0.8f + level.getRandom().nextFloat() * 0.4f;
                 final float volume = .75f;
 
                 if (oldSlotItem.isEmpty() && !newSlotItem.isEmpty()) {
@@ -174,12 +155,12 @@ public class WheelMountBlock extends HorizontalKineticBlock implements IBE<Wheel
 
     @Override
     public BlockEntityType<? extends WheelMountBlockEntity> getBlockEntityType() {
-        return OffroadBlockEntityTypes.WHEEL_MOUNT.get();
+        return OffroadBlockEntityTypes.WHEEL_MOUNT;
     }
 
     @Override
     public ItemRequirement getRequiredItems(final BlockState state, @Nullable final BlockEntity blockEntity) {
-        final ItemStack mountStack = OffroadBlocks.WHEEL_MOUNT.asStack();
+        final ItemStack mountStack = new ItemStack(OffroadBlocks.WHEEL_MOUNT);
         if (blockEntity instanceof final WheelMountBlockEntity wmbe) {
             final ItemStack heldItem = wmbe.getHeldItem();
             if (!heldItem.isEmpty()) {
@@ -190,5 +171,17 @@ public class WheelMountBlock extends HorizontalKineticBlock implements IBE<Wheel
             }
         }
         return new ItemRequirement(ItemRequirement.ItemUseType.CONSUME, mountStack);
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

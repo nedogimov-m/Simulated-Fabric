@@ -1,8 +1,8 @@
 package dev.simulated_team.simulated.config.server.blocks;
 
-import net.createmod.catnip.config.ConfigBase;
+import com.simibubi.create.infrastructure.config.NativeConfigBase;
 
-public class SimKinetics extends ConfigBase {
+public class SimKinetics extends NativeConfigBase {
     public final SimStress stressValues = this.nested(1, SimStress::new, Comments.stress);
 
     @Override

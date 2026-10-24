@@ -44,7 +44,7 @@ public class PropellerRotateInstruction extends PonderInstruction {
         this.direction = direction;
         originalSpeed = this.targetSpeed = targetSpeed;
         originalSails = this.sailSmoothingAmount = sailSmoothingAmount;
-        Vec3i n = direction.getNormal();
+        Vec3i n = direction.getUnitVec3i();
         normal = new Vec3(Math.abs(n.getX()),Math.abs(n.getY()),Math.abs(n.getZ()));
     }
 

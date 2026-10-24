@@ -11,8 +11,8 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(RedstoneLinkBlock.class)
 public class RedstoneLinkBlockMixin {
 
-    @WrapOperation(method = "getPower", at = @At(value = "FIELD", ordinal = 1, target = "Lnet/createmod/catnip/data/Iterate;directions:[Lnet/minecraft/core/Direction;"))
-    private static Direction[] fixReadPower(final Operation<Direction[]> original) {
+    @WrapOperation(method = "updateTransmittedSignal", at = @At(value = "INVOKE", ordinal = 1, target = "Lnet/minecraft/core/Direction;values()[Lnet/minecraft/core/Direction;"))
+    private Direction[] fixReadPower(final Operation<Direction[]> original) {
         return new Direction[0]; // do not read the signal sent downwards for all adjacent blocks!!!
     }
 

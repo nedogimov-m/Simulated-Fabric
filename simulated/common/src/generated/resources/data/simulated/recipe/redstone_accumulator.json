@@ -2,21 +2,11 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "B": {
-      "tag": "c:plates/brass"
-    },
-    "Q": {
-      "item": "create:polished_rose_quartz"
-    },
-    "R": {
-      "tag": "c:dusts/redstone"
-    },
-    "S": {
-      "tag": "c:stones"
-    },
-    "T": {
-      "item": "minecraft:redstone_torch"
-    }
+    "B": "#c:plates/brass",
+    "Q": "create:polished_rose_quartz",
+    "R": "#c:dusts/redstone",
+    "S": "#c:stones",
+    "T": "minecraft:redstone_torch"
   },
   "pattern": [
     " Q ",

@@ -1,0 +1,96 @@
+apply plugin: 'net.fabricmc.fabric-loom'
+
+if (file("src/main/resources/${mod_id}.native.accesswidener").isFile()) {
+    loom.accessWidenerPath = file("src/main/resources/${mod_id}.native.accesswidener")
+}
+
+base.archivesName = "${mod_id}-fabric-${minecraft_version}"
+
+repositories { mavenCentral() }
+repositories {
+    maven {
+        url = 'https://maven.fabricmc.net/'
+        content { includeGroup 'teamreborn' }
+    }
+}
+if (project.parent.name == 'simulated') {
+    repositories {
+        maven { url = 'https://maven.squiddev.cc'; content { includeGroup 'cc.tweaked' } }
+        maven {
+            url = 'https://maven.blamejared.com/'
+            content { includeGroup 'mezz.jei' }
+        }
+        maven {
+            url = 'https://api.modrinth.com/maven'
+            content { includeGroup 'maven.modrinth' }
+        }
+    }
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    withSourcesJar()
+}
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+    options.encoding = 'UTF-8'
+    dependsOn(rootProject.tasks.named('verifyPortPrerequisites'))
+    dependsOn(rootProject.tasks.named('resolveOptionalCompileApis'))
+    dependsOn(rootProject.tasks.named('prepareFabricCompileApis'))
+}
+
+// Include every upstream common source; API migration failures must stay visible.
+sourceSets.main {
+    java.setSrcDirs([
+        rootProject.file("${project.parent.name}/common/src/main/java"),
+        project.file('src/main/java')
+    ])
+    resources.setSrcDirs([
+        rootProject.file("${project.parent.name}/common/src/main/resources"),
+        rootProject.file("${project.parent.name}/common/src/generated/resources"),
+        project.file('src/main/resources')
+    ])
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    compileOnly 'org.jetbrains:annotations:26.0.2'
+    // APIs of the genuine libraries already nested in the production dependencies.
+    compileOnly files(rootProject.file('../veil/local-maven/io/github/ocelot/glsl-processor/0.2.3/glsl-processor-0.2.3.jar'))
+    include(implementation('teamreborn:energy:5.0.0'))
+    if (project.parent.name == 'simulated') {
+        compileOnly files(rootProject.file('ports/optional-api/jei-26.3-common-api-31.16.0.87.jar'))
+        compileOnly files(rootProject.file('ports/optional-api/jei-26.3-fabric-api-31.16.0.87.jar'))
+        compileOnly files(rootProject.file('ports/optional-api/NaturesCompass-26.3-2.5.1-fabric.jar'))
+        compileOnly files(rootProject.file('ports/optional-api/ExplorersCompass-26.3-2.5.2-fabric.jar'))
+        compileOnly files(rootProject.file('../sable/build/compile-api/computercraft-api.jar'))
+    }
+    ['create', 'companion', 'veil', 'sable'].each { name ->
+        api(files(rootProject.ext.portArtifactPaths.map { paths -> paths[name] }))
+    }
+}
+
+tasks.named('processResources', ProcessResources) {
+    def replacements = [
+        version: project.version.toString(),
+        mod_id: project.mod_id,
+        mod_name: project.mod_name,
+        mod_author: project.mod_author,
+        description: project.description,
+        license: rootProject.license,
+        minecraft_version: rootProject.minecraft_version,
+        fabric_loader_version: rootProject.fabric_loader_version,
+        fabric_version: rootProject.fabric_version,
+        java_version: rootProject.java_version
+    ]
+    inputs.properties(replacements)
+    filesMatching(['fabric.mod.json', '*.mixins.json']) { expand(replacements) }
+    exclude('pack.mcmeta', "${mod_id}.accesswidener")
+}
+
+tasks.named('jar', Jar) { from(rootProject.file('LICENSE.md')) }
+tasks.named('sourcesJar', Jar) { from(rootProject.file('LICENSE.md')) }
+// A check without tests still validates the complete source set.
+tasks.named('check') { dependsOn(tasks.named('compileJava')) }

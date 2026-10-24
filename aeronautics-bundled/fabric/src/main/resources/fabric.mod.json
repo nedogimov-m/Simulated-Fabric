@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "aeronautics_bundle",
+  "version": "${version}",
+  "name": "Create Aeronautics Bundle",
+  "description": "Create Aeronautics with its Simulated physics and Offroad components.",
+  "authors": ["Simulated Team"],
+  "license": "Read attached LICENSE.md",
+  "environment": "*",
+  "depends": {
+    "minecraft": "26.3",
+    "java": ">=25",
+    "fabricloader": ">=0.19.5",
+    "fabric-api": ">=0.163.0+26.3",
+    "create": ">=6.0.10-port.2",
+    "sable": ">=2.0.6-port.1+mc26.3"
+  },
+  "jars": [
+    {"file": "META-INF/jars/simulated-fabric-26.3-${version}.jar"},
+    {"file": "META-INF/jars/aeronautics-fabric-26.3-${version}.jar"},
+    {"file": "META-INF/jars/offroad-fabric-26.3-${version}.jar"}
+  ]
+}

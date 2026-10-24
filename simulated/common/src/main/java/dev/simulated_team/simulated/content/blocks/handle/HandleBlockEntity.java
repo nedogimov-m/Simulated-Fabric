@@ -123,7 +123,7 @@ public class HandleBlockEntity extends SmartBlockEntity implements BlockEntitySu
     public Vector3d getGrabCenter() {
         final Direction facing = this.getBlockState().getValue(HandleBlock.FACING);
         return JOMLConversion.atCenterOf(HandleBlockEntity.this.getBlockPos())
-                .fma(-(0.5 - 5.0 / 16.0), JOMLConversion.atLowerCornerOf(facing.getNormal()));
+                .fma(-(0.5 - 5.0 / 16.0), JOMLConversion.atLowerCornerOf(facing.getUnitVec3i()));
     }
 
     private class HandleConstraint {

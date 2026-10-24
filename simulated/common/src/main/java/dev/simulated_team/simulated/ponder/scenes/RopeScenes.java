@@ -58,7 +58,7 @@ public class RopeScenes {
         world.showSection(select.position(connector), Direction.DOWN);
         scene.idle(15);
 
-        overlay.showControls(vector.topOf(winch).subtract(0,0.25,0), Pointing.DOWN, 60).withItem(SimItems.ROPE_COUPLING.asStack());
+        overlay.showControls(vector.topOf(winch).subtract(0,0.25,0), Pointing.DOWN, 60).withItem(new net.minecraft.world.item.ItemStack(SimItems.ROPE_COUPLING));
         scene.idle(6);
 
         // Using chasingLine because nothing else has custom line width
@@ -74,7 +74,7 @@ public class RopeScenes {
 
         scene.idle(20);
 
-        overlay.showControls(vector.centerOf(connector), Pointing.DOWN, 40).withItem(SimItems.ROPE_COUPLING.asStack());
+        overlay.showControls(vector.centerOf(connector), Pointing.DOWN, 40).withItem(new net.minecraft.world.item.ItemStack(SimItems.ROPE_COUPLING));
 
         scene.idle(6);
 
@@ -99,7 +99,7 @@ public class RopeScenes {
 
         scene.idle(15);
 
-        final RopeStrandElement initialRope = new RopeStrandElement(winch.getCenter(), connector.getCenter().subtract(0, connectorRopeOffset,0), 4, 0, 1);
+        final RopeStrandElement initialRope = new RopeStrandElement(net.minecraft.world.phys.Vec3.atCenterOf(winch), net.minecraft.world.phys.Vec3.atCenterOf(connector).subtract(0, connectorRopeOffset,0), 4, 0, 1);
         scene.addInstruction(new CreateRopeStrandInstruction(initialRope));
 
         scene.world().modifyBlockEntity(winch, RopeWinchBlockEntity.class, be -> be.getRopeHolder().renderAttached = true);
@@ -173,7 +173,7 @@ public class RopeScenes {
         scene.idle(5);
 
         for (int i = 0; i < 8; i++) {
-            scene.addInstruction(new OffsetBreakParticlesInstruction(AABB.ofSize(vector.of(1.6 + ((double) i / 3),1.5 + ((double) i / 3.5),5.5), 0.5, 0.5,0.5), Blocks.BROWN_WOOL.defaultBlockState()));
+            scene.addInstruction(new OffsetBreakParticlesInstruction(AABB.ofSize(vector.of(1.6 + ((double) i / 3),1.5 + ((double) i / 3.5),5.5), 0.5, 0.5,0.5), Blocks.WOOL.brown().defaultBlockState()));
         }
         scene.addInstruction(new RemoveRopeStrandInstruction(initialRope, scene));
         scene.world().modifyBlockEntity(winch, RopeWinchBlockEntity.class, be -> be.getRopeHolder().renderAttached = false);
@@ -303,12 +303,12 @@ public class RopeScenes {
 
         scene.idle(20);
 
-        overlay.showControls(vector.centerOf(tallConnector).add(0,0,0.25), Pointing.LEFT, 40).withItem(SimItems.ROPE_COUPLING.asStack());
-        overlay.showControls(vector.centerOf(lowConnector).subtract(0,-0.25,0.5), Pointing.RIGHT, 40).withItem(SimItems.ROPE_COUPLING.asStack());
+        overlay.showControls(vector.centerOf(tallConnector).add(0,0,0.25), Pointing.LEFT, 40).withItem(new net.minecraft.world.item.ItemStack(SimItems.ROPE_COUPLING));
+        overlay.showControls(vector.centerOf(lowConnector).subtract(0,-0.25,0.5), Pointing.RIGHT, 40).withItem(new net.minecraft.world.item.ItemStack(SimItems.ROPE_COUPLING));
 
         scene.idle(6);
 
-        final RopeStrandElement rightRope = new RopeStrandElement(tallConnector.getCenter().add(0.15,0,0), lowConnector.getCenter().subtract(0,0.15,0), 4, 0, 1);
+        final RopeStrandElement rightRope = new RopeStrandElement(net.minecraft.world.phys.Vec3.atCenterOf(tallConnector).add(0.15,0,0), net.minecraft.world.phys.Vec3.atCenterOf(lowConnector).subtract(0,0.15,0), 4, 0, 1);
         scene.addInstruction(new CreateRopeStrandInstruction(rightRope));
 
         scene.world().modifyBlockEntity(connector, RopeConnectorBlockEntity.class, be -> be.getRopeHolder().renderAttached = true);
@@ -331,8 +331,8 @@ public class RopeScenes {
 
         scene.idle(20);
 
-        overlay.showControls(vector.centerOf(tallWinch).add(0,0,0.25), Pointing.LEFT, 20).withItem(SimItems.ROPE_COUPLING.asStack());
-        overlay.showControls(vector.centerOf(lowWinch).subtract(0,-0.25,0.5), Pointing.RIGHT, 20).withItem(SimItems.ROPE_COUPLING.asStack());
+        overlay.showControls(vector.centerOf(tallWinch).add(0,0,0.25), Pointing.LEFT, 20).withItem(new net.minecraft.world.item.ItemStack(SimItems.ROPE_COUPLING));
+        overlay.showControls(vector.centerOf(lowWinch).subtract(0,-0.25,0.5), Pointing.RIGHT, 20).withItem(new net.minecraft.world.item.ItemStack(SimItems.ROPE_COUPLING));
 
         scene.idle(6);
 

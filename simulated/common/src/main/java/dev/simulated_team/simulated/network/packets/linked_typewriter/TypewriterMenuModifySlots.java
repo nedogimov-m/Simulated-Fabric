@@ -22,9 +22,10 @@ public record TypewriterMenuModifySlots(ItemStack first, ItemStack second) imple
     public void handle(final ServerPacketContext context) {
         final ServerPlayer player = context.player();
 
-        if (player.containerMenu instanceof final LinkedTypewriterMenuCommon menu) {
-            menu.ghostInventory.setStackInSlot(0, this.first);
-            menu.ghostInventory.setStackInSlot(1, this.second);
+        if (player.containerMenu instanceof final LinkedTypewriterMenuCommon menu && menu.stillValid(player)) {
+            menu.setGhostSample(0, this.first);
+            menu.setGhostSample(1, this.second);
+            menu.broadcastChanges();
         }
     }
 

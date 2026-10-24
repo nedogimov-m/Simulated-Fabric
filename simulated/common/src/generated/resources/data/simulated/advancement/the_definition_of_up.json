@@ -3,12 +3,10 @@
   "criteria": {
     "0": {
       "conditions": {
-        "location": [
-          {
-            "block": "simulated:gimbal_sensor",
-            "condition": "minecraft:block_state_property"
-          }
-        ]
+        "location": {
+          "type": "minecraft:match_block",
+          "blocks": "simulated:gimbal_sensor"
+        }
       },
       "trigger": "minecraft:placed_block"
     }

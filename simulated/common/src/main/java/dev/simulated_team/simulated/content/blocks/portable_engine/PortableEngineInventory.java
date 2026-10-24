@@ -15,7 +15,7 @@ public class PortableEngineInventory extends SingleSlotContainer {
 
     @Override
     public boolean canInsertItem(final ItemInfoWrapper info) {
-        return SimItemService.INSTANCE.getBurnTime(info.type().getDefaultInstance()) > 0;
+        return SimItemService.INSTANCE.canFuel(ItemInfoWrapper.generateFromInfo(info), this.be);
     }
 
 

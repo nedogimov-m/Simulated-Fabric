@@ -1,9 +1,9 @@
 package dev.simulated_team.simulated.content.blocks.lasers.laser_pointer;
 
 import com.mojang.serialization.MapCodec;
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.data.advancements.SimAdvancements;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.index.SimBlockShapes;
@@ -15,7 +15,6 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.DyeItem;
@@ -38,8 +37,8 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.NotNull;
 
-public class LaserPointerBlock extends DirectionalBlock implements IBE<LaserPointerBlockEntity>, IWrenchable {
-    public static final MapCodec<LaserPointerBlock> CODEC = simpleCodec(LaserPointerBlock::new);
+public class LaserPointerBlock extends DirectionalBlock implements NativeEntityBlock<LaserPointerBlockEntity>, NativeWrenchable {
+
 
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
     public static final BooleanProperty INVERTED = BlockStateProperties.INVERTED;
@@ -47,11 +46,6 @@ public class LaserPointerBlock extends DirectionalBlock implements IBE<LaserPoin
     public LaserPointerBlock(final Properties properties) {
         super(properties);
         this.registerDefaultState(this.defaultBlockState().setValue(POWERED, false).setValue(INVERTED, false));
-    }
-
-    @Override
-    protected MapCodec<? extends DirectionalBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -75,9 +69,9 @@ public class LaserPointerBlock extends DirectionalBlock implements IBE<LaserPoin
     }
 
     @Override
-    public void neighborChanged(final BlockState state, final Level world, final BlockPos pos, final Block neighborBlock, final BlockPos fromPos, final boolean moving) {
-        super.neighborChanged(state, world, pos, neighborBlock, fromPos, moving);
-        if (!world.isClientSide) {
+    public void neighborChanged(final BlockState state, final Level world, final BlockPos pos, final Block neighborBlock,final net.minecraft.world.level.redstone.Orientation orientation, final boolean moving) {
+        super.neighborChanged(state, world, pos, neighborBlock, orientation, moving);
+        if (!world.isClientSide()) {
             final boolean powered = world.hasNeighborSignal(pos);
             world.setBlock(pos, state.setValue(POWERED, powered), 7);
         }
@@ -110,11 +104,11 @@ public class LaserPointerBlock extends DirectionalBlock implements IBE<LaserPoin
 
     @Override
     public BlockEntityType<? extends LaserPointerBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.LASER_POINTER.get();
+        return SimBlockEntityTypes.LASER_POINTER;
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final @NotNull ItemStack itemStack,
+    protected InteractionResult useItemOn(final @NotNull ItemStack itemStack,
                                               final @NotNull BlockState blockState,
                                               final @NotNull Level level,
                                               final @NotNull BlockPos blockPos,
@@ -127,7 +121,7 @@ public class LaserPointerBlock extends DirectionalBlock implements IBE<LaserPoin
         int newColor = -1;
         boolean newRainbow = be.isRainbow();
         if (itemStack.getItem() instanceof final DyeItem dyeItem) {
-            final DyeColor gatheredColor = dyeItem.getDyeColor();
+            final DyeColor gatheredColor = itemStack.getOrDefault(net.minecraft.core.component.DataComponents.DYE, net.minecraft.world.item.DyeColor.WHITE);
             newColor = gatheredColor.getTextColor();
         } else if (itemStack.is(SimTags.Items.LASER_POINTER_LENS)) {
             newColor = SimColors.MEDIA_OURPLE;
@@ -144,10 +138,10 @@ public class LaserPointerBlock extends DirectionalBlock implements IBE<LaserPoin
             }
             be.setRainbow(newRainbow);
             level.playLocalSound(blockPos.getX(), blockPos.getY(), blockPos.getZ(), SoundEvents.DYE_USE, SoundSource.PLAYERS, 0.3f, 1.0f, false);
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
 
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     @Override
@@ -156,6 +150,18 @@ public class LaserPointerBlock extends DirectionalBlock implements IBE<LaserPoin
             KineticBlockEntity.switchToBlockState(context.getLevel(), context.getClickedPos(), state.cycle(INVERTED));
             return InteractionResult.SUCCESS;
         }
-        return IWrenchable.super.onWrenched(state, context);
+        return NativeWrenchable.super.onWrenched(state, context);
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

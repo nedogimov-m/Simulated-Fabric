@@ -3,20 +3,21 @@ package dev.simulated_team.simulated.index;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.simibubi.create.AllKeys;
 import dev.simulated_team.simulated.Simulated;
-import net.createmod.catnip.client.ConflictSafeKeyMapping;
+import net.minecraft.resources.Identifier;
 import net.minecraft.client.KeyMapping;
-import org.lwjgl.glfw.GLFW;
+
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public enum SimKeys {
-	ROTATE_MODE("rotate_mode", GLFW.GLFW_KEY_TAB, "Physics Staff Rotate Mode"),
+	ROTATE_MODE("rotate_mode", InputConstants.KEY_TAB, "Physics Staff Rotate Mode"),
 	SCROLL_UP("scroll_up", InputConstants.UNKNOWN.getValue(), "Scroll Up"),
 	SCROLL_DOWN("scroll_down", InputConstants.UNKNOWN.getValue(), "Scroll Down"),
 	;
 
 
+    private static final KeyMapping.Category CATEGORY=KeyMapping.Category.register(Identifier.parse("simulated:controls"));
 	private KeyMapping keybind;
 	private final String description;
 	private final String translation;
@@ -41,6 +42,7 @@ public enum SimKeys {
 	}
 
 	public static void provideLang(final BiConsumer<String, String> consumer) {
+        consumer.accept("key.categories.simulated.controls",Simulated.MOD_NAME);
 		for (final SimKeys key : values())
 			if (key.modifiable)
 				consumer.accept(key.description, key.translation);
@@ -48,11 +50,7 @@ public enum SimKeys {
 
 	public static void registerTo(final Consumer<KeyMapping> consumer) {
 		for (final SimKeys key : values()) {
-			if (key.conflictSafe) {
-				key.keybind = new ConflictSafeKeyMapping(key.description, key.key, Simulated.MOD_NAME);
-			} else {
-				key.keybind = new KeyMapping(key.description, key.key, Simulated.MOD_NAME);
-			}
+            key.keybind=new KeyMapping(key.description,key.key,CATEGORY);
 			if (!key.modifiable)
 				continue;
 

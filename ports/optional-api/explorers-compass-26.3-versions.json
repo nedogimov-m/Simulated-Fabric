@@ -1,0 +1,39 @@
+[
+  {
+    "game_versions": [
+      "26.3"
+    ],
+    "loaders": [
+      "fabric"
+    ],
+    "environment": "client_and_server",
+    "id": "69AbLioc",
+    "project_id": "RV1qfVQ8",
+    "author_id": "71h6EGVq",
+    "featured": false,
+    "name": "26.3-2.5.2-fabric",
+    "version_number": "26.3-2.5.2-fabric",
+    "changelog": "- Updated to Fabric 26.3\n- Added Korean translations\n- Updated Japanese translations",
+    "changelog_url": null,
+    "date_published": "2026-09-19T01:47:09.080626Z",
+    "downloads": 24741,
+    "version_type": "release",
+    "status": "listed",
+    "requested_status": null,
+    "files": [
+      {
+        "id": "LbH8XfAD",
+        "hashes": {
+          "sha512": "83e7b4217fee0eda42bf91ced65ea66135846a03e6cfc353067ccbbfab279e967d3c59887de286c90742d3ed95946398e4362d506092a34d0d99b39b502b6428",
+          "sha1": "ed3ce8679835d81406c4b57f583a17db1b75be4e"
+        },
+        "url": "https://cdn.modrinth.com/data/RV1qfVQ8/versions/69AbLioc/ExplorersCompass-26.3-2.5.2-fabric.jar",
+        "filename": "ExplorersCompass-26.3-2.5.2-fabric.jar",
+        "primary": true,
+        "size": 178009,
+        "file_type": null
+      }
+    ],
+    "dependencies": []
+  }
+]

@@ -1,52 +1,33 @@
 package dev.simulated_team.simulated.content.blocks.swivel_bearing;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.simibubi.create.content.kinetics.base.IRotate;
-import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
-import dev.engine_room.flywheel.api.visualization.VisualizationManager;
+import com.mojang.math.Axis;
+import dev.simulated_team.simulated.fabric.registry.NativePartsRenderer;
 import dev.simulated_team.simulated.index.SimPartialModels;
-import net.createmod.catnip.render.CachedBuffers;
-import net.createmod.catnip.render.SuperByteBuffer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.createmod.catnip.math.AngleHelper;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
 
-public class SwivelBearingRenderer extends KineticBlockEntityRenderer<SwivelBearingBlockEntity> {
-
-    public SwivelBearingRenderer(final BlockEntityRendererProvider.Context context) {
-        super(context);
-    }
-
-    @Override
-    protected void renderSafe(final SwivelBearingBlockEntity be, final float partialTicks, final PoseStack ms, final MultiBufferSource buffer, final int light, final int overlay) {
-        if (VisualizationManager.supportsVisualization(be.getLevel())) {
-            return;
-        }
-
-        super.renderSafe(be, partialTicks, ms, buffer, light, overlay);
-
-        final BlockState state = be.getBlockState();
-        final Direction.Axis axis = ((IRotate) state.getBlock()).getRotationAxis(state);
-
-        final SuperByteBuffer cogwheel = kineticRotationTransform(
-                CachedBuffers.partialFacingVertical(SimPartialModels.SWIVEL_BEARING_COG, state, state.getValue(SwivelBearingBlock.FACING).getOpposite()),
-                be.getExtraKinetics(),
-                axis,
-                getAngleForBe(be.getExtraKinetics(), be.getBlockPos(), axis),
-                light);
-
-        final VertexConsumer vb = buffer.getBuffer(RenderType.solid());
-        cogwheel.renderInto(ms, vb);
-        if (!be.isAssembled()) {
-            renderRotatingBuffer(be, CachedBuffers.partialFacing(SimPartialModels.SHAFT_SIXTEENTH, state, state.getValue(SwivelBearingBlock.FACING)), ms, vb, light);
+public final class SwivelBearingRenderer extends NativePartsRenderer<SwivelBearingBlockEntity> {
+    public SwivelBearingRenderer(BlockEntityRendererProvider.Context context) {}
+    @Override protected void extractParts(SwivelBearingBlockEntity entity, float partial, Parts parts) {
+        final var facing = entity.getBlockState().getValue(SwivelBearingBlock.FACING);
+        final var input = rotating(entity, partial, rotationAxis(entity));
+        face(input, facing.getOpposite(), false);
+        parts.add(SimPartialModels.SHAFT_SIXTEENTH, input);
+        final var cog = rotating(entity.getExtraKinetics(), partial, rotationAxis(entity));
+        face(cog, facing.getOpposite(), true);
+        parts.add(SimPartialModels.SWIVEL_BEARING_COG, cog);
+        if (!entity.isAssembled()) {
+            final var output = rotating(entity, partial, rotationAxis(entity));
+            face(output, facing, false);
+            parts.add(SimPartialModels.SHAFT_SIXTEENTH, output);
         }
     }
-
-    @Override
-    protected SuperByteBuffer getRotatedModel(final SwivelBearingBlockEntity be, final BlockState state) {
-        return CachedBuffers.partialFacing(SimPartialModels.SHAFT_SIXTEENTH, state, state.getValue(SwivelBearingBlock.FACING).getOpposite());
+    private static void face(PoseStack pose, Direction facing, boolean verticalModel) {
+        pose.translate(.5, .5, .5);
+        pose.rotate(Axis.YP.rotationDegrees(AngleHelper.horizontalAngle(facing)));
+        pose.rotate(Axis.XP.rotationDegrees(AngleHelper.verticalAngle(facing) + (verticalModel ? 90 : 0)));
+        pose.translate(-.5, -.5, -.5);
     }
 }

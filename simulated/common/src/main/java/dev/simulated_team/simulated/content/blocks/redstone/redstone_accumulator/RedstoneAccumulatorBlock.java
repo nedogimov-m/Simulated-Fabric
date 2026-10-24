@@ -2,7 +2,7 @@ package dev.simulated_team.simulated.content.blocks.redstone.redstone_accumulato
 
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.content.redstone.diodes.AbstractDiodeBlock;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.index.SimBlockShapes;
 import dev.simulated_team.simulated.multiloader.CommonRedstoneBlock;
@@ -14,7 +14,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
@@ -33,8 +33,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
-public class RedstoneAccumulatorBlock extends AbstractDiodeBlock implements IBE<RedstoneAccumulatorBlockEntity>, CommonRedstoneBlock {
-    public static final MapCodec<RedstoneAccumulatorBlock> CODEC = simpleCodec(RedstoneAccumulatorBlock::new);
+public class RedstoneAccumulatorBlock extends AbstractDiodeBlock implements NativeEntityBlock<RedstoneAccumulatorBlockEntity>, CommonRedstoneBlock {
+
     public static BooleanProperty POWERING = BooleanProperty.create("powering");
     public static BooleanProperty SIDE_POWERED = BooleanProperty.create("side_powered");
     public static BooleanProperty INVERTED = BlockStateProperties.INVERTED;
@@ -47,11 +47,6 @@ public class RedstoneAccumulatorBlock extends AbstractDiodeBlock implements IBE<
                 .setValue(POWERING, false)
                 .setValue(INVERTED, false)
         );
-    }
-
-    @Override
-    protected MapCodec<? extends DiodeBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -75,15 +70,15 @@ public class RedstoneAccumulatorBlock extends AbstractDiodeBlock implements IBE<
 
     @Override
     public BlockEntityType<? extends RedstoneAccumulatorBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.REDSTONE_ACCUMULATOR.get();
+        return SimBlockEntityTypes.REDSTONE_ACCUMULATOR;
     }
 
     public BlockState getUpdatedBlockstate(final BlockPos pos, final BlockState state, final Level level) {
         final Direction facing = state.getValue(RedstoneAccumulatorBlock.FACING).getOpposite();
         final BlockPos offset = pos.relative(facing.getOpposite());
 
-        final BlockPos leftSide = pos.offset(facing.getCounterClockWise().getNormal());
-        final BlockPos rightSide = pos.offset(facing.getClockWise().getNormal());
+        final BlockPos leftSide = pos.offset(facing.getCounterClockWise().getUnitVec3i());
+        final BlockPos rightSide = pos.offset(facing.getClockWise().getUnitVec3i());
 
         final boolean leftSignal = level.getSignal(leftSide, facing.getClockWise().getOpposite()) > 0;
         final boolean rightSignal = level.getSignal(rightSide, facing.getCounterClockWise().getOpposite()) > 0;
@@ -105,14 +100,14 @@ public class RedstoneAccumulatorBlock extends AbstractDiodeBlock implements IBE<
 
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
+    protected InteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
         level.setBlock(blockPos, this.getUpdatedBlockstate(blockPos, blockState.cycle(INVERTED), level), 2);
         level.updateNeighborsAt(blockPos, blockState.getBlock());
 
         final float f = !blockState.getValue(INVERTED) ? 0.6F : 0.5F;
         level.playSound(null, blockPos, SoundEvents.LEVER_CLICK, SoundSource.BLOCKS, 0.3F, f);
 
-        return ItemInteractionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
 
     @Override
@@ -143,12 +138,24 @@ public class RedstoneAccumulatorBlock extends AbstractDiodeBlock implements IBE<
     }
 
     private static void addParticles(final BlockState state, final LevelAccessor level, final BlockPos pos, final float alpha) {
-        level.addParticle(new DustParticleOptions(new Vector3f(1.0F, 0.0F, 0.0F), alpha), pos.getX() + 0.5f, pos.getY() + 0.5f, pos.getZ() + 0.5f, 0.0D, 0.0D,
+        level.addParticle(new DustParticleOptions(0xff0000, alpha), pos.getX() + 0.5f, pos.getY() + 0.5f, pos.getZ() + 0.5f, 0.0D, 0.0D,
                 0.0D);
     }
 
     @Override
     public VoxelShape getShape(final BlockState pState, final BlockGetter pLevel, final BlockPos pPos, final CollisionContext pContext) {
         return SimBlockShapes.REDSTONE_ACCUMULATOR;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

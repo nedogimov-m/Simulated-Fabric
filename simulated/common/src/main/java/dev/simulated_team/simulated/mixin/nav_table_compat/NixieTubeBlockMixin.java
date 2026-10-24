@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 // todo: wait on create to fix this
 @Mixin(NixieTubeBlock.class)
 public class NixieTubeBlockMixin {
-    @WrapOperation(method = "getPower", at = @At(value = "FIELD", ordinal = 1, target = "Lnet/createmod/catnip/data/Iterate;directions:[Lnet/minecraft/core/Direction;"))
+    @WrapOperation(method = "updateDisplayedRedstoneValue", at = @At(value = "INVOKE", ordinal = 1, target = "Lnet/minecraft/core/Direction;values()[Lnet/minecraft/core/Direction;"))
     private static Direction[] fixReadPower(final Operation<Direction[]> original) {
         return new Direction[0]; // do not read the signal sent downwards for all adjacent blocks!!!
     }

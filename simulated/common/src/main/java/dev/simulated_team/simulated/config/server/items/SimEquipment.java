@@ -1,8 +1,8 @@
 package dev.simulated_team.simulated.config.server.items;
 
-import net.createmod.catnip.config.ConfigBase;
+import com.simibubi.create.infrastructure.config.NativeConfigBase;
 
-public class SimEquipment extends ConfigBase {
+public class SimEquipment extends NativeConfigBase {
     public final ConfigInt maxPlungerLauncherShots = this.i(100, 0, "maxPlungerLauncherShots", Comments.maxPlungerLauncherShots);
     public final ConfigInt maxPlungerLauncherRange = this.i(64, 0, "maxPlungerLauncherRange", Comments.maxPlungerLauncherRange);
 

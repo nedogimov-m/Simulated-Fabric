@@ -1,8 +1,10 @@
 package dev.simulated_team.simulated.content.blocks.redstone.linked_typewriter;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.simibubi.create.AllDataComponents;
 import com.simibubi.create.content.redstone.link.RedstoneLinkNetworkHandler;
-import com.simibubi.create.foundation.utility.ControlsUtil;
+import com.simibubi.create.content.redstone.link.controller.LinkedControllerClientHandler;
+import net.minecraft.client.input.KeyEvent;
 import dev.simulated_team.simulated.index.SimSoundEvents;
 import dev.simulated_team.simulated.mixin.accessor.KeyMappingsAccessor;
 import dev.simulated_team.simulated.network.packets.linked_typewriter.TypewriterDisconnectUser;
@@ -23,7 +25,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import org.lwjgl.glfw.GLFW;
+
 
 import java.lang.ref.WeakReference;
 import java.util.List;
@@ -38,23 +40,23 @@ public class LinkedTypewriterInteractionHandler {
 
     static {
         // Hardcoded key locations for renderer
-        presetKeys.put(GLFW.GLFW_KEY_Q, 0);
-        presetKeys.put(GLFW.GLFW_KEY_W, 1);
-        presetKeys.put(GLFW.GLFW_KEY_E, 2);
-        presetKeys.put(GLFW.GLFW_KEY_A, 6);
-        presetKeys.put(GLFW.GLFW_KEY_S, 7);
-        presetKeys.put(GLFW.GLFW_KEY_D, 8);
-        presetKeys.put(GLFW.GLFW_KEY_UP, 4);
-        presetKeys.put(GLFW.GLFW_KEY_LEFT, 10);
-        presetKeys.put(GLFW.GLFW_KEY_DOWN, 11);
-        presetKeys.put(GLFW.GLFW_KEY_RIGHT, 12);
-        presetKeys.put(GLFW.GLFW_KEY_SPACE, 13);
-        presetKeys.put(GLFW.GLFW_KEY_0, 12);
-        presetKeys.put(GLFW.GLFW_KEY_KP_0, 12);
+        presetKeys.put(InputConstants.KEY_Q, 0);
+        presetKeys.put(InputConstants.KEY_W, 1);
+        presetKeys.put(InputConstants.KEY_E, 2);
+        presetKeys.put(InputConstants.KEY_A, 6);
+        presetKeys.put(InputConstants.KEY_S, 7);
+        presetKeys.put(InputConstants.KEY_D, 8);
+        presetKeys.put(InputConstants.KEY_UP, 4);
+        presetKeys.put(InputConstants.KEY_LEFT, 10);
+        presetKeys.put(InputConstants.KEY_DOWN, 11);
+        presetKeys.put(InputConstants.KEY_RIGHT, 12);
+        presetKeys.put(InputConstants.KEY_SPACE, 13);
+        presetKeys.put(InputConstants.KEY_0, 12);
+        presetKeys.put(InputConstants.KEY_NUMPAD0, 12);
 
         for (int i = 0; i < 9; i++) {
-            presetKeys.put(GLFW.GLFW_KEY_1 + i, i);
-            presetKeys.put(GLFW.GLFW_KEY_KP_1 + i, i);
+            presetKeys.put(InputConstants.KEY_1 + i, i);
+            presetKeys.put(InputConstants.KEY_NUMPAD1 + i, i);
         }
     }
 
@@ -87,7 +89,7 @@ public class LinkedTypewriterInteractionHandler {
             associateTypewriter(null);
         }
 
-        if (getMode() != Mode.SCREEN_BINDING && Minecraft.getInstance().screen != null && !be.isRemoved()) {
+        if (getMode() != Mode.SCREEN_BINDING && Minecraft.getInstance().gui.screen() != null && !be.isRemoved()) {
             VeilPacketManager.server().sendPacket(new TypewriterDisconnectUser(be.getBlockPos()));
             associateTypewriter(null);
         }
@@ -116,33 +118,33 @@ public class LinkedTypewriterInteractionHandler {
             if (be != null && !be.isRemoved()) {
                 final LinkedTypewriterEntries.KeyboardEntry frequency = be.getTypewriterEntries().getEntry(key);
 
-                if (key == GLFW.GLFW_KEY_ESCAPE) {
+                if (key == InputConstants.KEY_ESCAPE) {
                     be.disconnectUser();
                     VeilPacketManager.server().sendPacket(new TypewriterDisconnectUser(be.getBlockPos()));
 
-                    minecraft.setScreen(null);
+                    minecraft.gui.setScreen(null);
                 }
 
                 if (frequency != null) {
                     // TODO: cache these that way we don't iterate every keypress and repeat
                     preventPress(key, scanCode);
 
-                    if (action != GLFW.GLFW_REPEAT) {
+                    if (action != InputConstants.REPEAT) {
                         VeilPacketManager.server().sendPacket(new TypewriterKeyInteractionPacket(be.getBlockPos(), key, scanCode, action));
                     }
 
                     final LocalPlayer player = minecraft.player;
-                    if (action == GLFW.GLFW_PRESS) {
+                    if (action == InputConstants.PRESS) {
                         SimSoundEvents.LINKED_TYPEWRITER_TAP.playAt(player.level(), player.blockPosition(), 1.0F, 1.0F, true);
                         checkKeyCodeAndSetPressed(key, true);
-                    } else if (action == GLFW.GLFW_RELEASE) {
+                    } else if (action == InputConstants.RELEASE) {
                         SimSoundEvents.LINKED_TYPEWRITER_UNTAP.playAt(player.level(), player.blockPosition(), 1.0F, 1.0F, true);
                         checkKeyCodeAndSetPressed(key, false);
                     }
                 }
 
-                for (final KeyMapping control : ControlsUtil.getControls()) {
-                    if (control.matches(key, scanCode)) {
+                for (final KeyMapping control : LinkedControllerClientHandler.controls(Minecraft.getInstance())) {
+                    if (control.matches(new KeyEvent(key,scanCode,modifiers))) {
                         control.consumeClick();
                         control.setDown(false);
                         break;
@@ -158,7 +160,7 @@ public class LinkedTypewriterInteractionHandler {
 
     public static void preventPress(final int key, final int scanCode) {
         for (final KeyMapping mapping : Minecraft.getInstance().options.keyMappings) {
-            if (mapping.matches(key, scanCode)) {
+            if (mapping.matches(new KeyEvent(key,scanCode,0))) {
                 // TODO: there might be a better, more robust way to prevent keystrokes from propagating
                 mapping.consumeClick();
                 mapping.setDown(false);
@@ -225,7 +227,7 @@ public class LinkedTypewriterInteractionHandler {
 
             linkedControllerItems = emptyData;
         } else {
-            linkedControllerItems = new ObjectArrayList<>(linkedControllerData.stream().toList());
+            linkedControllerItems = new ObjectArrayList<>(linkedControllerData.itemCopies().toList());
 
             while (linkedControllerItems.size() < 12) {
                 linkedControllerItems.add(ItemStack.EMPTY);
@@ -235,7 +237,7 @@ public class LinkedTypewriterInteractionHandler {
         final Int2ObjectMap<LinkedTypewriterEntries.KeyboardEntry> newKeyBindings = new Int2ObjectOpenHashMap<>();
 
         int controlIndex = 0;
-        for (final KeyMapping mapping : ControlsUtil.getControls()) {
+        for (final KeyMapping mapping : LinkedControllerClientHandler.controls(Minecraft.getInstance())) {
             final int control = ((KeyMappingsAccessor) mapping).getKey().getValue();
             final ItemStack first = linkedControllerItems.get(2 * controlIndex);
             final ItemStack second = linkedControllerItems.get(2 * controlIndex + 1);

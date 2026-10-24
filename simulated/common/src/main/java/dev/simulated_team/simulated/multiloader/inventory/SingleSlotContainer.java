@@ -29,6 +29,9 @@ public abstract class SingleSlotContainer implements AbstractContainer {
 
     @Override
     public ItemStack insertSlot(final ItemStack stack, final int slot, final boolean simulate) {
+        if (slot != 0) {
+            return stack;
+        }
         final int inserted = this.commonInsert(ItemInfoWrapper.generateFromStack(stack), this.slot, stack.getCount(), simulate);
         if (inserted > 0) {
             final ItemStack copied = stack.copy();
@@ -74,6 +77,9 @@ public abstract class SingleSlotContainer implements AbstractContainer {
         return new HashSet<>();
     }
 
+    @Override public void write(final net.minecraft.world.level.storage.ValueOutput output) { this.slot.write(output); }
+    @Override public void read(final net.minecraft.world.level.storage.ValueInput input) { this.slot.read(input); }
+
     @Override
     public CompoundTag write(final HolderLookup.Provider provider) {
         return this.slot.write(provider);
@@ -117,11 +123,6 @@ public abstract class SingleSlotContainer implements AbstractContainer {
         }
 
         this.slot.setStack(stack);
-    }
-
-    @Override
-    public void onStackItemChange(final ContainerSlot slot, final ItemStack oldSlotStack, final ItemStack newSlotStack) {
-        this.setChanged();
     }
 
     @Override

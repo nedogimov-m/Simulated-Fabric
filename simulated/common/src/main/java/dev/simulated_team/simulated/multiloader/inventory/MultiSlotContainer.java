@@ -47,7 +47,7 @@ public abstract class MultiSlotContainer implements AbstractContainer {
         this.maxStackSize = maxStackSize;
 
         this.inventory = new ArrayList<>(size);
-        this.populatedSlots = new HashSet<>();
+        this.populatedSlots = new TreeSet<>(Comparator.comparingInt(ContainerSlot::getIndex));
         this.filteredSlots = new HashMap<>();
 
         //populate all item stacks and slots
@@ -130,15 +130,17 @@ public abstract class MultiSlotContainer implements AbstractContainer {
     public Set<ItemStack> extractAny(int amountToExtract, final boolean simulated) {
         final HashSet<ItemStack> extracted = new HashSet<>();
 
-        for (final ContainerSlot slot : this.populatedSlots) {
+        for (final ContainerSlot slot : List.copyOf(this.populatedSlots)) {
             if (amountToExtract <= 0) {
                 break;
             }
 
+            final ItemStack before = slot.getStack().copy();
             final int amountExtracted = slot.extractStack(null, amountToExtract, simulated);
             if (amountExtracted > 0) {
                 amountToExtract -= amountExtracted;
-                extracted.add(new ItemStack(slot.getType(), amountExtracted));
+                before.setCount(amountExtracted);
+                extracted.add(before);
             }
         }
 
@@ -159,10 +161,11 @@ public abstract class MultiSlotContainer implements AbstractContainer {
         if (first.isPresent()) {
             final ContainerSlot slot = first.get();
 
-            final Item beforeType = slot.getType();
+            final ItemStack before = slot.getStack().copy();
             final long extracted = slot.extractStack(null, entireStack ? slot.getStack().getCount() : 1, simulated);
             if (extracted > 0) {
-                return new ItemStack(beforeType, (int) extracted);
+                before.setCount((int) extracted);
+                return before;
             }
         }
 
@@ -245,7 +248,7 @@ public abstract class MultiSlotContainer implements AbstractContainer {
     @NotNull
     public Set<ContainerSlot> getFilteredSlots(@Nullable final Item type) {
         if (type == null) {
-            return this.populatedSlots;
+            return new LinkedHashSet<>(this.populatedSlots);
         }
 
         if (this.filteredSlots.containsKey(type)) {
@@ -321,7 +324,7 @@ public abstract class MultiSlotContainer implements AbstractContainer {
     }
 
     public void clearAndDropContents(final Level level, final BlockPos dropPos) {
-        for (final ContainerSlot slot : this.populatedSlots) {
+        for (final ContainerSlot slot : List.copyOf(this.populatedSlots)) {
             Containers.dropItemStack(level, dropPos.getX(), dropPos.getY(), dropPos.getZ(), slot.getStack());
         }
 
@@ -333,11 +336,12 @@ public abstract class MultiSlotContainer implements AbstractContainer {
      */
     @Override
     public void clearContent() {
-        Collections.fill(this.inventory, ContainerSlot.EMPTY);
-        this.populatedSlots.clear();
-        this.filteredSlots.clear();
-
-        this.setChanged();
+        try (var ignored = AbstractContainer.suppressChangeNotifications()) {
+            for (final ContainerSlot slot : this.inventory) {
+                slot.clear();
+            }
+        }
+        this.notifyContentsChanged();
     }
 
     /**
@@ -400,14 +404,14 @@ public abstract class MultiSlotContainer implements AbstractContainer {
     //This will be called after this container has been instantiated.
     @Override
     public void read(final HolderLookup.Provider provider, final CompoundTag nbt) {
-        this.storedItemCount = nbt.getInt("Stored Count");
-
-        final ListTag inv = nbt.getList("Items", Tag.TAG_COMPOUND);
-        for (final Tag tag : inv) {
-            final CompoundTag itemTag = (CompoundTag) tag;
-            final ContainerSlot slot = this.inventory.get(itemTag.getInt("index"));
-            slot.read(provider, itemTag);
-            this.populatedSlots.add(slot);
+        try (var ignored = AbstractContainer.suppressChangeNotifications()) {
+            this.clearContent();
+            for (final CompoundTag itemTag : nbt.getListOrEmpty("Items").compoundStream().toList()) {
+                final int index = itemTag.getIntOr("index", -1);
+                if (index >= 0 && index < this.inventory.size()) {
+                    this.inventory.get(index).read(provider, itemTag);
+                }
+            }
         }
     }
 
@@ -439,7 +443,8 @@ public abstract class MultiSlotContainer implements AbstractContainer {
      * @return How full this inventory is, with 1 being completely filled
      */
     public float getFillLevel() {
-        return (this.getContainerSize() * this.getMaxStackSize()) / (float) (this.storedItemCount);
+        final long capacity = (long) this.getContainerSize() * this.getMaxStackSize();
+        return capacity == 0 ? 0 : this.storedItemCount / (float) capacity;
     }
 
     /**

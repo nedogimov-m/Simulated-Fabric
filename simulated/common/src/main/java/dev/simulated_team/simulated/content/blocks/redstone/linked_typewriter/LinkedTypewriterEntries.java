@@ -54,18 +54,33 @@ public class LinkedTypewriterEntries {
             } else {
                 final KeyboardEntry entry = result.getOrThrow().getFirst();
                 entry.setLocation(pos);
-                keys.setKey(entry.glfwKeyCode, entry);
+                keys.setKey(entry.scanCode, entry);
             }
         }
 
         return keys;
     }
 
+    /** Native per-entry decoding preserves malformed-entry isolation and registry context. */
+    public static LinkedTypewriterEntries readKeys(net.minecraft.world.level.storage.ValueInput input, String key, BlockPos pos) {
+        final LinkedTypewriterEntries keys = new LinkedTypewriterEntries();
+        for (KeyboardEntry entry : input.listOrEmpty(key, KeyboardEntry.CODEC)) {
+            entry.setLocation(pos);
+            keys.setKey(entry.scanCode, entry);
+        }
+        return keys;
+    }
+
+    public void writeKeys(net.minecraft.world.level.storage.ValueOutput output, String key) {
+        final var entries = output.list(key, KeyboardEntry.CODEC);
+        this.keyMap.values().forEach(entries::add);
+    }
+
     /**
      * Handles all redstoneLinkFrequency handling when adding and removing and updating to the server handler
      */
     public void updateNetworks(final Level level) {
-        if (!level.isClientSide) { //Iterate through activated keys first then deactivated keys to make sure if a key is activated and deactivated in the same tick it always deactivates
+        if (!level.isClientSide()) { //Iterate through activated keys first then deactivated keys to make sure if a key is activated and deactivated in the same tick it always deactivates
             for (final KeyboardEntry keyboardEntry : this.newlyActivatedKeyboardEntries) {
                 Create.REDSTONE_LINK_NETWORK_HANDLER.addToNetwork(level, keyboardEntry);
             }
@@ -174,22 +189,32 @@ public class LinkedTypewriterEntries {
 
     public static class KeyboardEntry implements IRedstoneLinkable {
 
-        public static final Codec<KeyboardEntry> CODEC = RecordCodecBuilder.create((instance) ->
+        private static final Codec<KeyboardEntry> NATIVE_CODEC = RecordCodecBuilder.create((instance) ->
                 instance.group(ItemStack.OPTIONAL_CODEC.fieldOf("FirstItem")
                                         .forGetter(KeyboardEntry::getFirstAsItemStack),
                                 ItemStack.OPTIONAL_CODEC.fieldOf("SecondItem")
                                         .forGetter(KeyboardEntry::getSecondAsItemStack),
-                                Codec.INT.fieldOf("GLFWKey").forGetter(KeyboardEntry::getGLFWKeyCode))
+                                Codec.INT.fieldOf("ScanCode").forGetter(KeyboardEntry::getScanCode))
                         .apply(instance, KeyboardEntry::createFromCodec));
+
+        private static final Codec<KeyboardEntry> LEGACY_CODEC = RecordCodecBuilder.create((instance) ->
+                instance.group(ItemStack.OPTIONAL_CODEC.fieldOf("FirstItem").forGetter(KeyboardEntry::getFirstAsItemStack),
+                        ItemStack.OPTIONAL_CODEC.fieldOf("SecondItem").forGetter(KeyboardEntry::getSecondAsItemStack),
+                        Codec.INT.xmap(dev.simulated_team.simulated.util.KeyboardScanCodes::fromLegacy,
+                                dev.simulated_team.simulated.util.KeyboardScanCodes::toLegacy)
+                                .fieldOf("GLFWKey").forGetter(KeyboardEntry::getScanCode))
+                        .apply(instance, KeyboardEntry::createFromCodec));
+
+        public static final Codec<KeyboardEntry> CODEC = Codec.withAlternative(NATIVE_CODEC, LEGACY_CODEC);
 
         public static final StreamCodec<RegistryFriendlyByteBuf, KeyboardEntry> STREAM_CODEC = StreamCodec.composite(
                 ItemStack.OPTIONAL_STREAM_CODEC, KeyboardEntry::getFirstAsItemStack,
                 ItemStack.OPTIONAL_STREAM_CODEC, KeyboardEntry::getSecondAsItemStack,
-                ByteBufCodecs.INT, KeyboardEntry::getGLFWKeyCode,
+                ByteBufCodecs.INT, KeyboardEntry::getScanCode,
                 KeyboardEntry::createFromCodec);
 
 
-        public final int glfwKeyCode;
+        public final int scanCode;
 
         private final RedstoneLinkNetworkHandler.Frequency first;
         private final RedstoneLinkNetworkHandler.Frequency second;
@@ -212,7 +237,7 @@ public class LinkedTypewriterEntries {
             this.currentlyActive = false;
             this.pos = pos;
 
-            this.glfwKeyCode = constant;
+            this.scanCode = constant;
         }
 
         private KeyboardEntry(final RedstoneLinkNetworkHandler.Frequency first, final RedstoneLinkNetworkHandler.Frequency second, final int constant) {
@@ -245,8 +270,8 @@ public class LinkedTypewriterEntries {
             return Couple.create(this.first, this.second);
         }
 
-        public int getGLFWKeyCode() {
-            return this.glfwKeyCode;
+        public int getScanCode() {
+            return this.scanCode;
         }
 
         public RedstoneLinkNetworkHandler.Frequency getFirst() {

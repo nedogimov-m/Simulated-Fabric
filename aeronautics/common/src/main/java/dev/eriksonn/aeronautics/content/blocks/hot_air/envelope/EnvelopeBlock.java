@@ -16,7 +16,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -44,8 +44,8 @@ public class EnvelopeBlock extends CasingBlock implements Envelope, SpecialBlock
     }
 
     protected static void applyDye(final BlockState state, final Level level, final BlockPos pos, final DyeColor color) {
-        final BlockState newEnvelopeState = BlockHelper.copyProperties(state, AeroBlocks.DYED_ENVELOPE_BLOCKS.get(color).getDefaultState());
-        final BlockState newEncasedEnvelopeState = BlockHelper.copyProperties(state, AeroBlocks.ENVELOPE_ENCASED_SHAFTS.get(color).getDefaultState());
+        final BlockState newEnvelopeState = AeroBlocks.DYED_ENVELOPE_BLOCKS.get(color).withPropertiesOf(state);
+        final BlockState newEncasedEnvelopeState = AeroBlocks.ENVELOPE_ENCASED_SHAFTS.get(color).withPropertiesOf(state);
 
         // Dye the block itself
         if (selfDye(level, pos, state, color)) {
@@ -96,13 +96,13 @@ public class EnvelopeBlock extends CasingBlock implements Envelope, SpecialBlock
 
     static boolean selfDye(final Level level, final BlockPos pos, final BlockState state, final DyeColor color) {
         if (state.getBlock() instanceof final EnvelopeBlock eb && eb.getColor() != color) {
-            level.setBlockAndUpdate(pos, AeroBlocks.DYED_ENVELOPE_BLOCKS.get(color).getDefaultState());
+            level.setBlockAndUpdate(pos, AeroBlocks.DYED_ENVELOPE_BLOCKS.get(color).defaultBlockState());
             return true;
         }
 
         if (state.getBlock() instanceof final EnvelopeEncasedShaftBlock eb && eb.getColor() != color) {
             final Direction.Axis axis = eb.getRotationAxis(state);
-            level.setBlockAndUpdate(pos, AeroBlocks.ENVELOPE_ENCASED_SHAFTS.get(color).getDefaultState().setValue(RotatedPillarKineticBlock.AXIS, axis));
+            level.setBlockAndUpdate(pos, AeroBlocks.ENVELOPE_ENCASED_SHAFTS.get(color).defaultBlockState().setValue(RotatedPillarKineticBlock.AXIS, axis));
             return true;
         }
 
@@ -130,28 +130,28 @@ public class EnvelopeBlock extends CasingBlock implements Envelope, SpecialBlock
     }
 
     @Override
-    protected int getLightBlock(final BlockState state, final BlockGetter level, final BlockPos pos) {
+    protected int getLightDampening(final BlockState state) {
         return 1;
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
+    protected InteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
         final DyeColor color = SimItemService.getDyeColor(itemStack);
 
         if (color != null) {
             if (!level.isClientSide())
-                level.playSound(null, blockPos, SoundEvents.DYE_USE, SoundSource.BLOCKS, 1.0f, 1.1f - level.random.nextFloat() * .2f);
+                level.playSound(null, blockPos, SoundEvents.DYE_USE, SoundSource.BLOCKS, 1.0f, 1.1f - level.getRandom().nextFloat() * .2f);
 
             EnvelopeBlock.applyDye(blockState, level, blockPos, color);
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
 
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     @Override
-    public ItemStack getCloneItemStack(final LevelReader levelReader, final BlockPos blockPos, final BlockState blockState) {
-        return AeroBlocks.DYED_ENVELOPE_BLOCKS.get(this.color).asStack();
+    public ItemStack getCloneItemStack(final LevelReader levelReader, final BlockPos blockPos, final BlockState blockState, final boolean includeData) {
+        return new ItemStack(AeroBlocks.DYED_ENVELOPE_BLOCKS.get(this.color));
     }
 
     public DyeColor getColor() {
@@ -159,7 +159,7 @@ public class EnvelopeBlock extends CasingBlock implements Envelope, SpecialBlock
     }
 
     @Override
-    public void fallOn(final Level pLevel, final BlockState pState, final BlockPos pPos, final Entity pEntity, final float pFallDistance) {
+    public void fallOn(final Level pLevel, final BlockState pState, final BlockPos pPos, final Entity pEntity, final double pFallDistance) {
         if (pEntity.isSuppressingBounce()) {
             super.fallOn(pLevel, pState, pPos, pEntity, pFallDistance);
         } else {
@@ -169,13 +169,7 @@ public class EnvelopeBlock extends CasingBlock implements Envelope, SpecialBlock
     }
 
     @Override
-    public void updateEntityAfterFallOn(final BlockGetter pLevel, final Entity pEntity) {
-        if (pEntity.isSuppressingBounce()) {
-            super.updateEntityAfterFallOn(pLevel, pEntity);
-        } else {
-            this.bounceUp(pEntity);
-        }
-    }
+    public float getBounceRestitution() { return 0.65f; }
 
     private void bounceUp(final Entity entity) {
         final Vec3 vec3 = entity.getDeltaMovement();
@@ -187,7 +181,7 @@ public class EnvelopeBlock extends CasingBlock implements Envelope, SpecialBlock
 
     @Override
     public ItemRequirement getRequiredItems(BlockState state, @Nullable BlockEntity blockEntity) {
-        ItemStack stack = AeroBlocks.WHITE_ENVELOPE_BLOCK.asStack();
+        ItemStack stack = new ItemStack(AeroBlocks.WHITE_ENVELOPE_BLOCK);
         return new ItemRequirement(ItemRequirement.ItemUseType.CONSUME, stack);
     }
 }

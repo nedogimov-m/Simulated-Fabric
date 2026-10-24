@@ -2,12 +2,8 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "B": {
-      "item": "create:brass_casing"
-    },
-    "S": {
-      "item": "minecraft:stick"
-    }
+    "B": "create:brass_casing",
+    "S": "minecraft:stick"
   },
   "pattern": [
     "S",

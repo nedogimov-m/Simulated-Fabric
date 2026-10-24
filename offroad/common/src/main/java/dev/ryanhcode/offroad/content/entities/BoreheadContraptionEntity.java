@@ -8,16 +8,13 @@ import com.simibubi.create.content.contraptions.IControlContraption;
 import com.simibubi.create.content.contraptions.StructureTransform;
 import com.simibubi.create.content.contraptions.actors.contraptionControls.ContraptionControlsMovement;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-import com.simibubi.create.infrastructure.data.CreateContraptionTypeTagsProvider;
 import dev.ryanhcode.offroad.content.blocks.borehead_bearing.BoreheadBearingBlockEntity;
 import dev.ryanhcode.offroad.content.blocks.rock_cutting_wheel.RockCuttingWheelActor;
 import dev.ryanhcode.offroad.content.contraptions.borehead_contraption.BoreheadBearingContraption;
 import dev.ryanhcode.offroad.index.OffroadContraptionTypes;
 import dev.ryanhcode.offroad.index.OffroadEntityTypes;
-import dev.ryanhcode.sable.api.sublevel.KinematicContraption;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.Level;
@@ -30,31 +27,19 @@ import static net.createmod.catnip.math.AngleHelper.angleLerp;
 
 public class BoreheadContraptionEntity extends ControlledContraptionEntity {
 
-    public BoreheadContraptionEntity(final EntityType<?> type, final Level world) {
+    public BoreheadContraptionEntity(final EntityType<? extends BoreheadContraptionEntity> type, final Level world) {
         super(type, world);
     }
 
     public static BoreheadContraptionEntity create(final Level world, final IControlContraption controller,
                                                    final Contraption contraption) {
-        final BoreheadContraptionEntity entity = new BoreheadContraptionEntity(OffroadEntityTypes.BOREHEAD_CONTRAPTION_ENTITY.get(), world);
+        final BoreheadContraptionEntity entity = new BoreheadContraptionEntity(OffroadEntityTypes.BOREHEAD_CONTRAPTION_ENTITY, world);
         entity.setControllerPos(controller.getBlockPosition());
         entity.setContraption(contraption);
         return entity;
     }
 
-    @Override
-    protected boolean shouldActorTrigger(final MovementContext context,
-                                         final StructureTemplate.StructureBlockInfo blockInfo,
-                                         final MovementBehaviour actor,
-                                         final Vec3 actorPosition,
-                                         final BlockPos gridPosition) {
-        if (!(actor instanceof RockCuttingWheelActor || actor instanceof ContraptionControlsMovement)) {
-            context.disabled = true;
-            return false;
-        }
 
-        return super.shouldActorTrigger(context, blockInfo, actor, actorPosition, gridPosition);
-    }
 
     @Override
     protected boolean isActorActive(final MovementContext context, final MovementBehaviour actor) {
@@ -67,7 +52,7 @@ public class BoreheadContraptionEntity extends ControlledContraptionEntity {
     }
 
     public void setControllerPos(final BlockPos controllerPos) {
-        this.controllerPos = controllerPos;
+        super.setControllerPos(controllerPos);
     }
 
     public BlockPos getControllerPos() {
@@ -80,7 +65,8 @@ public class BoreheadContraptionEntity extends ControlledContraptionEntity {
 
     @Override
     public float getAngle(final float partialTicks) {
-        final IControlContraption controller = this.getController();
+        final IControlContraption controller = this.controllerPos != null && this.level().isLoaded(this.controllerPos)
+                && this.level().getBlockEntity(this.controllerPos) instanceof IControlContraption found ? found : null;
 
         // make sure to respect the slowdown controller
         if (controller instanceof final BoreheadBearingBlockEntity be) {
@@ -93,27 +79,25 @@ public class BoreheadContraptionEntity extends ControlledContraptionEntity {
     }
 
     public float getAngleDelta() {
-        return this.angleDelta;
+        return net.minecraft.util.Mth.wrapDegrees(this.angle - this.prevAngle);
     }
 
     @Override
-    protected void readAdditional(final CompoundTag compound, final boolean spawnPacket) {
-        //this is so previous saved worlds can still load, as before this change if you had a borehead bearing it was not saved under the correct type
-        if (compound.contains("Contraption")) {
-            final CompoundTag contTag = compound.getCompound("Contraption");
-            if (contTag.contains("Type") && contTag.getString("Type").equals(AllContraptionTypes.BEARING.key().location().toString())) {
-                compound.getCompound("Contraption")
-                        .putString("Type", OffroadContraptionTypes.BOREHEAD_CONTRAPTION_TYPE.get().holder.key().location().toString());
-            }
+    protected void readAdditionalSaveData(net.minecraft.world.level.storage.ValueInput input) {
+        final var original = input.read("Contraption", CompoundTag.CODEC).orElse(null);
+        super.readAdditionalSaveData(input);
+        // Old saves used Create's bearing ID. Rebuild through the genuine registered addon factory.
+        if (original != null && this.contraption != null && this.contraption.getType() == AllContraptionTypes.BEARING.value()) {
+            final var migrated = original.copy();
+            migrated.putString("Type", OffroadContraptionTypes.BOREHEAD_CONTRAPTION_TYPE.getId().toString());
+            this.setContraption(Contraption.fromNBT(this.level(), migrated, false));
         }
-
-        super.readAdditional(compound, spawnPacket);
     }
 
     //make sure no matter what we disassembly in the same position we started
     @Override
-    protected StructureTransform makeStructureTransform() {
-        final StructureTransform transform = super.makeStructureTransform();
+    protected StructureTransform disassemblyTransform() {
+        final StructureTransform transform = super.disassemblyTransform();
 
         transform.angle = 0;
         transform.rotation = Rotation.NONE;

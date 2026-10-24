@@ -1,7 +1,7 @@
 package dev.eriksonn.aeronautics.content.blocks.mounted_potato_cannon;
 
 import com.simibubi.create.content.kinetics.base.DirectionalAxisKineticBlock;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.eriksonn.aeronautics.index.AeroBlockEntityTypes;
 import dev.eriksonn.aeronautics.index.AeroBlockShapes;
 import dev.simulated_team.simulated.multiloader.inventory.ContainerSlot;
@@ -9,7 +9,7 @@ import dev.simulated_team.simulated.multiloader.inventory.ItemInfoWrapper;
 import dev.simulated_team.simulated.util.DirectionalAxisShaper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -25,7 +25,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class MountedPotatoCannonBlock extends DirectionalAxisKineticBlock implements IBE<MountedPotatoCannonBlockEntity> {
+public class MountedPotatoCannonBlock extends DirectionalAxisKineticBlock implements NativeEntityBlock<MountedPotatoCannonBlockEntity> {
 	public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 	public static final BooleanProperty BLOCKED = BooleanProperty.create("blocked");
 
@@ -41,15 +41,15 @@ public class MountedPotatoCannonBlock extends DirectionalAxisKineticBlock implem
 
 	@Override
 	public BlockEntityType<? extends MountedPotatoCannonBlockEntity> getBlockEntityType() {
-		return AeroBlockEntityTypes.MOUNTED_POTATO_CANNON.get();
+		return AeroBlockEntityTypes.MOUNTED_POTATO_CANNON;
 	}
 
 	@Override
-	protected ItemInteractionResult useItemOn(final ItemStack heldItem, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
+	protected InteractionResult useItemOn(final ItemStack heldItem, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
 		if (level.getBlockEntity(blockPos) instanceof final MountedPotatoCannonBlockEntity be) {
 			final ContainerSlot slot = be.getInventory().slot;
 			if (heldItem.isEmpty() && slot.isEmpty()) {
-				return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+				return InteractionResult.TRY_WITH_EMPTY_HAND;
 			}
 
 			//either we were able to add more to the current stack, or we added a new stack
@@ -57,29 +57,29 @@ public class MountedPotatoCannonBlock extends DirectionalAxisKineticBlock implem
 			if (slot.isEmpty() || slot.getType() == heldItem.getItem()) {
 				final long inserted = slot.insertStack(info, Math.min(heldItem.getCount(), 16), true);
 				if (inserted > 0) {
-					if (!level.isClientSide) {
+					if (!level.isClientSide()) {
 						slot.insertStack(info, Math.min(heldItem.getCount(), 16), false);
 					}
 
 					if (!player.hasInfiniteMaterials()) {
 						heldItem.shrink((int) inserted);
 					}
-					return ItemInteractionResult.sidedSuccess(level.isClientSide());
+					return InteractionResult.SUCCESS;
 				}
 			}
 
 			//We're attempting to swap
 			if (slot.getType() != heldItem.getItem() && slot.canInsert(info)) {
 				final ItemStack extracted = slot.getStack().copy();
-				player.getInventory().placeItemBackInInventory(extracted);
+				player.getInventory().placeItemBackInInventory(extracted, net.minecraft.util.Prediction.SERVER_ONLY);
 				slot.setStack(ItemStack.EMPTY);
 
-				if (!level.isClientSide) {
+				if (!level.isClientSide()) {
 					final long inserted = slot.insertStack(info, Math.min(heldItem.getCount(), 16), false);
 					heldItem.shrink((int) inserted);
 				}
 
-				return ItemInteractionResult.SUCCESS;
+				return InteractionResult.SUCCESS;
 			}
 		}
 
@@ -87,8 +87,8 @@ public class MountedPotatoCannonBlock extends DirectionalAxisKineticBlock implem
 	}
 
 	@Override
-	public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block block, final BlockPos fromPos, final boolean isMoving) {
-		if (level.isClientSide) {
+	public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block block, final net.minecraft.world.level.redstone.Orientation orientation, final boolean isMoving) {
+		if (level.isClientSide()) {
 			return;
 		}
 
@@ -120,5 +120,17 @@ public class MountedPotatoCannonBlock extends DirectionalAxisKineticBlock implem
 		return state.getValue(BLOCKED) ? this.MOUNTED_POTATO_CANNON_BLOCKED.get(state.getValue(FACING), state.getValue(AXIS_ALONG_FIRST_COORDINATE))
 				: this.MOUNTED_POTATO_CANNON.get(state.getValue(FACING), state.getValue(AXIS_ALONG_FIRST_COORDINATE));
 	}
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
+    }
 }
 

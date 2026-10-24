@@ -2,34 +2,21 @@
   "type": "create:mixing",
   "heat_requirement": "heated",
   "ingredients": [
+    "aeronautics:end_stone_powder",
+    "aeronautics:end_stone_powder",
+    "aeronautics:end_stone_powder",
+    "aeronautics:end_stone_powder",
+    "create:zinc_nugget",
+    "create:zinc_nugget",
     {
-      "item": "aeronautics:end_stone_powder"
-    },
-    {
-      "item": "aeronautics:end_stone_powder"
-    },
-    {
-      "item": "aeronautics:end_stone_powder"
-    },
-    {
-      "item": "aeronautics:end_stone_powder"
-    },
-    {
-      "item": "create:zinc_nugget"
-    },
-    {
-      "item": "create:zinc_nugget"
-    },
-    {
-      "type": "neoforge:tag",
-      "amount": 500,
-      "tag": "c:water"
+      "fluid_tag": "c:water",
+      "amount": 40500
     }
   ],
   "results": [
     {
-      "amount": 500,
-      "id": "aeronautics:levitite_blend"
+      "amount": 40500,
+      "fluid": "aeronautics:levitite_blend"
     }
   ]
 }

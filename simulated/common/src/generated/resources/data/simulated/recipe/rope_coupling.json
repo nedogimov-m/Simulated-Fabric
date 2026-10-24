@@ -2,12 +2,8 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "N": {
-      "tag": "c:nuggets/iron"
-    },
-    "S": {
-      "tag": "c:strings"
-    }
+    "N": "#c:nuggets/iron",
+    "S": "#c:strings"
   },
   "pattern": [
     " S ",

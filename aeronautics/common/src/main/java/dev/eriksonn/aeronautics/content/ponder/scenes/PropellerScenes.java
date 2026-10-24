@@ -60,7 +60,7 @@ public class PropellerScenes {
         final List<ElementLink<WorldSectionElement>> sails = new ArrayList<>();
         for (int i = 0; i < 4; i++) {
             final Direction dir = Direction.fromYRot(i * 90);
-            final Vec3i pos = dir.getNormal().offset(0, 2, 0);
+            final Vec3i pos = dir.getUnitVec3i().offset(0, 2, 0);
             final ElementLink<WorldSectionElement> currentSail = world.showIndependentSection(select.position(propellerPos.offset(pos)), dir.getOpposite());
             sails.add(currentSail);
 
@@ -112,8 +112,8 @@ public class PropellerScenes {
         for (i = 0; i < 4; i++) {
             final Direction dir = Direction.fromYRot(i * 90);
             final BlockPos base = propellerPos.offset(0, 1, 0);
-            final Vec3i pos1 = dir.getNormal();
-            final Vec3i pos2 = dir.getNormal().cross(new Vec3i(0, -1, 0));
+            final Vec3i pos1 = dir.getUnitVec3i();
+            final Vec3i pos2 = dir.getUnitVec3i().cross(new Vec3i(0, -1, 0));
             final ElementLink<WorldSectionElement> currentSupport = world.showIndependentSection(select.fromTo(
                             base.offset(pos1),
                             base.offset(pos1.multiply(2))),
@@ -164,8 +164,8 @@ public class PropellerScenes {
         for (i = 0; i < 4; i++) {
             final Direction dir = Direction.fromYRot(i * 90);
             final BlockPos base = propellerPos.offset(0, 2, 0);
-            final Vec3i pos1 = dir.getNormal();
-            final Vec3i pos2 = dir.getNormal().cross(new Vec3i(0, -1, 0));
+            final Vec3i pos1 = dir.getUnitVec3i();
+            final Vec3i pos2 = dir.getUnitVec3i().cross(new Vec3i(0, -1, 0));
 
 
             final ElementLink<WorldSectionElement> currentSail = world.showIndependentSection(select.fromTo(
@@ -382,7 +382,7 @@ public class PropellerScenes {
                     .attachKeyFrame()
                     .text("The Thrust can also be reversed using a wrench");
             scene.idle(20);
-            overlay.showControls(pos.add(-0.5,-0.5,-4), Pointing.LEFT, 20).withItem(AllItems.WRENCH.asStack());
+            overlay.showControls(pos.add(-0.5,-0.5,-4), Pointing.LEFT, 20).withItem(new net.minecraft.world.item.ItemStack(AllItems.WRENCH));
             scene.idle(10);
             scene.addInstruction(new TickingStoppingInstruction(propParticles1));
             propParticles1 = new PropellerParticleSpawningInstruction(airshipSmall,new BlockPos(2,4,0),Direction.WEST,1000,1,5,1,false);
@@ -481,7 +481,7 @@ public class PropellerScenes {
         movementDuration -= 70;
 
 
-        overlay.showControls(pointingPos, Pointing.DOWN, 60).withItem(AllItems.GOGGLES.asStack());
+        overlay.showControls(pointingPos, Pointing.DOWN, 60).withItem(new net.minecraft.world.item.ItemStack(AllItems.GOGGLES));
         scene.idle(6);
         movementDuration -= 6;
         overlay.showText(80)
@@ -893,7 +893,7 @@ public class PropellerScenes {
 
         world.setKineticSpeed(util.select().fromTo(4, 1, 3, 4, 1, 5), -16);
         world.setKineticSpeed(util.select().position(3, 1, 5), 16);
-        world.modifyBlockEntityNBT(util.select().position(3, 1, 5), KineticBlockEntity.class, nbt -> nbt.getCompound("SwivelCog").putFloat("Speed", 16));
+        world.modifyBlockEntityNBT(util.select().position(3, 1, 5), KineticBlockEntity.class, nbt -> nbt.getCompoundOrEmpty("SwivelCog").putFloat("Speed", 16));
 
         scene.addInstruction(CustomAnimateWorldSectionInstruction.rotate(valve,new Vec3(0,90,0),30,SmoothMovementUtils.cubicSmoothing()));
         scene.addInstruction(CustomAnimateWorldSectionInstruction.rotate(propellerSection, new Vec3(0, 0, 90), 30, SmoothMovementUtils.cubicSmoothing()));
@@ -904,7 +904,7 @@ public class PropellerScenes {
         world.setKineticSpeed(util.select().position(4, 2, 3), 0);
         world.setKineticSpeed(util.select().fromTo(4, 1, 3, 4, 1, 5), 0);
         world.setKineticSpeed(util.select().position(3, 1, 5), 0);
-        world.modifyBlockEntityNBT(util.select().position(3, 1, 5), KineticBlockEntity.class, nbt -> nbt.getCompound("SwivelCog").putFloat("Speed", 0));
+        world.modifyBlockEntityNBT(util.select().position(3, 1, 5), KineticBlockEntity.class, nbt -> nbt.getCompoundOrEmpty("SwivelCog").putFloat("Speed", 0));
 
         scene.idle(20);
 

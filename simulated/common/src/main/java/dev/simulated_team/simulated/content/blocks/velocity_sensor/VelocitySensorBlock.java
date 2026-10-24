@@ -1,7 +1,7 @@
 package dev.simulated_team.simulated.content.blocks.velocity_sensor;
 
 import com.mojang.serialization.MapCodec;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.content.blocks.util.AbstractDirectionalAxisBlock;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.multiloader.CommonRedstoneBlock;
@@ -20,8 +20,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class VelocitySensorBlock extends AbstractDirectionalAxisBlock implements IBE<VelocitySensorBlockEntity>, CommonRedstoneBlock {
-    public static final MapCodec<VelocitySensorBlock> CODEC = simpleCodec(VelocitySensorBlock::new);
+public class VelocitySensorBlock extends AbstractDirectionalAxisBlock implements NativeEntityBlock<VelocitySensorBlockEntity>, CommonRedstoneBlock {
+
 
     /**
      * 0 == unpowered, 1 == powered along positive axis, 2 == powered along negative axis
@@ -30,11 +30,6 @@ public class VelocitySensorBlock extends AbstractDirectionalAxisBlock implements
 
     public VelocitySensorBlock(final Properties properties) {
         super(properties);
-    }
-
-    @Override
-    protected MapCodec<? extends DirectionalBlock> codec() {
-        return CODEC;
     }
 
     @Nullable
@@ -110,7 +105,7 @@ public class VelocitySensorBlock extends AbstractDirectionalAxisBlock implements
 
     @Override
     public BlockEntityType<? extends VelocitySensorBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.VELOCITY_SENSOR.get();
+        return SimBlockEntityTypes.VELOCITY_SENSOR;
     }
     private static final VelocitySensorShaper VELOCITY_SENSOR = VelocitySensorShaper.make();
     @Override
@@ -118,4 +113,16 @@ public class VelocitySensorBlock extends AbstractDirectionalAxisBlock implements
         return VELOCITY_SENSOR.get(state.getValue(FACING),  state.getValue(AXIS_ALONG_FIRST_COORDINATE));
     }
 
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
+    }
 }

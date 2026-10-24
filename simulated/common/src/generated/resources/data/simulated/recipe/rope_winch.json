@@ -2,15 +2,9 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "H": {
-      "item": "create:shaft"
-    },
-    "I": {
-      "tag": "c:plates/iron"
-    },
-    "S": {
-      "item": "create:industrial_iron_block"
-    }
+    "H": "create:shaft",
+    "I": "#c:plates/iron",
+    "S": "create:industrial_iron_block"
   },
   "pattern": [
     "I",

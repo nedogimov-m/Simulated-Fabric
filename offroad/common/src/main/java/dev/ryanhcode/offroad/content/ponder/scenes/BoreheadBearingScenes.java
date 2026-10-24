@@ -323,7 +323,7 @@ public class BoreheadBearingScenes {
         world.setKineticSpeed(vehicleBelts, -32);
         world.setKineticSpeed(otherKinetics, 32);
         world.modifyBlockEntityNBT(transPos, AnalogTransmissionBlockEntity.class, (nbt) -> {
-            nbt.getCompound("ExtraCogwheel").putFloat("Speed", -32F);
+            nbt.getCompoundOrEmpty("ExtraCogwheel").putFloat("Speed", -32F);
         });
         scene.idle(48);
         world.setKineticSpeed(vehicleBelts, 0);

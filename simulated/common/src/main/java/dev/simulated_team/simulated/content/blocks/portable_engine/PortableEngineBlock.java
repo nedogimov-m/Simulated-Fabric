@@ -2,7 +2,7 @@ package dev.simulated_team.simulated.content.blocks.portable_engine;
 
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.kinetics.base.HorizontalKineticBlock;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import com.simibubi.create.foundation.utility.BlockHelper;
 import dev.simulated_team.simulated.data.advancements.SimAdvancements;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
@@ -19,7 +19,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
@@ -37,7 +37,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 import static net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT;
 
-public class PortableEngineBlock extends HorizontalKineticBlock implements IBE<PortableEngineBlockEntity> {
+public class PortableEngineBlock extends HorizontalKineticBlock implements NativeEntityBlock<PortableEngineBlockEntity> {
     private final static int BURN_TIME_THRESHOLD = 10 * 20 /* conversion from seconds to ticks */;
     protected final DyeColor color;
 
@@ -56,21 +56,14 @@ public class PortableEngineBlock extends HorizontalKineticBlock implements IBE<P
     }
 
     @Override
-    protected void createBlockStateDefinition(final StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(LIT);
-        super.createBlockStateDefinition(builder);
+    protected boolean shouldChangedStateKeepBlockEntity(final BlockState oldState) {
+        return SimBlocks.PORTABLE_ENGINES.contains(oldState.getBlock());
     }
 
     @Override
-    public void onRemove(final BlockState state, final Level level, final BlockPos pos, final BlockState newState, final boolean isMoving) {
-        if (state.hasBlockEntity() && !SimBlocks.PORTABLE_ENGINES.contains(newState.getBlock())) {
-            final PortableEngineBlockEntity be = (PortableEngineBlockEntity) level.getBlockEntity(pos);
-
-            if (be != null && !be.inventory.isEmpty())
-                Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), be.inventory.getItem(0));
-
-            level.removeBlockEntity(pos);
-        }
+    protected void createBlockStateDefinition(final StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(LIT);
+        super.createBlockStateDefinition(builder);
     }
 
     @Override
@@ -96,29 +89,29 @@ public class PortableEngineBlock extends HorizontalKineticBlock implements IBE<P
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack heldItem, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
+    protected InteractionResult useItemOn(final ItemStack heldItem, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
         final PortableEngineBlockEntity be = (PortableEngineBlockEntity) level.getBlockEntity(blockPos);
 
         final PortableEngineInventory inventory = be.inventory;
         final ContainerSlot slot = inventory.slot;
         final ItemStack currentItemStack = slot.getStack().copy();
         if (currentItemStack.isEmpty() && heldItem.isEmpty()) {
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
 
         final DyeColor color = SimItemService.getDyeColor(heldItem);
         if (color != null) {
-            if (!level.isClientSide)
-                level.playSound(null, blockPos, SoundEvents.DYE_USE, SoundSource.BLOCKS, 1.0f, 1.1f - level.random.nextFloat() * .2f);
+            if (!level.isClientSide())
+                level.playSound(null, blockPos, SoundEvents.DYE_USE, SoundSource.BLOCKS, 1.0f, 1.1f - level.getRandom().nextFloat() * .2f);
 
-            final BlockState newState = BlockHelper.copyProperties(blockState, SimBlocks.PORTABLE_ENGINES.get(color).getDefaultState());
+            final BlockState newState = SimBlocks.PORTABLE_ENGINES.get(color).withPropertiesOf(blockState);
             level.setBlockAndUpdate(blockPos, newState);
 
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
 
-        if (AllItems.CREATIVE_BLAZE_CAKE.isIn(heldItem)) {
-            if (!level.isClientSide) {
+        if (heldItem.is(AllItems.CREATIVE_BLAZE_CAKE)) {
+            if (!level.isClientSide()) {
                 if (be.isCurrentFuelInfinite()) {
                     if (be.isSuperHeated()) {
                         be.setCurrentBurnTime(0);
@@ -132,7 +125,7 @@ public class PortableEngineBlock extends HorizontalKineticBlock implements IBE<P
             }
         } else {
             if ((!heldItem.isEmpty() && !inventory.canInsertItem(ItemInfoWrapper.generateFromStack(heldItem)))) {
-                return ItemInteractionResult.FAIL;
+                return InteractionResult.FAIL;
             }
 
             if (currentItemStack.isEmpty()) {
@@ -147,14 +140,14 @@ public class PortableEngineBlock extends HorizontalKineticBlock implements IBE<P
                 final int transferAmount = Math.min(targetAmount - currentItemStack.getCount(), heldItem.getCount());
 
                 if (transferAmount <= 0)
-                    return ItemInteractionResult.sidedSuccess(level.isClientSide);
+                    return InteractionResult.SUCCESS;
 
                 slot.shrink(-transferAmount);
                 heldItem.shrink(transferAmount);
                 player.setItemInHand(interactionHand, heldItem);
             } else {
                 slot.setStack(ItemStack.EMPTY);
-                player.getInventory().placeItemBackInInventory(currentItemStack);
+                player.getInventory().placeItemBackInInventory(currentItemStack, net.minecraft.util.Prediction.SERVER_ONLY);
                 level.playSound(null, blockPos, SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, .2f,
                         1f + level.getRandom().nextFloat());
             }
@@ -170,7 +163,7 @@ public class PortableEngineBlock extends HorizontalKineticBlock implements IBE<P
 
         be.notifyUpdate();
 
-        return ItemInteractionResult.sidedSuccess(level.isClientSide);
+        return InteractionResult.SUCCESS;
     }
 
     @Override
@@ -186,7 +179,7 @@ public class PortableEngineBlock extends HorizontalKineticBlock implements IBE<P
     }
 
     @Override
-    public int getAnalogOutputSignal(final BlockState pState, final Level pLevel, final BlockPos pPos) {
+    public int getAnalogOutputSignal(final BlockState pState, final Level pLevel, final BlockPos pPos, final Direction direction) {
         final PortableEngineBlockEntity be = this.getBlockEntity(pLevel, pPos);
         final int power = 0;
 
@@ -216,6 +209,18 @@ public class PortableEngineBlock extends HorizontalKineticBlock implements IBE<P
 
     @Override
     public BlockEntityType<? extends PortableEngineBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.PORTABLE_ENGINE.get();
+        return SimBlockEntityTypes.PORTABLE_ENGINE;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

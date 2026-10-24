@@ -3,24 +3,12 @@
   "accept_mirrored": true,
   "category": "misc",
   "key": {
-    "A": {
-      "item": "create:brass_casing"
-    },
-    "B": {
-      "tag": "c:plates/brass"
-    },
-    "C": {
-      "item": "create:chute"
-    },
-    "E": {
-      "item": "create:electron_tube"
-    },
-    "I": {
-      "tag": "c:plates/iron"
-    },
-    "P": {
-      "item": "minecraft:piston"
-    }
+    "A": "create:brass_casing",
+    "B": "#c:plates/brass",
+    "C": "create:chute",
+    "E": "create:electron_tube",
+    "I": "#c:plates/iron",
+    "P": "minecraft:piston"
   },
   "pattern": [
     "ICI",

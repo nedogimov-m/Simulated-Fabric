@@ -25,7 +25,7 @@ import dev.simulated_team.simulated.service.SimAssemblyService;
 import dev.simulated_team.simulated.service.SimConfigService;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.createmod.catnip.data.Iterate;
-import net.createmod.catnip.data.UniqueLinkedList;
+import dev.simulated_team.simulated.mixin.assembly.ChainConveyorBlockEntityAccessor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
@@ -47,6 +47,17 @@ import static com.simibubi.create.content.contraptions.piston.MechanicalPistonBl
  * It absolutely sucks that we have to do this. Talk to thunder about making assembly API separated out from contraptions?
  */
 public class SimAssemblyContraption {
+    /** FIFO frontier with one queued copy of each position, matching the original assembly traversal. */
+    private static final class UniqueQueue<T> extends AbstractQueue<T> {
+        private final LinkedHashSet<T> entries = new LinkedHashSet<>();
+        @Override public Iterator<T> iterator() { return this.entries.iterator(); }
+        @Override public int size() { return this.entries.size(); }
+        @Override public boolean offer(final T value) { return this.entries.add(Objects.requireNonNull(value)); }
+        @Override public boolean add(final T value) { return this.offer(value); }
+        @Override public T peek() { return this.entries.isEmpty() ? null : this.entries.getFirst(); }
+        @Override public T poll() { return this.entries.isEmpty() ? null : this.entries.removeFirst(); }
+    }
+
     private static final BlockPos[] DIRECTION_OFFSETS = new BlockPos[]{new BlockPos(1, 0, 0), new BlockPos(-1, 0, 0), new BlockPos(0, 1, 0), new BlockPos(0, -1, 0), new BlockPos(0, 0, 1), new BlockPos(0, 0, -1), new BlockPos(1, 1, 0), new BlockPos(-1, -1, 0), new BlockPos(1, -1, 0), new BlockPos(-1, 1, 0), new BlockPos(1, 0, 1), new BlockPos(-1, 0, -1), new BlockPos(1, 0, -1), new BlockPos(-1, 0, 1), new BlockPos(0, 1, 1), new BlockPos(0, -1, -1), new BlockPos(0, -1, 1), new BlockPos(0, 1, -1)};
 
     public final BlockPos anchor;
@@ -113,7 +124,7 @@ public class SimAssemblyContraption {
         // add initial honey glue
         SimAssemblyContraption.addInitialHoneyGlue(level, this, this.anchor, pos, this.ignoreEnclosingGlue);
 
-        final Queue<BlockPos> frontier = new UniqueLinkedList<>();
+        final Queue<BlockPos> frontier = new UniqueQueue<>();
         final Set<BlockPos> visited = new HashSet<>();
         final Set<BlockPos> immutableVisited = Collections.unmodifiableSet(visited);
 
@@ -193,12 +204,16 @@ public class SimAssemblyContraption {
         }
 
         //swivel bearings have special cases with honey glue and glue, ignored in our API
-        if (SimBlocks.SWIVEL_BEARING.has(state)) {
+        if (state.is(SimBlocks.SWIVEL_BEARING)) {
             this.moveSwivelBearing(world, pos, frontier, visited, state);
         }
 
         if (world.getBlockEntity(pos) instanceof final ChainConveyorBlockEntity ccbe) {
-            ccbe.notifyConnectedToValidate();
+            ((ChainConveyorBlockEntityAccessor) (Object) ccbe).simulated$setConnectionValidation(true);
+            for (final var connection : ccbe.getConnections()) {
+                final var connected = ccbe.getConnected(connection);
+                if (connected != null) ((ChainConveyorBlockEntityAccessor) (Object) connected).simulated$setConnectionValidation(true);
+            }
         }
 
         // Double Chest halves stick together
@@ -222,7 +237,7 @@ public class SimAssemblyContraption {
         // Cart assemblers attach themselves
         final BlockPos posDown = pos.below();
         final BlockState stateBelow = world.getBlockState(posDown);
-        if (!visited.contains(posDown) && AllBlocks.CART_ASSEMBLER.has(stateBelow)) {
+        if (!visited.contains(posDown) && stateBelow.is(AllBlocks.CART_ASSEMBLER)) {
             frontier.add(posDown);
         }
 
@@ -232,7 +247,7 @@ public class SimAssemblyContraption {
         // Slime blocks and super glue drag adjacent blocks if possible
         for (final BlockPos offsetDirection : DIRECTION_OFFSETS) {
             final int absTotal = Math.abs(offsetDirection.getX()) + Math.abs(offsetDirection.getY()) + Math.abs(offsetDirection.getZ());
-            final Direction offsetDirectionNullable = absTotal == 1 ? Direction.fromDelta(offsetDirection.getX(), offsetDirection.getY(), offsetDirection.getZ()) : null;
+            final Direction offsetDirectionNullable = absTotal == 1 ? Direction.getNearest(offsetDirection, null) : null;
 
             final BlockPos offsetPos = pos.offset(offsetDirection);
             final BlockState blockState = world.getBlockState(offsetPos);
@@ -256,8 +271,8 @@ public class SimAssemblyContraption {
                     SimAssemblyService.INSTANCE.canStickTo(blockState, state);
 
             if (canStick) {
-                if (state.getPistonPushReaction() == PushReaction.PUSH_ONLY
-                        || blockState.getPistonPushReaction() == PushReaction.PUSH_ONLY) {
+                if (state.getPistonPushReaction() == PushReaction.PUSH
+                        || blockState.getPistonPushReaction() == PushReaction.PUSH) {
                     canStick = false;
                 }
 
@@ -349,7 +364,7 @@ public class SimAssemblyContraption {
         for (final Direction d : Iterate.directionsInAxis(rotationAxis)) {
             offset = pos.relative(d);
             final BlockState offsetState = world.getBlockState(offset);
-            if (AllBlocks.GANTRY_SHAFT.has(offsetState) && offsetState.getValue(GantryShaftBlock.FACING)
+            if (offsetState.is(AllBlocks.GANTRY_SHAFT) && offsetState.getValue(GantryShaftBlock.FACING)
                     .getAxis() == d.getAxis())
                 if (!visited.contains(offset))
                     frontier.add(offset);
@@ -363,10 +378,10 @@ public class SimAssemblyContraption {
             if (!visited.contains(offset)) {
                 final BlockState offsetState = world.getBlockState(offset);
                 final Direction facing = state.getValue(GantryShaftBlock.FACING);
-                if (d.getAxis() == facing.getAxis() && AllBlocks.GANTRY_SHAFT.has(offsetState)
+                if (d.getAxis() == facing.getAxis() && offsetState.is(AllBlocks.GANTRY_SHAFT)
                         && offsetState.getValue(GantryShaftBlock.FACING) == facing)
                     frontier.add(offset);
-                else if (AllBlocks.GANTRY_CARRIAGE.has(offsetState)
+                else if (offsetState.is(AllBlocks.GANTRY_CARRIAGE)
                         && offsetState.getValue(GantryCarriageBlock.FACING) == d)
                     frontier.add(offset);
             }
@@ -401,7 +416,7 @@ public class SimAssemblyContraption {
         BlockPos offset = pos.relative(direction.getOpposite());
         if (!visited.contains(offset)) {
             final BlockState poleState = world.getBlockState(offset);
-            if (AllBlocks.PISTON_EXTENSION_POLE.has(poleState) && poleState.getValue(PistonExtensionPoleBlock.FACING)
+            if (poleState.is(AllBlocks.PISTON_EXTENSION_POLE) && poleState.getValue(PistonExtensionPoleBlock.FACING)
                     .getAxis() == direction.getAxis())
                 frontier.add(offset);
         }
@@ -416,7 +431,7 @@ public class SimAssemblyContraption {
     }
 
     private boolean moveChassis(final Level world, final BlockPos pos, final Direction movementDirection, final Queue<BlockPos> frontier,
-                                final Set<BlockPos> visited) {
+                                final Set<BlockPos> visited) throws AssemblyException {
         final BlockEntity be = world.getBlockEntity(pos);
         if (!(be instanceof final ChassisBlockEntity chassis))
             return false;

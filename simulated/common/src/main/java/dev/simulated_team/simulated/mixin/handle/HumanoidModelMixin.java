@@ -1,6 +1,8 @@
 package dev.simulated_team.simulated.mixin.handle;
 
 import dev.simulated_team.simulated.content.blocks.handle.PlayerHoldingHandleRenderer;
+import dev.simulated_team.simulated.mixin_interface.handle.NativeHandlePoseExtension;
+import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -13,16 +15,10 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(HumanoidModel.class)
-public class HumanoidModelMixin<T extends LivingEntity> {
-    @Shadow
-    @Final
-    public ModelPart body;
-
-    @Inject(method = "setupAnim*", at = @At("RETURN"))
-    private void simulated$afterSetupAnim(final T pEntity, final float pLimbSwing, final float pLimbSwingAmount, final float pAgeInTicks, final float pNetHeadYaw, final float pHeadPitch, final CallbackInfo callbackInfo) {
-        if (!(pEntity instanceof final AbstractClientPlayer player))
-            return;
-
-        PlayerHoldingHandleRenderer.afterSetupAnim(player, (HumanoidModel<?>) (Object) this);
+public class HumanoidModelMixin {
+    @Inject(method = "setupAnim(Lnet/minecraft/client/renderer/entity/state/HumanoidRenderState;)V", at = @At("RETURN"))
+    private void simulated$afterSetupAnim(final HumanoidRenderState state, final CallbackInfo callbackInfo) {
+        if (((NativeHandlePoseExtension) state).simulated$holdingHandle())
+            PlayerHoldingHandleRenderer.setHangingPose((HumanoidModel<?>) (Object) this);
     }
 }

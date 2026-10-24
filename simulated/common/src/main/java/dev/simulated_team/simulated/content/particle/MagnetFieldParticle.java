@@ -2,7 +2,7 @@ package dev.simulated_team.simulated.content.particle;
 
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.*;
-import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 
@@ -12,7 +12,7 @@ public class MagnetFieldParticle extends SimpleAnimatedParticle {
 
     protected MagnetFieldParticle(final ClientLevel world, final double x, final double y, final double z, final double dx, final double dy,
                                   final double dz, final SpriteSet sprite, final boolean negative) {
-        super(world, x, y, z, sprite, world.random.nextFloat() * .5f);
+        super(world, x, y, z, sprite, world.getRandom().nextFloat() * .5f);
         this.hasPhysics = false;
         this.lifetime = 5;
         this.quadSize *= 0.75F;
@@ -29,8 +29,8 @@ public class MagnetFieldParticle extends SimpleAnimatedParticle {
             this.setColor(1,0.7f,0.7f);
     }
 
-    public ParticleRenderType getRenderType() {
-        return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT;
+    public Layer getLayer() {
+        return Layer.TRANSLUCENT;
     }
 
     private void dissipate() {
@@ -56,9 +56,9 @@ public class MagnetFieldParticle extends SimpleAnimatedParticle {
 
     }
 
-    public int getLightColor(final float partialTick) {
+    public int getLightCoords(final float partialTick) {
         final BlockPos blockpos = new BlockPos((int) this.x, (int) this.y, (int) this.z);
-        return this.level.isLoaded(blockpos) ? LevelRenderer.getLightColor(this.level, blockpos) : 0;
+        return this.level.isLoaded(blockpos) ? LightCoordsUtil.getLightCoords(this.level, blockpos) : 0;
     }
 
     private void selectSprite(final int index) {
@@ -73,7 +73,7 @@ public class MagnetFieldParticle extends SimpleAnimatedParticle {
         }
 
         public Particle createParticle(final MagnetFieldParticleData data, final ClientLevel level, final double x, final double y, final double z,
-                                       final double xSpeed, final double ySpeed, final double zSpeed) {
+                                       final double xSpeed, final double ySpeed, final double zSpeed, final net.minecraft.util.RandomSource random) {
             return new MagnetFieldParticle(level, x, y, z, xSpeed, ySpeed, zSpeed, this.spriteSet, data.isNegative());
         }
     }

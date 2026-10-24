@@ -1,10 +1,10 @@
 package dev.simulated_team.simulated.compat.explorerscompass;
 
 import com.chaosthedude.explorerscompass.ExplorersCompass;
-import dev.simulated_team.simulated.Simulated;
+import dev.simulated_team.simulated.index.SimNavigationTargets;
 
 public class ExplorersCompassRegistry {
     public static void init() {
-        Simulated.getRegistrate().navTarget("explorers_compass", ExplorersCompassNavigationTarget::new, () -> ExplorersCompass.explorersCompass);
+        SimNavigationTargets.register("explorers_compass", ExplorersCompassNavigationTarget::new, () -> ExplorersCompass.EXPLORERS_COMPASS_ITEM);
     }
 }

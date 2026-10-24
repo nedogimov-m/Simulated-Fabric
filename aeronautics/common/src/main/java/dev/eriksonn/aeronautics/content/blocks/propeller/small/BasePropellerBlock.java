@@ -1,8 +1,8 @@
 package dev.eriksonn.aeronautics.content.blocks.propeller.small;
 
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.eriksonn.aeronautics.index.AeroBlockShapes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -20,7 +20,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public abstract class BasePropellerBlock extends DirectionalKineticBlock implements IBE<BasePropellerBlockEntity> {
+public abstract class BasePropellerBlock extends DirectionalKineticBlock implements NativeWrenchable, NativeEntityBlock<BasePropellerBlockEntity> {
 
     public static final BooleanProperty REVERSED = BooleanProperty.create("reversed");
 
@@ -66,20 +66,32 @@ public abstract class BasePropellerBlock extends DirectionalKineticBlock impleme
     }
 
     @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
+    }
+
+    @Override
     public InteractionResult onWrenched(BlockState state, final UseOnContext context) {
-        final Vec3 diff = context.getClickLocation().subtract(context.getClickedPos().getCenter());
+        final Vec3 diff = context.getClickLocation().subtract(net.minecraft.world.phys.Vec3.atCenterOf(context.getClickedPos()));
 
         final Direction facing = state.getValue(FACING);
-        final Vec3i normal = facing.getNormal();
+        final Vec3i normal = facing.getUnitVec3i();
 
         // dot product to make wrenching the propeller bit more forgiving
         if (context.getClickedFace() == facing || diff.dot(new Vec3(normal.getX(), normal.getY(), normal.getZ())) > 0.0) {
             state = state.cycle(REVERSED);
             context.getLevel().setBlock(context.getClickedPos(), state, 3);
-            IWrenchable.playRotateSound(context.getLevel(), context.getClickedPos());
+            NativeWrenchable.playRotateSound(context.getLevel(), context.getClickedPos());
             return InteractionResult.SUCCESS;
         }
 
-        return super.onWrenched(state, context);
+        return NativeWrenchable.super.onWrenched(state, context);
     }
 }

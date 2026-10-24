@@ -7,7 +7,7 @@ import dev.eriksonn.aeronautics.index.AeroRegistries;
 
 public record LiftingGasHolder(LiftingGasType type, LiftingGasData data) {
     public static Codec<LiftingGasHolder> CODEC = RecordCodecBuilder.create((instance) ->
-            instance.group(Aeronautics.getRegistrate().byNameCodecExpanded(AeroRegistries.Keys.LIFTING_GAS_TYPE).fieldOf("type").forGetter(LiftingGasHolder::type),
+            instance.group(AeroRegistries.LIFTING_GAS_TYPE.byNameCodec().fieldOf("type").forGetter(LiftingGasHolder::type),
                             LiftingGasData.CODEC.fieldOf("data").forGetter(LiftingGasHolder::data))
                     .apply(instance, LiftingGasHolder::new));
 

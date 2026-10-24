@@ -2,15 +2,9 @@
   "type": "minecraft:crafting_shapeless",
   "category": "misc",
   "ingredients": [
-    {
-      "item": "create:chute"
-    },
-    {
-      "item": "create:shaft"
-    },
-    {
-      "tag": "c:plates/iron"
-    }
+    "create:chute",
+    "create:shaft",
+    "#c:plates/iron"
   ],
   "result": {
     "count": 2,

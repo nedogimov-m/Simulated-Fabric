@@ -29,7 +29,7 @@ public interface CrystalPropagationContext {
     void onCrystallize(Level level, BlockPos pos);
 
     default void onDefaultCrystallize(final Level level, final BlockPos pos) {
-        if (!level.isClientSide) {
+        if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
             level.setBlockAndUpdate(pos, this.getCrystalBlockState(level, pos));
 
             if (AeroConfig.server().blocks.breakBlocksOnCrystallize.get()) {
@@ -44,7 +44,9 @@ public interface CrystalPropagationContext {
                         }
 
                         if (shouldBreak) {
-                            BlockHelper.destroyBlock(level, pos.relative(dir), 1.0F);
+                            final BlockPos breakPos = pos.relative(dir);
+                            BlockHelper.destroyBlock(serverLevel, breakPos, 1.0F,
+                                    stack -> Block.popResource(serverLevel, breakPos, stack));
                         }
                     }
                 }
@@ -66,12 +68,12 @@ public interface CrystalPropagationContext {
     BlockState getCrystalBlockState(Level level, BlockPos pos);
 
     default int getNewAge(final Level level, final int attempts, final boolean isDormant) {
-        return level.random.nextInt(10, 40);
+        return level.getRandom().nextInt(10, 40);
     }
 
     default boolean shouldCrystallize(final Level level, final int attempts, final boolean isDormant) {
         final float maxAttempts = isDormant ? 10 : 5;
-        return level.random.nextFloat() < attempts / maxAttempts;
+        return level.getRandom().nextFloat() < attempts / maxAttempts;
     }
 
     boolean canSpreadTo(FluidState state);

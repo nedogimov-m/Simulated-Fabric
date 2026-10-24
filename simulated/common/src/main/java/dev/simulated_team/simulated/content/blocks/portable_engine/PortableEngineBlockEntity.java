@@ -1,7 +1,6 @@
 package dev.simulated_team.simulated.content.blocks.portable_engine;
 
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.contraptions.IControlContraption;
 import com.simibubi.create.content.contraptions.bearing.WindmillBearingBlockEntity;
@@ -9,7 +8,6 @@ import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollOptionBehaviour;
-import dev.engine_room.flywheel.lib.transform.TransformStack;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.simulated_team.simulated.data.SimLang;
@@ -56,6 +54,14 @@ import static net.minecraft.world.level.block.state.properties.BlockStatePropert
 import static net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT;
 
 public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity implements Clearable {
+    public enum EngineDirection implements com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.INamedIconOptions {
+        CLOCKWISE, COUNTER_CLOCKWISE;
+        @Override public com.simibubi.create.foundation.gui.AllIcons getIcon() {
+            return this == CLOCKWISE ? com.simibubi.create.foundation.gui.AllIcons.I_REFRESH : com.simibubi.create.foundation.gui.AllIcons.I_ROTATE_CCW;
+        }
+        @Override public String getTranslationKey() { return "create.generic." + this.name().toLowerCase(java.util.Locale.ROOT); }
+    }
+
 
     /**
      * A month of burn timestamp is considered infinite
@@ -71,6 +77,7 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
      * @see PortableEngineBlockEntity#getTotalBurnTime()
      */
     private int burnTime = 0;
+    private int nextFuelBurnTime;
     private boolean superHeated = false;
 
     /**
@@ -78,7 +85,7 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
      */
     protected float generatedSpeed;
 
-    protected ScrollOptionBehaviour<IControlContraption.MovementMode> movementDirection;
+    protected ScrollOptionBehaviour<EngineDirection> movementDirection;
 
     protected float clientAngle;
     public float lastHatchOpenTime = 0;
@@ -96,8 +103,17 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
     }
 
     @Override
+    public void preRemoveSideEffects(final BlockPos pos, final BlockState state) {
+        if (this.level != null && !this.level.isClientSide() && !dev.simulated_team.simulated.index.SimBlocks.PORTABLE_ENGINES.contains(this.level.getBlockState(pos).getBlock())) {
+            net.minecraft.world.Containers.dropContents(this.level, pos, this.inventory);
+            this.inventory.clearContent();
+        }
+        super.preRemoveSideEffects(pos, state);
+    }
+
+    @Override
     public void addBehaviours(final List<BlockEntityBehaviour> behaviours) {
-        this.movementDirection = new ScrollOptionBehaviour(WindmillBearingBlockEntity.RotationDirection.class,
+        this.movementDirection = new ScrollOptionBehaviour(EngineDirection.class,
                 Component.translatable("create.contraptions.windmill.rotation_direction"), this, new PortableEngineValueBoxTransform());
         this.movementDirection.withCallback(t -> this.onDirectionChanged());
 
@@ -120,24 +136,24 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
         }
 
         @Override
-        public void rotate(final LevelAccessor levelAccessor, final BlockPos blockPos, final BlockState blockState, final PoseStack poseStack) {
+        public void rotate(final LevelAccessor levelAccessor, final BlockPos blockPos, final BlockState blockState, final org.joml.Matrix4f poseStack) {
             final float yRot = AngleHelper.horizontalAngle(blockState.getValue(BlockStateProperties.HORIZONTAL_FACING));
-            TransformStack.of(poseStack)
-                    .rotateYDegrees(yRot)
-                    .rotateXDegrees(90)
-                    .translate(0, 0.1, 0);
+            poseStack
+                    .rotateY((float) Math.toRadians(yRot))
+                    .rotateX((float) Math.toRadians(90))
+                    .translate(0, 0.1f, 0);
         }
 
     }
 
     private void onDirectionChanged() {
-        if (!this.level.isClientSide) {
+        if (!this.level.isClientSide()) {
             this.updateGeneratedRotation();
         }
     }
 
     protected static BlockPos getCameraPos() {
-        final Entity renderViewEntity = Minecraft.getInstance().cameraEntity;
+        final Entity renderViewEntity = Minecraft.getInstance().getCameraEntity();
         if (renderViewEntity == null) {
             return BlockPos.ZERO;
         }
@@ -156,7 +172,7 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
         final boolean isLit = this.burnTime > 0;
 
         //Update visualSpeed and play sounds
-        if (this.level.isClientSide) {
+        if (this.level.isClientSide()) {
             final float targetSpeed = this.isVirtual() ? this.speed : this.getGeneratedSpeed();
             this.visualSpeed.updateChaseTarget(targetSpeed);
             this.visualSpeed.tickChaser();
@@ -201,6 +217,10 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
         if (this.isVirtual()) {
             return;
         }
+        if (this.level.isClientSide()) {
+            if (this.burnTime > 0 && !this.isCurrentFuelInfinite()) this.burnTime--;
+            return;
+        }
 
         if (this.getGeneratedSpeed() != 0 && this.getSpeed() == 0) {
             this.updateGeneratedRotation();
@@ -219,11 +239,11 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
             }
         }
         if (this.burnTime <= 0 && !this.inventory.isEmpty()) {
-            this.burnTime = SimItemService.INSTANCE.getBurnTime(stack);
+            this.burnTime = SimItemService.INSTANCE.getBurnTime(stack, this);
             this.superHeated = this.getNextSuperHeated();
             if (this.burnTime > 0) {
-                if (stack.getCount() == 1 && stack.getItem().hasCraftingRemainingItem()) {
-                    slot.setStack(slot.getType().getCraftingRemainingItem().getDefaultInstance());
+                if (stack.getCount() == 1 && stack.getItem().getCraftingRemainder() != null) {
+                    slot.setStack(slot.getType().getCraftingRemainder().create());
                 } else {
                     slot.shrink(1);
                 }
@@ -245,8 +265,8 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
             if (Mth.sign(newSpeed) != Mth.sign(this.getSpeed())) {
                 // swap direction if the speed would not be going the same way
                 this.generatedSpeed = isLit ? generatedSpeed : 0;
-                final IControlContraption.MovementMode[] directions = IControlContraption.MovementMode.values();
-                final IControlContraption.MovementMode existingValue = directions[this.movementDirection.getValue()];
+                final EngineDirection[] directions = EngineDirection.values();
+                final EngineDirection existingValue = directions[this.movementDirection.getValue()];
                 this.movementDirection.setValue((existingValue.ordinal() + 1) % directions.length);
                 this.updateGeneratedRotation();
             }
@@ -261,13 +281,13 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
         if (!isLitState && isLit) {
             this.level.setBlock(this.getBlockPos(), this.getBlockState().setValue(LIT, true), 2);
             this.level.playSound(null, this.worldPosition, SimSoundEvents.PORTABLE_ENGINE_ROARS.event(), SoundSource.BLOCKS,
-                    .125f + this.level.random.nextFloat() * .125f, .75f - this.level.random.nextFloat() * .25f);
+                    .125f + this.level.getRandom().nextFloat() * .125f, .75f - this.level.getRandom().nextFloat() * .25f);
 
             Vec3 pos = VecHelper.getCenterOf(this.worldPosition);
 
             final Direction direction = this.getBlockState()
                     .getValue(BlockStateProperties.HORIZONTAL_FACING);
-            final Vec3i N = direction.getNormal();
+            final Vec3i N = direction.getUnitVec3i();
             final Vec3 N2 = new Vec3(N.getX(), N.getY(), N.getZ());
             pos = pos.add(-N.getX() * 0.53, -0.1, -N.getZ() * 0.53);
             final Vec3 speed = VecHelper.offsetRandomly(Vec3.ZERO, RandomSource.create(), 0.01f).add(N2.scale(-0.03));
@@ -311,7 +331,7 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
                     }
                 }
                 this.burnTime += 20 * 5;
-                this.level.playSound(null, this.getBlockPos(), SoundEvents.GENERIC_EAT, SoundSource.BLOCKS, 1.0f, 1.0f);
+                this.level.playSound(null, this.getBlockPos(), SoundEvents.GENERIC_EAT.value(), SoundSource.BLOCKS, 1.0f, 1.0f);
             }
         }
     }
@@ -324,7 +344,7 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
         boolean openHatch = false;
 
         final BlockPos pos = this.getBlockPos();
-        final Vec3 center = pos.getCenter();
+        final Vec3 center = net.minecraft.world.phys.Vec3.atCenterOf(pos);
         final List<Player> players = this.level.getEntitiesOfClass(Player.class, new AABB(pos).inflate(7.0));
 
         for (final Player player : players) {
@@ -355,7 +375,7 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
         Vec3 hatchPos = VecHelper.getCenterOf(this.worldPosition);
 
         final Direction direction = this.getBlockState().getValue(BlockStateProperties.HORIZONTAL_FACING);
-        final Vec3i facingDirI = direction.getNormal();
+        final Vec3i facingDirI = direction.getUnitVec3i();
         final Vec3 facingDir = new Vec3(facingDirI.getX(), facingDirI.getY(), facingDirI.getZ());
         final Vec3 rightDir = facingDir.yRot((float) (Math.PI / 2.0));
 
@@ -401,26 +421,30 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
         }
     }
 
-    public void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(compound, registries, clientPacket);
+    public void write(final net.minecraft.world.level.storage.ValueOutput compound, final boolean clientPacket) {
+        super.write(compound, clientPacket);
         compound.putBoolean("SuperHeated", this.superHeated);
         compound.putFloat("GeneratedSpeed", this.generatedSpeed);
         compound.putBoolean("EatingCake", this.eatingCake);
 
-        compound.put("Inventory", this.inventory.write(registries));
+        this.inventory.write(compound.child("Inventory"));
 
         compound.putInt("BurnTime", this.burnTime);
+        if (this.level instanceof net.minecraft.server.level.ServerLevel)
+            this.nextFuelBurnTime = SimItemService.INSTANCE.getBurnTime(this.inventory.slot.getStack(), this);
+        compound.putInt("NextFuelBurnTime", this.nextFuelBurnTime);
     }
 
-    protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(compound, registries, clientPacket);
-        this.superHeated = compound.getBoolean("SuperHeated");
+    protected void read(final net.minecraft.world.level.storage.ValueInput compound, final boolean clientPacket) {
+        super.read(compound, clientPacket);
+        this.superHeated = compound.getBooleanOr("SuperHeated", false);
 
-        this.inventory.read(registries, compound.getCompound("Inventory"));
+        this.inventory.read(compound.childOrEmpty("Inventory"));
 
-        this.burnTime = compound.getInt("BurnTime");
-        this.generatedSpeed = compound.getFloat("GeneratedSpeed");
-        this.eatingCake = compound.getBoolean("EatingCake");
+        this.burnTime = compound.getIntOr("BurnTime", 0);
+        this.nextFuelBurnTime = compound.getIntOr("NextFuelBurnTime", 0);
+        this.generatedSpeed = compound.getFloatOr("GeneratedSpeed", 0f);
+        this.eatingCake = compound.getBooleanOr("EatingCake", false);
 
         if (clientPacket || this.isVirtual()) {
             this.visualSpeed.chase(this.getGeneratedSpeed(), 1 / 8f, LerpedFloat.Chaser.EXP);
@@ -435,7 +459,7 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
         SimLang.translate("portable_engine.tooltip_name").text(":").forGoggles(tooltip);
 
         final ItemStack currentStack = this.inventory.slot.getStack();
-        final boolean hasByProduct = !currentStack.isEmpty() && SimItemService.INSTANCE.getBurnTime(currentStack) == 0;
+        final boolean hasByProduct = !currentStack.isEmpty() && this.getNextBurnTime() == 0;
 
         final LangBuilder noFuel = SimLang.translate("portable_engine.none").style(ChatFormatting.RED);
         final LangBuilder stackName = SimLang.builder().add(currentStack.getHoverName())
@@ -540,7 +564,8 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
      * @return The burn timestamp (in ticks) for the currently held stack
      */
     private int getNextBurnTime() {
-        return SimItemService.INSTANCE.getBurnTime(this.inventory.slot.getStack());
+        return this.level instanceof net.minecraft.server.level.ServerLevel
+                ? SimItemService.INSTANCE.getBurnTime(this.inventory.slot.getStack(), this) : this.nextFuelBurnTime;
     }
 
     public boolean isSuperHeated() {
@@ -552,6 +577,6 @@ public class PortableEngineBlockEntity extends GeneratingKineticBlockEntity impl
     }
 
     private boolean getNextSuperHeated() {
-        return SimItemService.INSTANCE.getSuperheatedBurnTime(this.inventory.slot.getStack()) > 0;
+        return SimItemService.INSTANCE.getSuperheatedBurnTime(this.inventory.slot.getStack(), this) > 0;
     }
 }

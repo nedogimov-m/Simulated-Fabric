@@ -16,14 +16,14 @@ import dev.simulated_team.simulated.config.server.physics.SimPhysics;
 import dev.simulated_team.simulated.network.packets.physics_staff.PhysicsStaffDragSessionsPacket;
 import dev.simulated_team.simulated.network.packets.physics_staff.PhysicsStaffLocksPacket;
 import dev.simulated_team.simulated.service.SimConfigService;
+import dev.simulated_team.simulated.Simulated;
+import dev.ryanhcode.sable.sublevel.storage.SableSavedDataStorage;
 import foundry.veil.api.network.VeilPacketManager;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.createmod.catnip.data.Pair;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -62,8 +62,8 @@ public class PhysicsStaffServerHandler extends SavedData {
     }
 
     public static void sendAllData(final Player player) {
-        final MinecraftServer server = player.getServer();
-        assert server != null;
+        if (!(player instanceof final ServerPlayer serverPlayer)) return;
+        final MinecraftServer server = serverPlayer.level().getServer();
 
         for (final ServerLevel level : server.getAllLevels()) {
             final PhysicsStaffServerHandler handler = PhysicsStaffServerHandler.get(level);
@@ -92,16 +92,16 @@ public class PhysicsStaffServerHandler extends SavedData {
         return handle;
     }
 
-    private static PhysicsStaffServerHandler create(final ServerLevel level, final CompoundTag nbt, final HolderLookup.Provider registries) {
+    private static PhysicsStaffServerHandler create(final ServerLevel level, final CompoundTag nbt) {
         final PhysicsStaffServerHandler sd = new PhysicsStaffServerHandler(level);
-        sd.loadLocks(nbt.getList(ID, Tag.TAG_INT_ARRAY));
+        sd.loadLocks(nbt.getListOrEmpty(ID));
         return sd;
     }
 
     public static PhysicsStaffServerHandler get(final ServerLevel level) {
-        final PhysicsStaffServerHandler data = level.getChunkSource().getDataStorage().computeIfAbsent(
-                new SavedData.Factory<>(PhysicsStaffServerHandler::new, (nbt, lookup) -> create(level, nbt, lookup), null),
-                PhysicsStaffServerHandler.ID);
+        final PhysicsStaffServerHandler data = SableSavedDataStorage.getOrLoad(level.getDataStorage(), level.getDataStorage().dataFolder,
+                Simulated.path(ID), ID, () -> new PhysicsStaffServerHandler(level), nbt -> create(level, nbt),
+                PhysicsStaffServerHandler::saveData, null);
         data.level = level;
 
         return data;
@@ -185,8 +185,8 @@ public class PhysicsStaffServerHandler extends SavedData {
         );
     }
 
-    @Override
-    public @NotNull CompoundTag save(final CompoundTag tag, final HolderLookup.@NotNull Provider provider) {
+    private CompoundTag saveData() {
+        final CompoundTag tag = new CompoundTag();
         final ListTag tags = new ListTag();
         this.saveLocks(tags);
         tag.put(ID, tags);
@@ -196,13 +196,13 @@ public class PhysicsStaffServerHandler extends SavedData {
 
     private void loadLocks(final ListTag list) {
         for (final Tag tag : list) {
-            final UUID uuid = NbtUtils.loadUUID(tag);
+            final UUID uuid = net.minecraft.core.UUIDUtil.CODEC.parse(net.minecraft.nbt.NbtOps.INSTANCE, tag).getOrThrow();
             this.locks.put(uuid, new Lock(uuid, null));
         }
     }
 
     private void saveLocks(final ListTag list) {
-        list.addAll(this.locks.keySet().stream().map(NbtUtils::createUUID).toList());
+        list.addAll(this.locks.keySet().stream().map(uuid -> net.minecraft.core.UUIDUtil.CODEC.encodeStart(net.minecraft.nbt.NbtOps.INSTANCE, uuid).getOrThrow()).toList());
     }
 
     public boolean isLocked(final SubLevel subLevel) {

@@ -1,12 +1,8 @@
 {
   "type": "create:deploying",
   "ingredients": [
-    {
-      "item": "minecraft:green_wool"
-    },
-    {
-      "item": "minecraft:stick"
-    }
+    "minecraft:green_wool",
+    "minecraft:stick"
   ],
   "results": [
     {

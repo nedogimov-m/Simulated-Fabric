@@ -1,240 +1,154 @@
 package dev.simulated_team.simulated.util;
 
+import com.mojang.blaze3d.ProjectionType;
 import com.mojang.blaze3d.platform.Lighting;
+import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
-import dev.engine_room.flywheel.api.visualization.VisualizationManager;
+import com.mojang.renderpearl.api.GpuFormat;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import dev.ryanhcode.sable.Sable;
-import dev.ryanhcode.sable.api.entity.EntitySubLevelUtil;
 import dev.ryanhcode.sable.companion.math.BoundingBox3d;
-import dev.ryanhcode.sable.mixinhelpers.sublevel_render.vanilla.VanillaSubLevelBlockEntityRenderer;
-import dev.ryanhcode.sable.mixinterface.BlockEntityRenderDispatcherExtension;
-import dev.ryanhcode.sable.neoforge.mixinhelper.compatibility.flywheel.SubLevelEmbedding;
 import dev.ryanhcode.sable.sublevel.ClientSubLevel;
 import dev.ryanhcode.sable.sublevel.SubLevel;
-import dev.ryanhcode.sable.sublevel.render.SubLevelRenderData;
-import dev.ryanhcode.sable.sublevel.render.dispatcher.SubLevelRenderDispatcher;
-import dev.ryanhcode.sable.sublevel.render.dispatcher.VanillaSubLevelRenderDispatcher;
-import dev.ryanhcode.sable.sublevel.render.vanilla.VanillaSingleSubLevelRenderData;
-import dev.simulated_team.simulated.mixin_interface.diagram.LightTextureExtension;
-import dev.simulated_team.simulated.mixin_interface.diagram.VisualManagerExtension;
-import dev.simulated_team.simulated.mixin_interface.diagram.VisualizationManagerExtension;
-import foundry.veil.api.client.render.CameraMatrices;
-import foundry.veil.api.client.render.VeilRenderSystem;
-import foundry.veil.api.client.render.framebuffer.AdvancedFbo;
-import foundry.veil.impl.client.render.perspective.LevelPerspectiveCamera;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import dev.simulated_team.simulated.Simulated;
+import dev.simulated_team.simulated.fabric.client.render.NativeSubLevelGroupFrame;
+import dev.simulated_team.simulated.fabric.client.render.NativeDiagramLightmap;
+import foundry.veil.api.client.render.gpu.GpuFramebuffer;
+import foundry.veil.api.client.render.gpu.GpuUniformBuffer;
+import foundry.veil.api.client.render.gpu.NativeFeatureScene;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.*;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.phys.Vec3;
-import org.joml.*;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
+import org.joml.Vector3d;
+import org.joml.Vector4f;
 
 import java.util.Collection;
-import java.util.List;
+import java.util.LinkedHashSet;
 
-public class SimpleSubLevelGroupRenderer {
-    private static final LevelPerspectiveCamera CAMERA = new LevelPerspectiveCamera();
-    private static final Matrix4f TRANSFORM = new Matrix4f();
-    private static final Matrix4f BACKUP_PROJECTION = new Matrix4f();
-    private static final CameraMatrices BACKUP_CAMERA_MATRICES = new CameraMatrices();
-    public static boolean RENDERING_SIMPLE = false;
+/** Isolated native plot scenes; owns no main-world renderer or global camera. */
+public final class SimpleSubLevelGroupRenderer {
+    private static Resources resources;
+    private static boolean registered;
+    private static int rendering;
 
-    /**
-     * @return the chain of sub-levels that should render with a given sub-level into a diagram
-     */
-    public static Collection<ClientSubLevel> getRenderedChain(final ClientSubLevel subLevel) {
-        final ObjectOpenHashSet<ClientSubLevel> visited = new ObjectOpenHashSet<>();
-        final ObjectOpenHashSet<ClientSubLevel> frontier = new ObjectOpenHashSet<>();
-
+    public static void register() {
+        if (registered) return;
+        registered = true;
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> close());
+        ResourceLoader.get(PackType.CLIENT_RESOURCES).registerReloadListener(Simulated.path("diagram_scenes"),
+                (state, workers, barrier, game) -> barrier.wait(null).thenRunAsync(SimpleSubLevelGroupRenderer::close, game));
+    }
+    public static boolean isRendering() { return rendering != 0; }
+    public static Collection<ClientSubLevel> getRenderedChain(ClientSubLevel subLevel) {
+        final var visited = new LinkedHashSet<ClientSubLevel>();
+        final var frontier = new LinkedHashSet<ClientSubLevel>();
         frontier.add(subLevel);
-
         while (!frontier.isEmpty()) {
-            final ClientSubLevel current = frontier.iterator().next();
-
-            frontier.remove(current);
-            visited.add(current);
-
-            final Iterable<SubLevel> intersecting = Sable.HELPER.getAllIntersecting(current.getLevel(), new BoundingBox3d(current.boundingBox()));
-
-            // Intersecting dependencies
-            for (final SubLevel neighbor : intersecting) {
-                final ClientSubLevel serverNeighbor = (ClientSubLevel) neighbor;
-
-                if (!visited.contains(serverNeighbor)) {
-                    frontier.add(serverNeighbor);
-                }
+            final var current = frontier.removeFirst();
+            if (!visited.add(current) || current.isRemoved()) continue;
+            for (SubLevel neighbor : Sable.HELPER.getAllIntersecting(current.getLevel(), new BoundingBox3d(current.boundingBox()))) {
+                if (neighbor instanceof ClientSubLevel client && !visited.contains(client)) frontier.add(client);
             }
         }
-
         return visited;
     }
-
-    public static void renderChain(final SubLevel subLevel, final AdvancedFbo fbo, final Matrix4f modelView, final Matrix4f projectionMat, final Vector3d cameraPosition, final Quaternionf orientation, final float partialTicks) {
-        final ClientSubLevel clientSubLevel = (ClientSubLevel) subLevel;
-        final ClientLevel level = clientSubLevel.getLevel();
-        final Collection<ClientSubLevel> subLevels = SimpleSubLevelGroupRenderer.getRenderedChain(clientSubLevel);
-
-        renderGroup(level, subLevels, fbo, modelView, projectionMat, cameraPosition, orientation, partialTicks, true);
+    public static void renderChain(SubLevel subLevel, GpuFramebuffer target, Matrix4f modelView,
+                                   Matrix4f projection, Vector3d camera, Quaternionf viewRotation, float partial) {
+        var client = (ClientSubLevel) subLevel;
+        renderGroup(client.getLevel(), getRenderedChain(client), target, modelView, projection, camera, viewRotation, partial, true);
     }
-
-    public static void renderGroup(final ClientLevel level, final Collection<ClientSubLevel> subLevels, final AdvancedFbo fbo, final Matrix4f modelView, final Matrix4f projectionMat, final Vector3d cameraPosition, final Quaternionf orientation, final float partialTicks, final boolean renderPlayers) {
-        // Finish anything previously being rendered for safety
-        final MultiBufferSource.BufferSource bufferSource = Minecraft.getInstance().renderBuffers().bufferSource();
-        bufferSource.endBatch();
-
-        if (subLevels.isEmpty()) {
-            AdvancedFbo.unbind();
-            return;
+    public static void renderGroup(ClientLevel level, Collection<ClientSubLevel> selected, GpuFramebuffer target,
+                                   Matrix4f modelView, Matrix4f projection, Vector3d cameraPosition,
+                                   Quaternionf viewRotation, float partial, boolean renderPlayers) {
+        RenderSystem.assertOnRenderThread();
+        if (selected.isEmpty()) return;
+        final var client = Minecraft.getInstance();
+        if (resources == null) resources = new Resources(client);
+        final var frame = NativeSubLevelGroupFrame.extract(level, selected,
+                new Vec3(cameraPosition.x, cameraPosition.y, cameraPosition.z), partial, renderPlayers);
+        if (frame.isEmpty()) return;
+        final var view = new Matrix4f(modelView).rotate(viewRotation);
+        final var nativeProjection = new Matrix4f().translation(0, 0, .5f).scale(1, -1, -.5f).mul(projection);
+        final var camera = new CameraRenderState();
+        camera.pos = new Vec3(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+        camera.blockPos = BlockPos.containing(camera.pos);
+        camera.initialized = true;
+        camera.orientation.set(viewRotation).conjugate();
+        camera.viewRotationMatrix.set(view);
+        camera.projectionMatrix.set(nativeProjection);
+        camera.cameraEntityPartialTicks = partial;
+        final var captured = NativeFeatureScene.Inputs.capture(client);
+        // Preview transparency has its own explicit classic policy; copy came from capture().
+        captured.options().improvedTransparency = false;
+        final var terrain = new NativeFeatureScene.Inputs(captured.options(), resources.terrainLight.color(0).view(),
+                resources.fog.buffer().slice(), resources.lights, captured.globals());
+        final var features = new NativeFeatureScene.Inputs(captured.options(), resources.featureLight.color(0).view(),
+                resources.fog.buffer().slice(), resources.lights, captured.globals());
+        rendering++;
+        try (var ignored = dev.ryanhcode.sable.render.SableNativeWorldShaders.disableWorldEffects()) {
+            resources.scene.render(target, nativeProjection, ProjectionType.ORTHOGRAPHIC, view, terrain,
+                    nodes -> frame.submitTerrain(new PoseStack(), nodes));
+            resources.scene.render(target, nativeProjection, ProjectionType.ORTHOGRAPHIC, view, features,
+                    nodes -> frame.submitFeatures(new PoseStack(), nodes, camera));
+        } finally { rendering--; }
+    }
+    public static void close() {
+        if (resources != null) { resources.close(); resources = null; }
+    }
+    private static final class Resources implements AutoCloseable {
+        NativeFeatureScene scene;
+        GpuFramebuffer terrainLight, featureLight;
+        Lighting lighting;
+        GpuBufferSlice lights;
+        GpuUniformBuffer fog;
+        Resources(Minecraft client) {
+            try {
+            var device = RenderSystem.getDevice();
+            // Native lightmap shaders use integer texelFetch coordinates in the 16x16 lightmap.
+            terrainLight = GpuFramebuffer.builder("Diagram terrain lightmap", 16, 16).color(GpuFormat.RGBA8_UNORM).build(device);
+            featureLight = GpuFramebuffer.builder("Diagram feature lightmap", 16, 16).color(GpuFormat.RGBA8_UNORM).build(device);
+            lighting = new Lighting();
+            lighting.updateLevel(CardinalLighting.Type.NETHER);
+            var previous = RenderSystem.getShaderLights();
+            try { lighting.setupFor(Lighting.Entry.LEVEL); lights = RenderSystem.getShaderLights(); }
+            finally { RenderSystem.setShaderLights(previous); }
+            var layout = GpuUniformBuffer.layoutBuilder().field("FogColor", GpuUniformBuffer.ValueType.VEC4);
+            for (String name : new String[]{"FogEnvironmentalStart", "FogEnvironmentalEnd", "FogRenderDistanceStart", "FogRenderDistanceEnd", "FogSkyEnd", "FogCloudsEnd"})
+                layout.field(name, GpuUniformBuffer.ValueType.FLOAT);
+            fog = new GpuUniformBuffer(device, "Diagram no fog", layout.build());
+            for (String name : fog.layout().fields().keySet()) if (!name.equals("FogColor")) fog.setFloat(name, 1.0e30f);
+            var encoder = device.createCommandEncoder();
+            try (var terrainPixels = image(.65f); var featurePixels = image(1)) {
+                encoder.writeToTexture(terrainLight.color(0).texture(), terrainPixels);
+                encoder.writeToTexture(featureLight.color(0).texture(), featurePixels);
+                fog.upload(encoder);
+                encoder.submit();
+            }
+            scene = new NativeFeatureScene(client, client.getResourceManager());
+            } catch (RuntimeException | Error failure) { close(); throw failure; }
         }
-
-        final Minecraft minecraft = Minecraft.getInstance();
-        final GameRenderer gameRenderer = minecraft.gameRenderer;
-        final LightTexture lightTexture = gameRenderer.lightTexture();
-        final VanillaSubLevelBlockEntityRenderer beRenderer = new VanillaSubLevelBlockEntityRenderer(minecraft.getBlockEntityRenderDispatcher(), minecraft.renderBuffers(), new Long2ObjectOpenHashMap<>());
-
-        CAMERA.setup(cameraPosition, null, minecraft.level, orientation, 0f);
-
-        final PoseStack poseStack = new PoseStack();
-        poseStack.mulPose(TRANSFORM.set(modelView));
-        poseStack.mulPose(CAMERA.rotation());
-
-        BACKUP_PROJECTION.set(RenderSystem.getProjectionMatrix());
-        gameRenderer.resetProjectionMatrix(TRANSFORM.set(projectionMat));
-
-        final CameraMatrices matrices = VeilRenderSystem.renderer().getCameraMatrices();
-        matrices.backup(BACKUP_CAMERA_MATRICES);
-
-        final Matrix4fStack matrix4fstack = RenderSystem.getModelViewStack();
-        matrix4fstack.pushMatrix();
-        matrix4fstack.identity();
-        matrix4fstack.mul(poseStack.last().pose());
-        RenderSystem.applyModelViewMatrix();
-
-        final AdvancedFbo drawFbo = VeilRenderSystem.renderer().getDynamicBufferManger().getDynamicFbo(fbo);
-        drawFbo.bind(true);
-
-        try {
-            Lighting.setupNetherLevel();
-            ((LightTextureExtension) lightTexture).simulated$makeDiagramLightTexture(0.65f);
-
-            SimpleSubLevelGroupRenderer.RENDERING_SIMPLE = true;
-            for (final RenderType layer : RenderType.chunkBufferLayers()) {
-                layer.setupRenderState();
-                final ShaderInstance shader = RenderSystem.getShader();
-                shader.setDefaultUniforms(VertexFormat.Mode.QUADS, RenderSystem.getModelViewMatrix(), projectionMat, minecraft.getWindow());
-                shader.apply();
-                SubLevelRenderDispatcher.get().renderSectionLayer(subLevels, layer, shader, cameraPosition.x, cameraPosition.y, cameraPosition.z, RenderSystem.getModelViewMatrix(), projectionMat, partialTicks);
-
-                // single block sub-levels
-                final VertexConsumer consumer = bufferSource.getBuffer(layer);
-
-                for (final ClientSubLevel sublevel : subLevels) {
-                    final SubLevelRenderData data = sublevel.getRenderData();
-
-                    if (!(data instanceof final VanillaSingleSubLevelRenderData singleRenderData)) {
-                        continue;
-                    }
-
-                    singleRenderData.renderSingleBlock(layer, consumer, modelView, cameraPosition.x, cameraPosition.y, cameraPosition.z);
-                }
-
-                bufferSource.endBatch(layer);
-                shader.clear();
-                layer.clearRenderState();
+        private static NativeImage image(float brightness) {
+            var image = new NativeImage(16,16,false);
+            var bytes = NativeDiagramLightmap.pixels(brightness);
+            for(int y=0;y<16;y++)for(int x=0;x<16;x++) {
+                int r=bytes.get()&255, g=bytes.get()&255, b=bytes.get()&255, a=bytes.get()&255;
+                image.setPixelABGR(x,y,r|g<<8|b<<16|a<<24);
             }
-            ((LightTextureExtension) lightTexture).simulated$makeDiagramLightTexture(1.0f);
-            SimpleSubLevelGroupRenderer.RENDERING_SIMPLE = false;
-
-            final VisualizationManager visualizationManager = VisualizationManager.get(level);
-
-            // Render block-entities with visuals normally
-            if (visualizationManager instanceof final VisualizationManagerExtension extension) {
-                extension.sable$setDrawingDiagram(true);
-
-                for (final ClientSubLevel beSubLevel : subLevels) {
-                    final BlockEntityRenderDispatcherExtension dispatcher = (BlockEntityRenderDispatcherExtension) beRenderer.getBlockEntityRenderDispatcher();
-
-                    final SubLevelEmbedding embeddingInfo = ((VisualManagerExtension) visualizationManager.blockEntities()).sable$getBEEmbeddingInfo(beSubLevel);
-
-                    if (embeddingInfo == null) {
-                        continue;
-                    }
-
-                    final Vector3d chunkOffset = new Vector3d();
-                    final Matrix4f transformation = new Matrix4f();
-                    final Matrix4f transformationInverse = new Matrix4f();
-
-                    final SubLevelRenderData data = beSubLevel.getRenderData();
-
-                    beSubLevel.renderPose().rotationPoint().negate(chunkOffset.zero());
-                    data.getTransformation(cameraPosition.x, cameraPosition.y, cameraPosition.z, transformation);
-
-                    final Vector3f c = transformation.invert(transformationInverse).transformPosition(new Vector3f());
-                    dispatcher.sable$setCameraPosition(new Vec3(c.x - chunkOffset.x(), c.y - chunkOffset.y(), c.z - chunkOffset.z()));
-
-                    final PoseStack beMatrices = new PoseStack();
-                    beMatrices.pushPose();
-                    beMatrices.mulPose(transformation);
-                    beRenderer.renderBlockEntities(embeddingInfo.blockEntities(), beMatrices, partialTicks, -chunkOffset.x, -chunkOffset.y, -chunkOffset.z);
-                    beMatrices.popPose();
-
-                    dispatcher.sable$setCameraPosition(null);
-                }
-            }
-
-            // Render normal block-entities
-            SubLevelRenderDispatcher.get().renderBlockEntities(subLevels, beRenderer, cameraPosition.x, cameraPosition.y, cameraPosition.z, partialTicks);
-
-            for (final ClientSubLevel entitySubLevel : subLevels) {
-                final List<Entity> entities = level.getEntitiesOfClass(Entity.class, entitySubLevel.getPlot().getBoundingBox().toAABB().inflate(16.0));
-
-                final PoseStack entityPoseStack = new PoseStack();
-                entityPoseStack.pushPose();
-                entityPoseStack.mulPose(TRANSFORM.set(modelView));
-
-                for (final Entity entity : entities) {
-                    if (Sable.HELPER.getContaining(entity) != entitySubLevel && Sable.HELPER.getTrackingOrVehicleSubLevel(entity) != entitySubLevel) {
-                        continue;
-                    }
-
-                    if (!renderPlayers && entity instanceof Player) {
-                        continue;
-                    }
-
-                    final float partialTick = minecraft.getTimer().getGameTimeDeltaPartialTick(!level.tickRateManager().isEntityFrozen(entity));
-
-                    minecraft.levelRenderer.renderEntity(entity, cameraPosition.x, cameraPosition.y, cameraPosition.z, partialTick, entityPoseStack, bufferSource);
-                }
-                entityPoseStack.popPose();
-            }
-
-            if (visualizationManager instanceof final VisualizationManagerExtension extension) {
-                extension.sable$setDrawingDiagram(false);
-            }
-
-            bufferSource.endBatch();
-        } finally {
-            if (level.effects().constantAmbientLight()) {
-                Lighting.setupNetherLevel();
-            } else {
-                Lighting.setupLevel();
-            }
-
-            matrices.restore(BACKUP_CAMERA_MATRICES);
-
-            matrix4fstack.popMatrix();
-            RenderSystem.applyModelViewMatrix();
-
-            gameRenderer.resetProjectionMatrix(BACKUP_PROJECTION);
-            AdvancedFbo.unbind();
-
-            lightTexture.updateLightTexture(partialTicks);
+            return image;
+        }
+        @Override public void close() {
+            if(scene!=null)scene.close(); if(terrainLight!=null)terrainLight.close(); if(featureLight!=null)featureLight.close();
+            if(lighting!=null)lighting.close(); if(fog!=null)fog.close();
         }
     }
+    private SimpleSubLevelGroupRenderer() {}
 }

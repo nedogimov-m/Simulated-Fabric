@@ -1,8 +1,8 @@
 package dev.ryanhcode.offroad.config.server;
 
-import net.createmod.catnip.config.ConfigBase;
+import com.simibubi.create.infrastructure.config.NativeConfigBase;
 
-public class OffroadBlockConfigs extends ConfigBase {
+public class OffroadBlockConfigs extends NativeConfigBase {
 
 	public final ConfigFloat boreheadBearingSearchRadius = this.f(1.5f, 0, 10, "borehead_bearing_search_radius", "The block gathering search radius of the borehead bearing");
 	public final ConfigInt boreheadBearingStallRecoveryTicks = this.i(10, 0, "borehead_bearing_stall_recovery_ticks", "The amount of ticks it takes for the borehead bearing to recover from an item stall");

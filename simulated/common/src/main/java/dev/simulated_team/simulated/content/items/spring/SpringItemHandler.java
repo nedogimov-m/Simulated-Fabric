@@ -1,5 +1,6 @@
 package dev.simulated_team.simulated.content.items.spring;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.ryanhcode.sable.Sable;
 import dev.simulated_team.simulated.data.SimLang;
 import dev.simulated_team.simulated.index.SimItems;
@@ -25,7 +26,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
+
 
 public class SpringItemHandler implements InteractCallback {
     public static final double MAX_LENGTH = 9.0;
@@ -58,7 +59,7 @@ public class SpringItemHandler implements InteractCallback {
         final LocalPlayer player = (LocalPlayer) SimDistUtil.getClientPlayer();
         final Level level = player.level();
 
-        if (action == GLFW.GLFW_PRESS) {
+        if (action == InputConstants.PRESS) {
             final InteractionHand hand = this.getHandOrNull(player);
             if (hand == null) {
                 this.reset(true);
@@ -67,7 +68,7 @@ public class SpringItemHandler implements InteractCallback {
 
             if (this.linkPos != null) {
                 if (player.isShiftKeyDown()) {
-                    player.swing(hand);
+                    player.swing(hand, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
 
                     this.reset(true);
                     return new Result(true);
@@ -96,7 +97,7 @@ public class SpringItemHandler implements InteractCallback {
                     return Result.empty();
                 }
 
-                player.swing(hand);
+                player.swing(hand, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
                 VeilPacketManager.server().sendPacket(new PlaceSpringPacket(this.linkPos, pos, this.linkDirection, dir, hand));
                 this.reset(false);
                 return new Result(true);
@@ -197,7 +198,7 @@ public class SpringItemHandler implements InteractCallback {
                 final Vec3 globalFirstPoint = Sable.HELPER.projectOutOfSubLevel(level, linkAABB.getCenter());
                 final Vec3 globalTarget = Sable.HELPER.projectOutOfSubLevel(level, hitAABB.getCenter());
 
-                final DustParticleOptions data = new DustParticleOptions(new net.createmod.catnip.theme.Color(color).asVectorF(), 1);
+                final DustParticleOptions data = new DustParticleOptions(color, 1);
                 final double totalFlyingTicks = 10;
                 final int segments = (((int) totalFlyingTicks) / 3) + 1;
 

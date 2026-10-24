@@ -1,12 +1,8 @@
 {
   "type": "create:deploying",
   "ingredients": [
-    {
-      "item": "minecraft:lime_wool"
-    },
-    {
-      "item": "minecraft:stick"
-    }
+    "minecraft:lime_wool",
+    "minecraft:stick"
   ],
   "results": [
     {

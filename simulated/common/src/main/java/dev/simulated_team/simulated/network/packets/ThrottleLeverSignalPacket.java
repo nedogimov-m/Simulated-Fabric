@@ -29,7 +29,7 @@ public record ThrottleLeverSignalPacket(BlockPos pos, int signal) implements Cus
         final ServerPlayer player = context.player();
         final ServerLevel level = (ServerLevel) player.level();
 
-        if (BlockHoldInteraction.inInteractionRange(player, this.pos.getCenter(), 4) &&
+        if (BlockHoldInteraction.inInteractionRange(player, net.minecraft.world.phys.Vec3.atCenterOf(this.pos), 4) &&
                 level.getBlockEntity(this.pos) instanceof final ThrottleLeverBlockEntity throttleLever) {
             throttleLever.setSignal(Math.clamp(this.signal, 0, 15));
         }

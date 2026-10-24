@@ -1,7 +1,6 @@
 package dev.simulated_team.simulated.content.blocks.gimbal_sensor;
 
 import com.google.common.collect.ImmutableList;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.Create;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
@@ -10,7 +9,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueSettingsBoard;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueSettingsFormatter;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
-import dev.engine_room.flywheel.lib.transform.TransformStack;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.api.SubLevelHelper;
 import dev.ryanhcode.sable.companion.math.Pose3d;
@@ -107,12 +105,12 @@ public class GimbalSensorBlockEntity extends SmartBlockEntity implements IHaveGo
         final SubLevel subLevel = Sable.HELPER.getContaining(this);
         final Pose3dc pose = subLevel != null ? subLevel.logicalPose() : IDENTITY_POSE;
 
-        if (this.level.isClientSide)
+        if (this.level.isClientSide())
             this.animateClientRotation(subLevel, pose);
         if (subLevel == null)
             return;
 
-        final Vector3d ld = JOMLConversion.toJOML(Vec3.atLowerCornerOf(Direction.DOWN.getNormal()));
+        final Vector3d ld = JOMLConversion.toJOML(Vec3.atLowerCornerOf(Direction.DOWN.getUnitVec3i()));
         subLevel.logicalPose().orientation().transformInverse(ld);
 
         this.XAngle = ld.y() < 0 || ld.z() * ld.z() > 0.001 ? atan2(ld.z(), -ld.y()) : 0;
@@ -126,9 +124,9 @@ public class GimbalSensorBlockEntity extends SmartBlockEntity implements IHaveGo
     }
 
     public void randomNudge() {
-        final Vec3 v = (VecHelper.offsetRandomly(new Vec3(0, 0, 0), this.level.random, 0.2f));
+        final Vec3 v = (VecHelper.offsetRandomly(new Vec3(0, 0, 0), this.level.getRandom(), 0.2f));
         this.angleVelocities.set(v.x, v.y, v.z);
-        this.eulerAngles.set(0, 0, this.level.random.nextFloat() * Math.PI * 2);
+        this.eulerAngles.set(0, 0, this.level.getRandom().nextFloat() * Math.PI * 2);
     }
 
     void animateClientRotation(final SubLevel subLevel, final Pose3dc pose) {
@@ -147,7 +145,7 @@ public class GimbalSensorBlockEntity extends SmartBlockEntity implements IHaveGo
 
         this.addCompassTorque(pose, acceleration, target);
         if (this.compassTarget.isRandom())
-            acceleration.z += (2 * this.level.random.nextFloat() - 1) * 2.1;
+            acceleration.z += (2 * this.level.getRandom().nextFloat() - 1) * 2.1;
 
         acceleration.div(this.angleInertia);
         final Vector3d relativeVelocity = this.angleVelocities.add(shellVelocity, new Vector3d());
@@ -300,8 +298,8 @@ public class GimbalSensorBlockEntity extends SmartBlockEntity implements IHaveGo
     }
 
     @Override
-    protected void write(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(tag, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput tag, final boolean clientPacket) {
+        super.write(tag, clientPacket);
 
         final CompoundTag powers = new CompoundTag();
         for (final Map.Entry<Direction, Integer> entry : this.redstoneMap.entrySet()) {
@@ -319,32 +317,32 @@ public class GimbalSensorBlockEntity extends SmartBlockEntity implements IHaveGo
         tag.putDouble("x_angle", this.XAngle);
         tag.putDouble("zz_angle", this.ZAngle);
 
-        tag.put("Powers", powers);
+        tag.store("Powers", CompoundTag.CODEC, powers);
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(tag, registries, clientPacket);
+    protected void read(final net.minecraft.world.level.storage.ValueInput tag, final boolean clientPacket) {
+        super.read(tag, clientPacket);
 
-        if (tag.contains("Powers")) {
-            final CompoundTag powers = (CompoundTag) tag.get("Powers");
+        if (tag.child("Powers").isPresent()) {
+            final var powers = tag.childOrEmpty("Powers");
             for (final Map.Entry<Direction, Integer> entry : this.redstoneMap.entrySet()) {
-                entry.setValue(powers.getInt(entry.getKey().getName()));
+                entry.setValue(powers.getIntOr(entry.getKey().getName(), 0));
             }
         }
         if (!clientPacket) {
-            float x = tag.getFloat("Angle1");
-            float y = tag.getFloat("Angle2");
-            float z = tag.getFloat("Angle3");
+            float x = tag.getFloatOr("Angle1", 0f);
+            float y = tag.getFloatOr("Angle2", 0f);
+            float z = tag.getFloatOr("Angle3", 0f);
             this.eulerAngles = new Vector3d(x, y, z);
-            x = tag.getFloat("Vel1");
-            y = tag.getFloat("Vel2");
-            z = tag.getFloat("Vel3");
+            x = tag.getFloatOr("Vel1", 0f);
+            y = tag.getFloatOr("Vel2", 0f);
+            z = tag.getFloatOr("Vel3", 0f);
             this.angleVelocities = new Vector3d(x, y, z);
         }
 
-        this.XAngle = tag.getDouble("x_angle");
-        this.ZAngle = tag.getDouble("z_angle");
+        this.XAngle = tag.getDoubleOr("x_angle", 0d);
+        this.ZAngle = tag.getDoubleOr("z_angle", 0d);
     }
 
     public static class GimbalSensorScrollValueBehaviour extends ScrollValueBehaviour {
@@ -403,17 +401,17 @@ public class GimbalSensorBlockEntity extends SmartBlockEntity implements IHaveGo
         }
 
         @Override
-        public void write(final CompoundTag nbt, final HolderLookup.Provider registries, final boolean clientPacket) {
+        public void write(final net.minecraft.world.level.storage.ValueOutput nbt, final boolean clientPacket) {
             nbt.putInt("ScrollValue1", this.primaryValue);
             nbt.putInt("ScrollValue2", this.secondaryValue);
-            super.write(nbt, registries, clientPacket);
+            super.write(nbt, clientPacket);
         }
 
         @Override
-        public void read(final CompoundTag nbt, final HolderLookup.Provider registries, final boolean clientPacket) {
-            this.primaryValue = nbt.getInt("ScrollValue1");
-            this.secondaryValue = nbt.getInt("ScrollValue2");
-            super.read(nbt, registries, clientPacket);
+        public void read(final net.minecraft.world.level.storage.ValueInput nbt, final boolean clientPacket) {
+            this.primaryValue = nbt.getIntOr("ScrollValue1", 0);
+            this.secondaryValue = nbt.getIntOr("ScrollValue2", 0);
+            super.read(nbt, clientPacket);
         }
 
         @Override
@@ -430,8 +428,8 @@ public class GimbalSensorBlockEntity extends SmartBlockEntity implements IHaveGo
             if(!acceptsValueSettings()) return false;
             if(!tag.contains("ScrollValue1") || !tag.contains("ScrollValue2")) return true;
             if(simulate) return true;
-            this.primaryValue = tag.getInt("ScrollValue1");
-            this.secondaryValue = tag.getInt("ScrollValue2");
+            this.primaryValue = tag.getIntOr("ScrollValue1", 0);
+            this.secondaryValue = tag.getIntOr("ScrollValue2", 0);
             blockEntity.setChanged();
             blockEntity.sendData();
             return true;
@@ -519,12 +517,12 @@ public class GimbalSensorBlockEntity extends SmartBlockEntity implements IHaveGo
         }
 
         @Override
-        public void rotate(final LevelAccessor levelAccessor, final BlockPos blockPos, final BlockState blockState, final PoseStack poseStack) {
+        public void rotate(final LevelAccessor levelAccessor, final BlockPos blockPos, final BlockState blockState, final org.joml.Matrix4f poseStack) {
             final float yRot = AngleHelper.horizontalAngle(this.getSide()) + 180;
             final float xRot = this.getSide() == Direction.UP ? 90 : this.getSide() == Direction.DOWN ? 270 : 0;
-            TransformStack.of(poseStack)
-                    .rotateYDegrees(yRot)
-                    .rotateXDegrees(xRot);
+            poseStack
+                    .rotateY((float) Math.toRadians(yRot))
+                    .rotateX((float) Math.toRadians(xRot));
         }
 
         @Override
@@ -558,11 +556,12 @@ public class GimbalSensorBlockEntity extends SmartBlockEntity implements IHaveGo
         private boolean isRandom = false;
 
         public void update(final Vec3 pos, final Level level) {
-            this.isRandom = !level.dimensionType().natural();
+            this.isRandom = !level.dimensionTypeRegistration().is(net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.DIMENSION_TYPE,
+                    net.minecraft.resources.Identifier.fromNamespaceAndPath("simulated", "stable_compass")));
             if (!this.isRandom) {
                 this.target.set(0, 0, -1);
             } else {
-                final RandomSource r = level.random;
+                final RandomSource r = level.getRandom();
                 if (this.randomTargetTimer-- < 0) {
 
                     final float radius = 1.0f;
@@ -570,7 +569,7 @@ public class GimbalSensorBlockEntity extends SmartBlockEntity implements IHaveGo
                             (r.nextFloat() - .5f) * 2 * radius,
                             (r.nextFloat() - .5f) * 2 * radius,
                             (r.nextFloat() - .5f) * 2 * radius);
-                    this.randomTargetTimer = level.random.nextInt(5, 15);
+                    this.randomTargetTimer = level.getRandom().nextInt(5, 15);
                 }
                 final float nudge = 0.3f;
                 this.randomTarget.add(

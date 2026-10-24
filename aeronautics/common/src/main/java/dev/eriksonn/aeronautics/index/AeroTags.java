@@ -1,28 +1,26 @@
 package dev.eriksonn.aeronautics.index;
 
 import com.simibubi.create.AllBlocks;
-import com.simibubi.create.AllTags;
-import com.simibubi.create.foundation.data.TagGen;
-import com.tterrag.registrate.providers.ProviderType;
-import com.tterrag.registrate.providers.RegistrateItemTagsProvider;
-import com.tterrag.registrate.providers.RegistrateTagsProvider;
-import dev.eriksonn.aeronautics.Aeronautics;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.BuiltInRegistries;
+import dev.simulated_team.simulated.fabric.registry.NativeTagDefinitions;
+import net.minecraft.tags.TagFile;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.neoforged.neoforge.common.Tags;
 
 import static net.minecraft.tags.BlockTags.DAMPENS_VIBRATIONS;
 
 public class AeroTags {
-	public static void addGenerators() {
-		Aeronautics.getRegistrate().addDataGenerator(ProviderType.BLOCK_TAGS, BlockTags::genBlockTags);
-		Aeronautics.getRegistrate().addDataGenerator(ProviderType.ITEM_TAGS, ItemTags::genItemTags);
-	}
+    private static TagKey<net.minecraft.world.item.Item> commonItemTag(String path) {
+        return TagKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath("c", path));
+    }
+    private static TagKey<Block> commonBlockTag(String path) {
+        return TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("c", path));
+    }
 
 	public static class BlockTags {
 		public static final TagKey<Block> AIRTIGHT = create("airtight");
@@ -34,11 +32,11 @@ public class AeroTags {
 		public static final TagKey<Block> LEVITITE_ADJACENT_CATALYZER = create("levitite_adjacent_catalyzer"); // blocks that cause soul crystallization to become regular crystallization
 		public static final TagKey<Block> LEVITITE_ADJACENT_SOUL_CATALYZER = create("levitite_adjacent_soul_catalyzer"); // blocks that cause regular crystallization to become soul crystallization
 		private static TagKey<Block> create(final String path) {
-			return TagKey.create(Registries.BLOCK, Aeronautics.path(path));
+			return TagKey.create(Registries.BLOCK, net.minecraft.resources.Identifier.fromNamespaceAndPath("aeronautics", path));
 		}
 
-		private static void genBlockTags(final RegistrateTagsProvider<Block> provIn) {
-			final TagGen.CreateTagsProvider<Block> prov = new TagGen.CreateTagsProvider<>(provIn, Block::builtInRegistryHolder);
+		public static java.util.Map<Identifier, TagFile> blockDefinitions() {
+			final NativeTagDefinitions<Block> prov = new NativeTagDefinitions<>(BuiltInRegistries.BLOCK);
 
 			prov.tag(AIRTIGHT)
 					.addTag(ENVELOPE);
@@ -53,25 +51,27 @@ public class AeroTags {
 					.add(Blocks.CLAY,Blocks.MUD,Blocks.PACKED_MUD,Blocks.COARSE_DIRT);
 
 			prov.tag(LEVITITE_CATALYZER)
-					.add(Blocks.CAMPFIRE, Blocks.MAGMA_BLOCK, Blocks.TORCH, Blocks.WALL_TORCH, AllBlocks.LIT_BLAZE_BURNER.get(), Blocks.FIRE);
+					.add(Blocks.CAMPFIRE, Blocks.MAGMA_BLOCK, Blocks.TORCH, Blocks.WALL_TORCH, AllBlocks.LIT_BLAZE_BURNER, Blocks.FIRE);
 			prov.tag(LEVITITE_ADJACENT_CATALYZER)
 					.add(Blocks.NETHERRACK)
-					.addTag(Tags.Blocks.STORAGE_BLOCKS_COAL);
+					.addTag(TagKey.create(Registries.BLOCK, Identifier.parse("c:storage_blocks/coal")));
 
 			prov.tag(LEVITITE_SOUL_CATALYZER)
 					.add(Blocks.SOUL_CAMPFIRE, Blocks.SOUL_TORCH, Blocks.SOUL_WALL_TORCH, Blocks.SOUL_FIRE);
 			prov.tag(LEVITITE_ADJACENT_SOUL_CATALYZER)
 					.addTag(net.minecraft.tags.BlockTags.SOUL_FIRE_BASE_BLOCKS);
-		}
+
+            return prov.definitions();
+        }
 	}
 
 	public static class ItemTags {
-		public static final TagKey<Item> LEATHERS = AllTags.commonItemTag("leathers");
-		public static final TagKey<Item> ARMORS = AllTags.commonItemTag("armors");
-		public static final TagKey<Item> HEAD_ARMOR = TagKey.create(Registries.ITEM, ResourceLocation.withDefaultNamespace("head_armor"));
-		public static final TagKey<Item> IRON_SHEET = AllTags.commonItemTag("plates/iron");
-		public static final TagKey<Item> GOLD_SHEET = AllTags.commonItemTag("plates/gold");
-		public static final TagKey<Item> MUSIC_DISCS = AllTags.commonItemTag("music_discs");
+		public static final TagKey<Item> LEATHERS = commonItemTag("leathers");
+		public static final TagKey<Item> ARMORS = commonItemTag("armors");
+		public static final TagKey<Item> HEAD_ARMOR = TagKey.create(Registries.ITEM, Identifier.withDefaultNamespace("head_armor"));
+		public static final TagKey<Item> IRON_SHEET = commonItemTag("plates/iron");
+		public static final TagKey<Item> GOLD_SHEET = commonItemTag("plates/gold");
+		public static final TagKey<Item> MUSIC_DISCS = commonItemTag("music_discs");
 
 		public static final TagKey<Item> ENVELOPE = create("envelope");
 		public static final TagKey<Item> SHAFTLESS_ENVELOPE = create("shaftless_envelope");
@@ -83,11 +83,11 @@ public class AeroTags {
 		public static final TagKey<Item> CONVERTS_TO_CLOUD_SKIPPER = create("converts_to_cloud_skipper");
 
 		private static TagKey<Item> create(final String path) {
-			return TagKey.create(Registries.ITEM, Aeronautics.path(path));
+			return TagKey.create(Registries.ITEM, net.minecraft.resources.Identifier.fromNamespaceAndPath("aeronautics", path));
 		}
 
-		public static void genItemTags(final RegistrateItemTagsProvider provIn) {
-			final TagGen.CreateTagsProvider<Item> prov = new TagGen.CreateTagsProvider<>(provIn, Item::builtInRegistryHolder);
+		public static java.util.Map<Identifier, TagFile> itemDefinitions() {
+			final NativeTagDefinitions<Item> prov = new NativeTagDefinitions<>(BuiltInRegistries.ITEM);
 
 			prov.tag(LEVITITE_CATALYZER).add(Items.FLINT_AND_STEEL, Items.FIRE_CHARGE, Items.TORCH, Items.CAMPFIRE);
 			prov.tag(LEVITITE_SOUL_CATALYZER).add(Items.SOUL_TORCH, Items.SOUL_CAMPFIRE);
@@ -95,6 +95,8 @@ public class AeroTags {
 
 			prov.tag(BURNER_FIRE)
 					.add(Items.COAL_BLOCK);
-		}
+
+            return prov.definitions();
+        }
 	}
 }

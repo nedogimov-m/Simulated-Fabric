@@ -1,58 +1,30 @@
 package dev.eriksonn.aeronautics.index;
 
-
-import com.simibubi.create.foundation.particle.ICustomParticleData;
 import dev.eriksonn.aeronautics.content.particle.*;
-import net.minecraft.core.particles.ParticleOptions;
+import net.fabricmc.fabric.api.particle.v1.FabricParticleTypes;
+import net.minecraft.core.Registry;
 import net.minecraft.core.particles.ParticleType;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+/** Common particle payloads; providers are bound separately on the client. */
+public final class AeroParticleTypes {
+    public static final ParticleType<PropellerAirParticleData> PROPELLER_AIR_FLOW = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, Identifier.parse("aeronautics:propeller_air_flow"),
+            FabricParticleTypes.complex(PropellerAirParticleData.CODEC, PropellerAirParticleData.STREAM_CODEC));
+    public static final ParticleType<HotAirEmberParticleData> HOT_AIR_EMBER = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, Identifier.parse("aeronautics:hot_air_ember"),
+            FabricParticleTypes.complex(HotAirEmberParticleData.CODEC, HotAirEmberParticleData.STREAM_CODEC));
+    public static final ParticleType<LevititeSparkleParticleData> LEVITITE_SPARKLE = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, Identifier.parse("aeronautics:levitite_sparkle"),
+            FabricParticleTypes.complex(LevititeSparkleParticleData.CODEC, LevititeSparkleParticleData.STREAM_CODEC));
+    public static final ParticleType<GustParticleData> GUST = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, Identifier.parse("aeronautics:gust"),
+            FabricParticleTypes.complex(GustParticleData.CODEC, GustParticleData.STREAM_CODEC));
+    public static final ParticleType<AirPoofParticleData> AIR_POOF = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, Identifier.parse("aeronautics:air_poof"),
+            FabricParticleTypes.complex(AirPoofParticleData.CODEC, AirPoofParticleData.STREAM_CODEC));
 
-public enum AeroParticleTypes {
-    PROPELLER_AIR_FLOW(PropellerAirParticleData::new),
-    HOT_AIR_EMBER(HotAirEmberParticleData::new),
-    LEVITITE_SPARKLE(LevititeSparkleParticleData::new),
-    GUST(GustParticleData::new),
-    AIR_POOF(() -> AirPoofParticleData.INSTANCE);
-
-    public final ParticleEntry<?> entry;
-
-    <D extends ParticleOptions> AeroParticleTypes(final Supplier<? extends ICustomParticleData<D>> typeFactory) {
-        this.entry = new ParticleEntry<>(typeFactory);
-    }
-
-    public static void init() {
-        // no-op
-    }
-
-    public static void registerClientParticles(final Consumer<ParticleEntry<?>> consume) {
-        for (final AeroParticleTypes value : values()) {
-            consume.accept(value.entry);
-        }
-    }
-
-    public ParticleType<?> get() {
-        return this.entry.object;
-    }
-
-    public static class ParticleEntry<D extends ParticleOptions> {
-        private final Supplier<? extends ICustomParticleData<D>> typeFactory;
-        private final ParticleType<D> object;
-
-        public ParticleEntry(final Supplier<? extends ICustomParticleData<D>> typeFactory) {
-            this.typeFactory = typeFactory;
-
-            this.object = this.typeFactory.get().createType();
-        }
-
-        public Supplier<? extends ICustomParticleData<D>> getTypeFactory() {
-            return this.typeFactory;
-        }
-
-        public ParticleType<D> getObject() {
-            return this.object;
-        }
-
-    }
+    public static void init() {}
+    private AeroParticleTypes() {}
 }

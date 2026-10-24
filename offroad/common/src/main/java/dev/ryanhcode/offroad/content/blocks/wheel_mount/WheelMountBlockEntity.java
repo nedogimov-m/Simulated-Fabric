@@ -13,7 +13,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueSettingsBoard;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueSettingsFormatter;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
-import dev.engine_room.flywheel.lib.transform.TransformStack;
 import dev.ryanhcode.offroad.content.components.TireLike;
 import dev.ryanhcode.offroad.data.OffroadLang;
 import dev.ryanhcode.offroad.index.OffroadDataComponents;
@@ -34,9 +33,11 @@ import dev.simulated_team.simulated.multiloader.inventory.SingleSlotContainer;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.createmod.catnip.math.AngleHelper;
 import net.createmod.catnip.math.VecHelper;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -148,7 +149,7 @@ public class WheelMountBlockEntity extends KineticBlockEntity implements BlockEn
         final MassData massData = subLevel.getMassTracker();
 
         final Direction facing = this.getBlockState().getValue(WheelMountBlock.HORIZONTAL_FACING);
-        final Vec3 localPos = blockPos.relative(facing).getCenter();
+        final Vec3 localPos = net.minecraft.world.phys.Vec3.atCenterOf(blockPos.relative(facing));
         this.queuedForcePos.set(localPos.x, localPos.y, localPos.z);
         final double normalMass = 1.0 / massData.getInverseNormalMass(this.queuedForcePos, OrientedBoundingBox3d.UP);
 
@@ -162,7 +163,7 @@ public class WheelMountBlockEntity extends KineticBlockEntity implements BlockEn
         final Pose3d pose = subLevel.logicalPose();
 
         final Direction.Axis axis = facing.getAxis();
-        Vec3i normal = Direction.get(Direction.AxisDirection.POSITIVE, axis).getNormal();
+        Vec3i normal = Direction.get(Direction.AxisDirection.POSITIVE, axis).getUnitVec3i();
         final Vector3dc sideD = this.getRotatedWheelAxis(normal);
         normal = new Vec3i(normal.getZ(), 0, normal.getX());
         final Vector3dc normalD = this.getRotatedWheelAxis(normal);
@@ -187,7 +188,7 @@ public class WheelMountBlockEntity extends KineticBlockEntity implements BlockEn
 
         final double springForce = ((suspensionRestDistance - springLength) * springStrength + dampingForce) * timeStep;
 
-        final Vec3i rayHitNormal = extensionToTerrain.normal().getNormal();
+        final Vec3i rayHitNormal = extensionToTerrain.normal().getUnitVec3i();
 
         Vec3 localForce = new Vec3(springForce * rayHitNormal.getX(), springForce * rayHitNormal.getY(), springForce * rayHitNormal.getZ());
         if (extensionToTerrain.subLevel() != null) {
@@ -246,7 +247,7 @@ public class WheelMountBlockEntity extends KineticBlockEntity implements BlockEn
         this.lastChasingYaw = this.chasingYaw;
         this.chasingYaw = Mth.lerp(0.4, this.chasingYaw, this.computeYaw());
 
-        if (!this.level.isClientSide) return;
+        if (!this.level.isClientSide()) return;
 
         if (tire == null) {
             this.angle = 0.0;
@@ -280,7 +281,7 @@ public class WheelMountBlockEntity extends KineticBlockEntity implements BlockEn
         final Vector3d localVelocity = subLevel.logicalPose().transformNormalInverse(velocity).div(20.0);
         final Direction.Axis axis = facing.getAxis();
 
-        Vec3i normal = Direction.get(Direction.AxisDirection.POSITIVE, axis).getNormal();
+        Vec3i normal = Direction.get(Direction.AxisDirection.POSITIVE, axis).getUnitVec3i();
         normal = new Vec3i(normal.getZ(), 0, normal.getX());
         final Vector3dc normalD = this.getRotatedWheelAxis(normal);
 
@@ -311,7 +312,7 @@ public class WheelMountBlockEntity extends KineticBlockEntity implements BlockEn
         final Pose3dc pose = subLevel.logicalPose();
 
         final Direction.Axis axis = facing.getAxis();
-        Vec3i normal = Direction.get(Direction.AxisDirection.POSITIVE, axis).getNormal();
+        Vec3i normal = Direction.get(Direction.AxisDirection.POSITIVE, axis).getUnitVec3i();
         normal = new Vec3i(normal.getZ(), 0, normal.getX());
         final Vector3dc rotatedAxis = this.getRotatedWheelAxis(normal);
 
@@ -347,7 +348,7 @@ public class WheelMountBlockEntity extends KineticBlockEntity implements BlockEn
 
     private TerrainCastResult computeMaxExtensionToTerrain(final Vector3dc normalD, final Pose3dc pose) {
         final Direction facing = this.getBlockState().getValue(WheelMountBlock.HORIZONTAL_FACING);
-        final Vec3 wheelPosCenter = this.getBlockPos().relative(facing).getCenter();
+        final Vec3 wheelPosCenter = net.minecraft.world.phys.Vec3.atCenterOf(this.getBlockPos().relative(facing));
         double minExtension = 5.0;
         Direction minNormal = Direction.UP;
         SubLevel minHitSubLevel = null;
@@ -431,7 +432,7 @@ public class WheelMountBlockEntity extends KineticBlockEntity implements BlockEn
     }
 
     protected int getSteeringSignal() {
-        if (this.level.isClientSide) {
+        if (this.level.isClientSide()) {
             return this.clientSteeringSignal;
         }
 
@@ -464,8 +465,8 @@ public class WheelMountBlockEntity extends KineticBlockEntity implements BlockEn
     }
 
     @Override
-    protected void write(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        tag.put("CurrentStack", this.getHeldItem().saveOptional(registries));
+    protected void write(final ValueOutput tag, final boolean clientPacket) {
+        tag.store("CurrentStack", ItemStack.OPTIONAL_CODEC, this.getHeldItem());
 
         if (clientPacket) {
             tag.putInt("SteeringSignalStrength", this.lastServerSteeringSignal);
@@ -473,27 +474,37 @@ public class WheelMountBlockEntity extends KineticBlockEntity implements BlockEn
             tag.putInt("SteeringSignalStrengthRight", this.lastServerSteeringSignalRight);
         }
 
-        super.write(tag, registries, clientPacket);
+        super.write(tag, clientPacket);
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        final ItemStack stack = ItemStack.parseOptional(registries, tag.getCompound("CurrentStack"));
+    protected void read(final ValueInput tag, final boolean clientPacket) {
+        final ItemStack stack = tag.read("CurrentStack", ItemStack.OPTIONAL_CODEC).orElse(ItemStack.EMPTY);
 
         this.inventory.suppressUpdate = true;
         this.inventory.slot.setStack(stack);
         this.inventory.suppressUpdate = false;
 
         if (clientPacket) {
-            if (tag.contains("SteeringSignalStrength")) {
-                this.clientSteeringSignal = tag.getInt("SteeringSignalStrength");
-                this.clientSteeringSignalLeft = tag.getInt("SteeringSignalStrengthLeft");
-                this.clientSteeringSignalRight = tag.getInt("SteeringSignalStrengthRight");
+            if (tag.getInt("SteeringSignalStrength").isPresent()) {
+                this.clientSteeringSignal = tag.getIntOr("SteeringSignalStrength", 0);
+                this.clientSteeringSignalLeft = tag.getIntOr("SteeringSignalStrengthLeft", 0);
+                this.clientSteeringSignalRight = tag.getIntOr("SteeringSignalStrengthRight", 0);
             }
             this.onStackChanged();
         }
 
-        super.read(tag, registries, clientPacket);
+        super.read(tag, clientPacket);
+    }
+
+    @Override
+    public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+        if (this.level != null && !this.level.isClientSide() && !this.getHeldItem().isEmpty()) {
+            final var drop = pos.relative(state.getValue(WheelMountBlock.HORIZONTAL_FACING));
+            net.minecraft.world.Containers.dropItemStack(this.level, drop.getX(), drop.getY(), drop.getZ(), this.getHeldItem());
+            this.inventory.clearContent();
+        }
+        super.preRemoveSideEffects(pos, state);
     }
 
     @Override
@@ -541,12 +552,10 @@ public class WheelMountBlockEntity extends KineticBlockEntity implements BlockEn
         }
 
         @Override
-        public void rotate(final LevelAccessor level, final BlockPos pos, final BlockState state, final PoseStack ms) {
+        public void rotate(final LevelAccessor level, final BlockPos pos, final BlockState state, final org.joml.Matrix4f ms) {
             final Direction facing = state.getValue(RollerBlock.FACING);
             final float yRot = AngleHelper.horizontalAngle(facing) + 180;
-            TransformStack.of(ms)
-                    .rotateYDegrees(yRot)
-                    .rotateXDegrees(90);
+            ms.rotateY(AngleHelper.rad(yRot)).rotateX(AngleHelper.rad(90));
         }
 
         @Override

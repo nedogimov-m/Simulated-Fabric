@@ -1,0 +1,39 @@
+[
+  {
+    "game_versions": [
+      "26.3"
+    ],
+    "loaders": [
+      "fabric"
+    ],
+    "environment": "client_and_server",
+    "id": "pHan4UQ9",
+    "project_id": "fPetb5Kh",
+    "author_id": "71h6EGVq",
+    "featured": false,
+    "name": "26.3-2.5.1-fabric",
+    "version_number": "26.3-2.5.1-fabric",
+    "changelog": "- Updated to Fabric 26.3",
+    "changelog_url": null,
+    "date_published": "2026-09-19T01:48:01.351793Z",
+    "downloads": 53579,
+    "version_type": "release",
+    "status": "listed",
+    "requested_status": null,
+    "files": [
+      {
+        "id": "DZnp69Go",
+        "hashes": {
+          "sha512": "3a6801d74a0427cb4a041b2bc15068e76858ecb0a4aaa221675b40eb2e26b3e20a25dfc00320802af33a0f9cc06e95dfd4b61805452aa33408056f94f664c475",
+          "sha1": "d09078e6793530a52e1ef9984c6f23174fa95385"
+        },
+        "url": "https://cdn.modrinth.com/data/fPetb5Kh/versions/pHan4UQ9/NaturesCompass-26.3-2.5.1-fabric.jar",
+        "filename": "NaturesCompass-26.3-2.5.1-fabric.jar",
+        "primary": true,
+        "size": 232647,
+        "file_type": null
+      }
+    ],
+    "dependencies": []
+  }
+]

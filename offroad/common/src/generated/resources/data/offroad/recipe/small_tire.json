@@ -2,12 +2,8 @@
   "type": "minecraft:crafting_shapeless",
   "category": "misc",
   "ingredients": [
-    {
-      "item": "create:shaft"
-    },
-    {
-      "item": "minecraft:dried_kelp"
-    }
+    "create:shaft",
+    "minecraft:dried_kelp"
   ],
   "result": {
     "count": 1,

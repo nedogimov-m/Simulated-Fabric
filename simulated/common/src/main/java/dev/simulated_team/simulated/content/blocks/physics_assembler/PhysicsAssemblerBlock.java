@@ -1,9 +1,9 @@
 package dev.simulated_team.simulated.content.blocks.physics_assembler;
 
 import com.mojang.serialization.MapCodec;
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
 import com.simibubi.create.content.kinetics.deployer.DeployerFakePlayer;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.ryanhcode.sable.api.block.BlockSubLevelAssemblyListener;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.index.SimBlockShapes;
@@ -27,8 +27,8 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.NotNull;
 
-public class PhysicsAssemblerBlock extends FaceAttachedHorizontalDirectionalBlock implements IBE<PhysicsAssemblerBlockEntity>, IWrenchable, BlockSubLevelAssemblyListener {
-    public static final MapCodec<PhysicsAssemblerBlock> CODEC = simpleCodec(PhysicsAssemblerBlock::new);
+public class PhysicsAssemblerBlock extends FaceAttachedHorizontalDirectionalBlock implements NativeEntityBlock<PhysicsAssemblerBlockEntity>, NativeWrenchable, BlockSubLevelAssemblyListener {
+
 
     public PhysicsAssemblerBlock(final Properties properties) {
         super(properties);
@@ -45,18 +45,13 @@ public class PhysicsAssemblerBlock extends FaceAttachedHorizontalDirectionalBloc
     }
 
     @Override
-    protected MapCodec<? extends FaceAttachedHorizontalDirectionalBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     public Class<PhysicsAssemblerBlockEntity> getBlockEntityClass() {
         return PhysicsAssemblerBlockEntity.class;
     }
 
     @Override
     public BlockEntityType<? extends PhysicsAssemblerBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.PHYSICS_ASSEMBLER.get();
+        return SimBlockEntityTypes.PHYSICS_ASSEMBLER;
     }
 
     @Override
@@ -86,7 +81,7 @@ public class PhysicsAssemblerBlock extends FaceAttachedHorizontalDirectionalBloc
     protected InteractionResult useWithoutItem(final BlockState state, final Level level, final BlockPos pos, final Player player, final BlockHitResult hitResult) {
         // Deployer interaction
         if (player instanceof DeployerFakePlayer) {
-            if (!level.isClientSide) {
+            if (!level.isClientSide()) {
                 this.withBlockEntityDo(level, pos, PhysicsAssemblerBlockEntity::assembleOrDisassemble);
             }
 
@@ -94,7 +89,7 @@ public class PhysicsAssemblerBlock extends FaceAttachedHorizontalDirectionalBloc
         }
 
         // Start holding
-        if (level.isClientSide && player.isLocalPlayer()) {
+        if (level.isClientSide() && player.isLocalPlayer()) {
             return this.onBlockEntityUse(level, pos, be -> {
                 SimClickInteractions.PHYSICS_ASSEMBLER_MANAGER.startHold(level, player, pos);
                 return InteractionResult.SUCCESS;
@@ -123,5 +118,17 @@ public class PhysicsAssemblerBlock extends FaceAttachedHorizontalDirectionalBloc
         if (be instanceof final PhysicsAssemblerBlockEntity pabe) {
             pabe.setParent(serverLevel1);
         }
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

@@ -1,6 +1,6 @@
 package dev.simulated_team.simulated.content.particle;
 
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
 import com.simibubi.create.content.equipment.goggles.GogglesItem;
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.math.VecHelper;
@@ -38,7 +38,7 @@ public class AugerIndicatorParticle extends SimpleAnimatedParticle {
         this.xd = 0;
         this.yd = 0;
         this.zd = 0;
-        final Vec3i normal = direction.getNormal();
+        final Vec3i normal = direction.getUnitVec3i();
         this.origin = new Vec3(
                 x - normal.getX() * 0.5,
                 y - normal.getY() * 0.5,
@@ -70,10 +70,10 @@ public class AugerIndicatorParticle extends SimpleAnimatedParticle {
     }
 
     @Override
-    public void render(final VertexConsumer buffer, final Camera renderInfo, final float partialTicks) {
+    public void extract(final QuadParticleRenderState state, final Camera renderInfo, final float partialTicks) {
         if (!this.isVisible)
             return;
-        super.render(buffer, renderInfo, partialTicks);
+        super.extract(state, renderInfo, partialTicks);
     }
 
     public void move(final double x, final double y, final double z) {
@@ -84,7 +84,7 @@ public class AugerIndicatorParticle extends SimpleAnimatedParticle {
         angle += this.angleOffset * 360f;
         final Vec3 position = VecHelper.rotate(this.offset.scale(this.radius), angle, this.direction.getAxis())
                 .add(this.origin)
-                .add(Vec3.atLowerCornerOf(this.direction.getNormal()).scale((double) this.age / this.lifetime));
+                .add(Vec3.atLowerCornerOf(this.direction.getUnitVec3i()).scale((double) this.age / this.lifetime));
         this.x = position.x;
         this.y = position.y;
         this.z = position.z;
@@ -98,7 +98,7 @@ public class AugerIndicatorParticle extends SimpleAnimatedParticle {
         }
 
         public Particle createParticle(final AugerIndicatorParticleData data, final ClientLevel worldIn, final double x, final double y, final double z,
-                                       final double xSpeed, final double ySpeed, final double zSpeed) {
+                                       final double xSpeed, final double ySpeed, final double zSpeed, final net.minecraft.util.RandomSource random) {
             final Minecraft mc = Minecraft.getInstance();
             final LocalPlayer player = mc.player;
             final boolean visible = worldIn != mc.level || player != null && GogglesItem.isWearingGoggles(player);

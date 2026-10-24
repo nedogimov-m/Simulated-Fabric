@@ -17,19 +17,21 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import org.apache.commons.lang3.tuple.Pair;
 
-public class BoreheadBearingContraption extends BearingContraption {
+public class BoreheadBearingContraption extends BearingContraption implements dev.simulated_team.simulated.api.NativeMountedStorageProvider {
     public int rockCuttingWheelAmount = 0;
 
     private InventoryLoaderWrapper multiLoaderWrappedInventory;
 
     public BoreheadBearingContraption() {
-        this.storage = OffroadMountedStorageService.INSTANCE.getSidedBoreheadContraptionMountedStorage();
     }
 
     public BoreheadBearingContraption(final Direction direction) {
         super(false, direction);
 
-        this.storage = OffroadMountedStorageService.INSTANCE.getSidedBoreheadContraptionMountedStorage();
+    }
+
+    @Override public com.simibubi.create.content.contraptions.MountedStorageManager simulated$createMountedStorage() {
+        return OffroadMountedStorageService.INSTANCE.getSidedBoreheadContraptionMountedStorage();
     }
 
     @Override

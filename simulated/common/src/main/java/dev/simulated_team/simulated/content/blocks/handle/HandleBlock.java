@@ -3,10 +3,10 @@ package dev.simulated_team.simulated.content.blocks.handle;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.simibubi.create.AllItems;
-import com.simibubi.create.AllTags;
+
 import com.simibubi.create.api.contraption.BlockMovementChecks;
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import com.simibubi.create.impl.contraption.BlockMovementChecksImpl;
 import dev.simulated_team.simulated.content.blocks.util.AbstractDirectionalAxisBlock;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
@@ -15,7 +15,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
@@ -30,20 +30,14 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.neoforged.neoforge.common.Tags;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
 
 import static net.minecraft.core.Direction.Axis.Y;
 
-public class HandleBlock extends AbstractDirectionalAxisBlock implements IBE<HandleBlockEntity>, IWrenchable {
+public class HandleBlock extends AbstractDirectionalAxisBlock implements NativeEntityBlock<HandleBlockEntity>, NativeWrenchable {
 
-    public static final MapCodec<HandleBlock> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            propertiesCodec(),
-            DyeColor.CODEC.fieldOf("color").forGetter(HandleBlock::getColor),
-            StringRepresentable.fromValues(Variant::values).fieldOf("variant").forGetter(HandleBlock::getVariant)
-    ).apply(instance, HandleBlock::new));
 
     private static final HandleShaper SHAPER = HandleShaper.make();
 
@@ -78,18 +72,18 @@ public class HandleBlock extends AbstractDirectionalAxisBlock implements IBE<Han
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
-        if (AllItems.WRENCH.isIn(itemStack))
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+    protected InteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
+        if (itemStack.is(AllItems.WRENCH))
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
 
         if (canInteractWithHandle(player)) {
-            if (level.isClientSide && player.isLocalPlayer()) {
+            if (level.isClientSide() && player.isLocalPlayer()) {
                 SimClickInteractions.HANDLE_HANDLER.startHold(level, player, blockPos);
             }
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
 
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     @Override
@@ -103,13 +97,13 @@ public class HandleBlock extends AbstractDirectionalAxisBlock implements IBE<Han
     }
 
     @Override
-    public void neighborChanged(final BlockState state, final Level worldIn, final BlockPos pos, final Block blockIn, final BlockPos fromPos,
+    public void neighborChanged(final BlockState state, final Level worldIn, final BlockPos pos, final Block blockIn,final net.minecraft.world.level.redstone.Orientation orientation,
                                 final boolean isMoving) {
-        if (worldIn.isClientSide)
+        if (worldIn.isClientSide())
             return;
 
         final Direction blockFacing = state.getValue(FACING);
-        if (fromPos.equals(pos.relative(blockFacing.getOpposite()))) {
+        if (!this.canSurvive(state, worldIn, pos)) {
             if (!this.canSurvive(state, worldIn, pos)) {
                 worldIn.destroyBlock(pos, true);
             }
@@ -127,7 +121,7 @@ public class HandleBlock extends AbstractDirectionalAxisBlock implements IBE<Han
     }
 
     @Override
-    protected int getAnalogOutputSignal(final BlockState state, final Level level, final BlockPos pos) {
+    protected int getAnalogOutputSignal(final BlockState state, final Level level, final BlockPos pos, final Direction direction) {
         if (level.getBlockEntity(pos) instanceof final HandleBlockEntity be) {
             return be.hasPlayer() ? 15 : 0;
         }
@@ -136,17 +130,13 @@ public class HandleBlock extends AbstractDirectionalAxisBlock implements IBE<Han
 
     @Override
     public BlockEntityType<? extends HandleBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.HANDLE.get();
+        return SimBlockEntityTypes.HANDLE;
     }
     @Override
     public Class<HandleBlockEntity> getBlockEntityClass() {
         return HandleBlockEntity.class;
     }
 
-    @Override
-    protected MapCodec<? extends DirectionalBlock> codec() {
-        return CODEC;
-    }
 
     public @Nullable DyeColor getColor() {
         return this.color;
@@ -163,13 +153,13 @@ public class HandleBlock extends AbstractDirectionalAxisBlock implements IBE<Han
 
 
     public enum Variant implements StringRepresentable {
-        IRON(Ingredient.of(Tags.Items.NUGGETS_IRON)),
-        COPPER(Ingredient.of(AllTags.commonItemTag("nuggets/copper"))),
+        IRON(net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM, net.minecraft.resources.Identifier.fromNamespaceAndPath("c", "nuggets/iron"))),
+        COPPER(net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM, net.minecraft.resources.Identifier.fromNamespaceAndPath("c", "nuggets/copper"))),
         DYED(null);
 
-        @Nullable final Ingredient ingredient;
+        @Nullable final net.minecraft.tags.TagKey<net.minecraft.world.item.Item> ingredient;
 
-        Variant(@Nullable final Ingredient ingredient) {
+        Variant(@Nullable final net.minecraft.tags.TagKey<net.minecraft.world.item.Item> ingredient) {
             this.ingredient = ingredient;
         }
 
@@ -179,7 +169,19 @@ public class HandleBlock extends AbstractDirectionalAxisBlock implements IBE<Han
         }
 
         public @Nullable Ingredient getIngredient() {
-            return this.ingredient;
+            return this.ingredient == null ? null : Ingredient.of(net.minecraft.core.registries.BuiltInRegistries.ITEM.getOrThrow(this.ingredient));
         }
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

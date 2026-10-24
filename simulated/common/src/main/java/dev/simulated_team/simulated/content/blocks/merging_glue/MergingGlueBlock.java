@@ -1,7 +1,7 @@
 package dev.simulated_team.simulated.content.blocks.merging_glue;
 
 import com.mojang.serialization.MapCodec;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.index.SimBlockShapes;
 import net.minecraft.core.BlockPos;
@@ -18,8 +18,8 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.NotNull;
 
-public class MergingGlueBlock extends DirectionalBlock implements IBE<MergingGlueBlockEntity> {
-    public static final MapCodec<MergingGlueBlock> CODEC = simpleCodec(MergingGlueBlock::new);
+public class MergingGlueBlock extends DirectionalBlock implements NativeEntityBlock<MergingGlueBlockEntity> {
+
 
     public MergingGlueBlock(final Properties properties) {
         super(properties);
@@ -27,8 +27,8 @@ public class MergingGlueBlock extends DirectionalBlock implements IBE<MergingGlu
     }
 
     @Override
-    protected BlockState updateShape(final BlockState state, final Direction facing, final BlockState facingState, final LevelAccessor level, final BlockPos currentPos, final BlockPos facingPos) {
-        return getConnectedDirection(state) == facing && !state.canSurvive(level, currentPos) ? Blocks.AIR.defaultBlockState() : super.updateShape(state, facing, facingState, level, currentPos, facingPos);
+    protected BlockState updateShape(final BlockState state, final net.minecraft.world.level.LevelReader level, final net.minecraft.world.level.ScheduledTickAccess tickAccess, final BlockPos currentPos, final Direction facing, final BlockPos facingPos, final BlockState facingState, final net.minecraft.util.RandomSource random) {
+        return getConnectedDirection(state) == facing && !state.canSurvive(level, currentPos) ? Blocks.AIR.defaultBlockState() : super.updateShape(state, level, tickAccess, currentPos, facing, facingPos, facingState, random);
     }
 
     protected static Direction getConnectedDirection(final BlockState state) {
@@ -72,17 +72,24 @@ public class MergingGlueBlock extends DirectionalBlock implements IBE<MergingGlu
     }
 
     @Override
-    protected @NotNull MapCodec<? extends DirectionalBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     public Class<MergingGlueBlockEntity> getBlockEntityClass() {
         return MergingGlueBlockEntity.class;
     }
 
     @Override
     public BlockEntityType<? extends MergingGlueBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.MERGING_GLUE.get();
+        return SimBlockEntityTypes.MERGING_GLUE;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

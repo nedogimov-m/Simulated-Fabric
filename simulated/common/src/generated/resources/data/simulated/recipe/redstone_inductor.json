@@ -2,21 +2,11 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "B": {
-      "tag": "c:plates/brass"
-    },
-    "C": {
-      "tag": "c:plates/copper"
-    },
-    "R": {
-      "tag": "c:dusts/redstone"
-    },
-    "S": {
-      "tag": "c:stones"
-    },
-    "T": {
-      "item": "minecraft:redstone_torch"
-    }
+    "B": "#c:plates/brass",
+    "C": "#c:plates/copper",
+    "R": "#c:dusts/redstone",
+    "S": "#c:stones",
+    "T": "minecraft:redstone_torch"
   },
   "pattern": [
     " C ",

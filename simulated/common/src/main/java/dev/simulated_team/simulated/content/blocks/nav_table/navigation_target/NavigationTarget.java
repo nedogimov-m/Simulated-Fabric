@@ -77,7 +77,7 @@ public interface NavigationTarget {
 
         //NavTable facing information
         final Direction facing = navBE.getBlockState().getValue(NavTableBlock.FACING);
-        final Vec3i normal = facing.getNormal();
+        final Vec3i normal = facing.getUnitVec3i();
 
         //Global positions
         final Vec3 projectedTarget = navBE.getTargetPosition(true);
@@ -98,7 +98,7 @@ public interface NavigationTarget {
         if (distance < this.getDeadzone() - 0.0001) // Dead-zone
             return 0;
 
-        final double dot = -projectedPos.dot(Vec3.atLowerCornerOf(direction.getNormal())) / distance;
+        final double dot = -projectedPos.dot(Vec3.atLowerCornerOf(direction.getUnitVec3i())) / distance;
         return (int) (Math.asin(dot) / Math.PI * 30 + 0.5);
     }
 

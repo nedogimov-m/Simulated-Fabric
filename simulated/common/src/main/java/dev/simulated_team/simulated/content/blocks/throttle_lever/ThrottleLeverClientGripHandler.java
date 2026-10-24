@@ -21,7 +21,7 @@ import org.joml.Matrix4f;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 import java.util.Collection;
 import java.util.Set;
 
@@ -52,7 +52,7 @@ public class ThrottleLeverClientGripHandler {
 
         final BlockPos blockPos = blockEntity.getBlockPos();
 
-        return player.distanceToSqr(blockPos.getCenter()) > reach * reach;
+        return player.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(blockPos)) > reach * reach;
     }
 
     public static void clearNearbyThrottleLevers() {
@@ -91,7 +91,7 @@ public class ThrottleLeverClientGripHandler {
         final Vector3f localViewPosition = pose.transformPosition(new Vector3f());
         final Vector3f localViewDirection = pose.transformDirection(new Vector3f((float) viewVector.x, (float) viewVector.y, (float) viewVector.z));
 
-        final VoxelShape leverShape = SimBlocks.THROTTLE_LEVER.get().getHandleShape(SimBlocks.THROTTLE_LEVER.getDefaultState());
+        final VoxelShape leverShape = SimBlocks.THROTTLE_LEVER.getHandleShape(SimBlocks.THROTTLE_LEVER.defaultBlockState());
 
         eyePos.set(localViewPosition);
         viewVector.set(localViewDirection).mul(player.blockInteractionRange()).add(eyePos);

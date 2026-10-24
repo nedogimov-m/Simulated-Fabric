@@ -2,7 +2,7 @@ package dev.simulated_team.simulated.content.blocks.torsion_spring;
 
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.IRotate;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.api.IDirectionalAnalogOutput;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.index.SimBlockShapes;
@@ -23,7 +23,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class TorsionSpringBlock extends DirectionalKineticBlock implements IBE<TorsionSpringBlockEntity>, ExtraKinetics.ExtraKineticsBlock, IDirectionalAnalogOutput {
+public class TorsionSpringBlock extends DirectionalKineticBlock implements NativeEntityBlock<TorsionSpringBlockEntity>, ExtraKinetics.ExtraKineticsBlock, IDirectionalAnalogOutput {
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
     public TorsionSpringBlock(final Properties properties) {
@@ -52,8 +52,8 @@ public class TorsionSpringBlock extends DirectionalKineticBlock implements IBE<T
     }
 
     @Override
-    protected void neighborChanged(final BlockState blockState, final Level level, final BlockPos blockPos, final Block block, final BlockPos blockPos2, final boolean bl) {
-        super.neighborChanged(blockState, level, blockPos, block, blockPos2, bl);
+    protected void neighborChanged(final BlockState blockState, final Level level, final BlockPos blockPos, final Block block,final net.minecraft.world.level.redstone.Orientation orientation, final boolean bl) {
+        super.neighborChanged(blockState, level, blockPos, block, orientation, bl);
         final boolean signal = level.hasNeighborSignal(blockPos);
         if (signal != blockState.getValue(POWERED)) {
             level.setBlock(blockPos, blockState.setValue(POWERED, signal), 2); // idk what this magic number does... copied from DiodeBlock
@@ -98,11 +98,23 @@ public class TorsionSpringBlock extends DirectionalKineticBlock implements IBE<T
 
     @Override
     public BlockEntityType<? extends TorsionSpringBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.TORSION_SPRING.get();
+        return SimBlockEntityTypes.TORSION_SPRING;
     }
 
     @Override
     public IRotate getExtraKineticsRotationConfiguration() {
         return TorsionSpringBlockEntity.Output.CONFIG;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

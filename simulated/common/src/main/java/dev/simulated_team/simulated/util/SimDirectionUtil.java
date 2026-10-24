@@ -41,7 +41,7 @@ public class SimDirectionUtil {
 
     public static Direction directionFromNormal(final Vec3i normal) {
         for (final Direction dir : Direction.values()) {
-            if(dir.getNormal().equals(normal)) return dir;
+            if(dir.getUnitVec3i().equals(normal)) return dir;
         }
 
         return Direction.UP;

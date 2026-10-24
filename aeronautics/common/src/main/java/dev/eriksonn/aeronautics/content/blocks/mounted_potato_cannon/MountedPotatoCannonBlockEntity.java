@@ -20,11 +20,11 @@ import dev.ryanhcode.sable.api.physics.handle.RigidBodyHandle;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import net.createmod.catnip.math.VecHelper;
-import net.createmod.catnip.nbt.NBTHelper;
 import net.minecraft.ChatFormatting;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
@@ -155,7 +155,7 @@ public class MountedPotatoCannonBlockEntity extends KineticBlockEntity implement
 				animationSpeed = barrelTimer * 75;
 				//wait 2 ticks before firing to sync up visuals
 				if (this.barrelTimer > 2) {
-					if (this.level.isClientSide) {
+					if (this.level.isClientSide()) {
 						this.speed = 0.2F;
 					}
 
@@ -169,18 +169,18 @@ public class MountedPotatoCannonBlockEntity extends KineticBlockEntity implement
 							barrelPos = new Vec3(this.getBlockPos().getX() + 0.5, this.getBlockPos().getY() + 0.5, this.getBlockPos().getZ() + 0.5).add(this.getAimingVector().scale(this.blockedLength / 1.725f));
 						}
 
-						if (!this.level.isClientSide) {
+						if (!this.level.isClientSide()) {
 							final PotatoCannonProjectileType type = ammo.type();
 
 							//motion
 							final Vec3 motion = this.getAimingVector().scale((double) type.velocityMultiplier() * 2 /*cannon range*/);
 
 							//spray
-							final Vec3 sprayBase = VecHelper.rotate(new Vec3(0.0d, 0.1d, 0.0d), 360.0f * this.level.random.nextFloat(), Direction.Axis.Z);
+							final Vec3 sprayBase = VecHelper.rotate(new Vec3(0.0d, 0.1d, 0.0d), 360.0f * this.level.getRandom().nextFloat(), Direction.Axis.Z);
 							final float sprayChange = 360.0f / (float) type.split();
 
 							for (int i = 0; i < type.split(); i++) {
-								final PotatoProjectileEntity shootyBoomBoom = AllEntityTypes.POTATO_PROJECTILE.create(this.getLevel());
+								final PotatoProjectileEntity shootyBoomBoom = AllEntityTypes.POTATO_PROJECTILE.create(this.getLevel(), net.minecraft.world.entity.EntitySpawnReason.TRIGGERED);
 								if (shootyBoomBoom != null) {
 									shootyBoomBoom.setItem(ammo.stack());
 									((PotatoProjectileEntityExtension) shootyBoomBoom).aeronautics$setDamageMultiplier(2);
@@ -188,7 +188,7 @@ public class MountedPotatoCannonBlockEntity extends KineticBlockEntity implement
 
 									Vec3 splitMotion = motion;
 									if (type.split() > 1) {
-										final float imperfection = 40.0f * (this.level.random.nextFloat() - 0.5f);
+										final float imperfection = 40.0f * (this.level.getRandom().nextFloat() - 0.5f);
 										final Vec3 sprayOffset = VecHelper.rotate(sprayBase, (float) i * sprayChange + imperfection, Direction.Axis.Z);
 										splitMotion = motion.add(VecHelper.lookAt(sprayOffset, motion));
 									}
@@ -201,7 +201,7 @@ public class MountedPotatoCannonBlockEntity extends KineticBlockEntity implement
 
 							this.recoilMagnitude = ((float) type.split() / 2) * AeroConfig.server().physics.mountedPotatoCannonMagnitude.getF();
 
-							AllSoundEvents.FWOOMP.playOnServer(this.level, this.worldPosition, 1, ammo.type().soundPitch() + this.level.random.nextFloat() * .2f);
+							this.level.playSound(null, this.worldPosition, AllSoundEvents.FWOOMP, net.minecraft.sounds.SoundSource.BLOCKS, 1, ammo.type().soundPitch() + this.level.getRandom().nextFloat() * .2f);
 							AeroAdvancements.HEAVIER_ARTILLERY.awardToNearby(this.getBlockPos(), this.level);
 						} else {
 							for (int i = 0; i < 8; i++) {
@@ -248,7 +248,7 @@ public class MountedPotatoCannonBlockEntity extends KineticBlockEntity implement
 	@Override
 	public void sable$physicsTick(final ServerSubLevel subLevel, final RigidBodyHandle handle, final double timeStep) {
 		if (this.recoilMagnitude > 0) {
-			RECOIL_DIR.set(JOMLConversion.toJOML(Vec3.atLowerCornerOf(this.getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite().getNormal())));
+			RECOIL_DIR.set(JOMLConversion.toJOML(Vec3.atLowerCornerOf(this.getBlockState().getValue(DirectionalKineticBlock.FACING).getOpposite().getUnitVec3i())));
 			RECOIL_CENTER.set(JOMLConversion.toJOML(Vec3.atCenterOf(this.getBlockPos())));
 
 			RECOIL_DIR.mul(this.recoilMagnitude);
@@ -286,14 +286,16 @@ public class MountedPotatoCannonBlockEntity extends KineticBlockEntity implement
 	}
 
 	@Override
-	protected void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-		super.write(compound, registries, clientPacket);
+	protected void write(final ValueOutput compound, final boolean clientPacket) {
+		super.write(compound, clientPacket);
 
-		compound.put("inventory", this.inventory.write(registries));
+		final var slot = compound.child("inventory");
+		slot.putInt("index", this.inventory.slot.getIndex());
+		if (!this.inventory.slot.getStack().isEmpty()) slot.store("item", ItemStack.CODEC, this.inventory.slot.getStack());
 		compound.putInt("ItemRotationID", this.itemRotationId);
 		compound.putInt("ItemTimer", this.itemTimer);
 		compound.putFloat("ChargeTimer", this.chargeTimer);
-		NBTHelper.writeEnum(compound, "State", this.currentState);
+		compound.putString("State", this.currentState.name());
 		compound.putInt("BarrelTimer", this.barrelTimer);
 
 		if (clientPacket) {
@@ -303,20 +305,21 @@ public class MountedPotatoCannonBlockEntity extends KineticBlockEntity implement
 	}
 
 	@Override
-	protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-		super.read(compound, registries, clientPacket);
+	protected void read(final ValueInput compound, final boolean clientPacket) {
+		super.read(compound, clientPacket);
 
-		this.inventory.read(registries, compound.getCompound("inventory"));
-		this.inventory.updateCachedType(registries, this.inventory.slot.getStack());
-		if (clientPacket && compound.getBoolean("NeedsUpdate")) {
+		this.inventory.read(compound.lookup(), compound.read("inventory", CompoundTag.CODEC).orElseGet(CompoundTag::new));
+		this.inventory.updateCachedType(compound.lookup(), this.inventory.slot.getStack());
+		if (clientPacket && compound.getBooleanOr("NeedsUpdate", false)) {
 			this.resetAndUpdate();
 		}
 
-		this.chargeTimer = compound.getFloat("ChargeTimer");
-		this.barrelTimer = compound.getInt("BarrelTimer");
-		this.itemRotationId = compound.getInt("ItemRotationID");
-		this.itemTimer = compound.getInt("ItemTimer");
-		this.currentState = NBTHelper.readEnum(compound, "State", State.class);
+		this.chargeTimer = compound.getFloatOr("ChargeTimer", 0f);
+		this.barrelTimer = compound.getIntOr("BarrelTimer", 0);
+		this.itemRotationId = compound.getIntOr("ItemRotationID", 0);
+		this.itemTimer = compound.getIntOr("ItemTimer", 0);
+		try { this.currentState = State.valueOf(compound.getStringOr("State", "CHARGED")); }
+		catch (IllegalArgumentException ignored) { this.currentState = State.CHARGED; }
 	}
 
 	private float getChargeUpSpeed() {
@@ -373,7 +376,7 @@ public class MountedPotatoCannonBlockEntity extends KineticBlockEntity implement
 	}
 
 	public Vec3 getAimingVector() {
-		return Vec3.atLowerCornerOf(this.getBlockState().getValue(DirectionalKineticBlock.FACING).getNormal());
+		return Vec3.atLowerCornerOf(this.getBlockState().getValue(DirectionalKineticBlock.FACING).getUnitVec3i());
 	}
 
 	public MountedPotatoCannonInventory getInventory() {

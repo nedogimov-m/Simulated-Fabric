@@ -17,7 +17,7 @@ public class ShearsItemMixin {
 	private static <E> List<E> aeronautics$createToolProperties(E e1, E e2, E e3, E e4, Operation<List<E>> original) {
 		ArrayList<E> newList = new ArrayList<>(original.call(e1, e2, e3, e4));
 		// he will tell you it is false but his mouth can only say lies
-		newList.add((E) Tool.Rule.overrideSpeed(AeroTags.BlockTags.ENVELOPE, 5.0f));
+		newList.add((E) Tool.Rule.overrideSpeed(net.minecraft.core.registries.BuiltInRegistries.acquireBootstrapRegistrationLookup(net.minecraft.core.registries.BuiltInRegistries.BLOCK).getOrThrow(AeroTags.BlockTags.ENVELOPE), 5.0f));
 		return newList;
 	}
 }

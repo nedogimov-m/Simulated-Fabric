@@ -2,7 +2,7 @@ package dev.simulated_team.simulated.content.blocks.util;
 
 import com.simibubi.create.api.contraption.transformable.TransformableBlock;
 import com.simibubi.create.content.contraptions.StructureTransform;
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -15,7 +15,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import org.jetbrains.annotations.Nullable;
 
-public abstract class AbstractDirectionalAxisBlock extends DirectionalBlock implements TransformableBlock, IWrenchable {
+public abstract class AbstractDirectionalAxisBlock extends DirectionalBlock implements TransformableBlock, NativeWrenchable {
     public static final BooleanProperty AXIS_ALONG_FIRST_COORDINATE = BooleanProperty.create("axis_along_first");
 
     public AbstractDirectionalAxisBlock(final Properties properties) {
@@ -73,10 +73,10 @@ public abstract class AbstractDirectionalAxisBlock extends DirectionalBlock impl
     @Override
     public BlockState getRotatedBlockState(final BlockState originalState, final Direction targetedFace) {
         if (targetedFace == originalState.getValue(FACING)) {
-            return IWrenchable.super.getRotatedBlockState(originalState, targetedFace)
+            return NativeWrenchable.super.getRotatedBlockState(originalState, targetedFace)
                     .setValue(AXIS_ALONG_FIRST_COORDINATE, !originalState.getValue(AXIS_ALONG_FIRST_COORDINATE));
         }
-        return IWrenchable.super.getRotatedBlockState(originalState, targetedFace);
+        return NativeWrenchable.super.getRotatedBlockState(originalState, targetedFace);
     }
 
     /**

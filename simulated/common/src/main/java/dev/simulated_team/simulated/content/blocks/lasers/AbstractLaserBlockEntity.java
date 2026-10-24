@@ -18,7 +18,7 @@ public abstract class AbstractLaserBlockEntity extends SmartBlockEntity {
     public abstract Direction getDirection();
 
     public Vec3i getNormal() {
-        return this.getDirection().getNormal();
+        return this.getDirection().getUnitVec3i();
     }
 
     public abstract float getRaycastLength();

@@ -8,7 +8,7 @@ import net.createmod.ponder.api.registration.IndexExclusionHelper;
 import net.createmod.ponder.api.registration.PonderSceneRegistrationHelper;
 import net.createmod.ponder.api.registration.PonderTagRegistrationHelper;
 import net.createmod.ponder.api.registration.SharedTextRegistrationHelper;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public class OffroadPonderPlugin extends CreatePonderPlugin {
     public OffroadPonderPlugin() {
@@ -19,12 +19,12 @@ public class OffroadPonderPlugin extends CreatePonderPlugin {
     }
 
     @Override
-    public void registerScenes(final PonderSceneRegistrationHelper<ResourceLocation> helper) {
+    public void registerScenes(final PonderSceneRegistrationHelper<Identifier> helper) {
         OffroadPonderScenes.register(helper);
     }
 
     @Override
-    public void registerTags(final PonderTagRegistrationHelper<ResourceLocation> helper) {
+    public void registerTags(final PonderTagRegistrationHelper<Identifier> helper) {
         OffroadPonderTags.register(helper);
     }
 

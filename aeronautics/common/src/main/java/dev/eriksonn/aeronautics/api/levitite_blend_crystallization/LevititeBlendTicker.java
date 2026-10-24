@@ -4,8 +4,7 @@ import dev.eriksonn.aeronautics.index.AeroRegistries;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtUtils;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.material.FluidState;
@@ -23,8 +22,10 @@ public class LevititeBlendTicker {
 	// Constructor used for loading this levitite blend ticker
 	public LevititeBlendTicker(final CompoundTag toDeserialize, final Level level) {
 		this.level = level;
-		this.pos = NbtUtils.readBlockPos(toDeserialize, "pos").get();
-		this.context = AeroRegistries.LEVITITE_CRYSTAL_PROPAGATION_CONTEXT.asVanillaRegistry().get(ResourceLocation.parse(toDeserialize.getString("context")));
+		this.pos = toDeserialize.read("pos", BlockPos.CODEC).orElseThrow(() -> new IllegalArgumentException("Missing crystallization position"));
+		this.context = java.util.Objects.requireNonNull(
+                AeroRegistries.LEVITITE_CRYSTAL_PROPAGATION_CONTEXT.getValue(Identifier.parse(toDeserialize.getStringOr("context", "aeronautics:standard"))),
+                "Unknown levitite crystallization context in saved world data");
 
 		this.deserialize(toDeserialize);
 	}
@@ -39,7 +40,7 @@ public class LevititeBlendTicker {
 	 */
 	public LevititeBlendTicker(final int age, @NotNull final BlockPos pos, @NotNull final Level level, final boolean requiresCatalyst, final boolean isDormant, @NotNull final CrystalPropagationContext context) {
 		this.age = age;
-		this.pos = pos;
+		this.pos = pos.immutable();
 		this.level = level;
 		this.requiresCatalyst = requiresCatalyst;
 		this.context = context;
@@ -115,8 +116,8 @@ public class LevititeBlendTicker {
 
 		tag.putBoolean("requiresCatalyst", this.requiresCatalyst);
 
-		tag.put("pos", NbtUtils.writeBlockPos(this.getPos()));
-		ResourceLocation resourceLocation = AeroRegistries.LEVITITE_CRYSTAL_PROPAGATION_CONTEXT.asVanillaRegistry().getKey(this.context);
+		tag.store("pos", BlockPos.CODEC, this.getPos());
+		Identifier resourceLocation = AeroRegistries.LEVITITE_CRYSTAL_PROPAGATION_CONTEXT.getKey(this.context);
 		tag.putString("context", resourceLocation.toString());
 
 		tag.putBoolean("isDormant", this.isDormant);
@@ -124,11 +125,11 @@ public class LevititeBlendTicker {
 	}
 
 	public void deserialize(final CompoundTag tag) {
-		this.age = tag.getInt("age");
-		this.attempts = tag.getInt("attempts");
+		this.age = tag.getIntOr("age", 0);
+		this.attempts = tag.getIntOr("attempts", 0);
 
-		this.requiresCatalyst = tag.getBoolean("requiresCatalyst");
+		this.requiresCatalyst = tag.getBooleanOr("requiresCatalyst", false);
 
-		this.isDormant = tag.getBoolean("isDormant");
+		this.isDormant = tag.getBooleanOr("isDormant", false);
 	}
 }

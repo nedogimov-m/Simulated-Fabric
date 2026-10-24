@@ -27,7 +27,7 @@ public class MagnetBehaviour extends BlockEntityBehaviour {
     @Override
     public void initialize() {
         super.initialize();
-        if (this.getWorld().isClientSide)
+        if (this.getWorld().isClientSide())
             return;
         this.currentSection = this.getCurrentSection();
         this.map.addMagnet(this.blockEntity.getLevel(), this.currentSection, this.blockEntity.getBlockPos());
@@ -37,7 +37,7 @@ public class MagnetBehaviour extends BlockEntityBehaviour {
     public void tick() {
         super.tick();
 
-        if (this.getWorld().isClientSide)
+        if (this.getWorld().isClientSide())
             return;
 
         final SimMovementContext context = SimMovementContext.getMovementContext(this.getWorld(), Vec3.atCenterOf(this.blockEntity.getBlockPos()));
@@ -54,7 +54,7 @@ public class MagnetBehaviour extends BlockEntityBehaviour {
     @Override
     public void unload() {
         super.unload();
-        if (this.getWorld().isClientSide)
+        if (this.getWorld().isClientSide())
             return;
         this.map.removeMagnet(this.blockEntity.getLevel(), this.currentSection, this.blockEntity.getBlockPos());
     }

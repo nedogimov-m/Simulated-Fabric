@@ -1,8 +1,8 @@
 package dev.simulated_team.simulated.config.server.blocks;
 
-import net.createmod.catnip.config.ConfigBase;
+import com.simibubi.create.infrastructure.config.NativeConfigBase;
 
-public class SimBlockConfigs extends ConfigBase {
+public class SimBlockConfigs extends NativeConfigBase {
 
     public final ConfigInt opticalSensorRange = this.i(15, 0, Integer.MAX_VALUE, "optical_sensor_max_range", Comments.opticalSensorRange);
     public final ConfigInt laserPointerRange = this.i(100, 0, Integer.MAX_VALUE, "laser_pointer_max_range", Comments.laserPointerRange);

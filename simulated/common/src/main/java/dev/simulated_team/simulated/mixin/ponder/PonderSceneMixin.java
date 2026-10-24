@@ -1,11 +1,8 @@
 package dev.simulated_team.simulated.mixin.ponder;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import dev.simulated_team.simulated.mixin_interface.ponder.PonderSceneExtension;
 import net.createmod.catnip.animation.LerpedFloat;
-import net.createmod.catnip.render.SuperRenderTypeBuffer;
 import net.createmod.ponder.foundation.PonderScene;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
@@ -13,7 +10,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(PonderScene.class)
@@ -101,12 +97,5 @@ public class PonderSceneMixin implements PonderSceneExtension {
         this.simulated$oldScaleFactor = this.scaleFactor;
     }
 
-    //todo: pr this to ponder
-    @Shadow
-    private PonderScene.SceneTransform transform;
-    @Redirect(remap=false,method="renderScene",at = @At(value="INVOKE",target="Lnet/createmod/ponder/foundation/PonderScene$SceneCamera;set(FF)V"))
-    public void onCameraSet(PonderScene.SceneCamera instance, float xRotation, float yRotation, SuperRenderTypeBuffer buffer, GuiGraphics graphics, float pt)
-    {
-        instance.set( -transform.xRotation.getValue(pt), transform.yRotation.getValue(pt) + 180);
-    }
+    // The native PonderViewport captures this exact -pitch/yaw+180 billboard orientation itself.
 }

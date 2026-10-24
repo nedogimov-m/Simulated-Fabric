@@ -1,12 +1,13 @@
 package dev.simulated_team.simulated.util.hold_interaction;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.simulated_team.simulated.mixin.hold_interaction.KeyMappingInvoker;
 import dev.simulated_team.simulated.util.click_interactions.InteractCallback;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Position;
@@ -17,7 +18,7 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.ApiStatus;
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
-import org.lwjgl.glfw.GLFW;
+
 
 /**
  * A client interaction that requires holding right click<br>
@@ -55,7 +56,7 @@ public abstract class BlockHoldInteraction implements InteractCallback {
         return this.isActive() && pos.equals(this.interactionPos);
     }
 
-    public void renderOverlay(final GuiGraphics graphics, final int width1, final int height1, final boolean hideGui) {}
+    public void renderOverlay(final GuiGraphicsExtractor graphics, final int width1, final int height1, final boolean hideGui) {}
 
     public static double getInteractionRange(final Player player) {
         return player.getAttribute(Attributes.BLOCK_INTERACTION_RANGE).getValue();
@@ -95,7 +96,7 @@ public abstract class BlockHoldInteraction implements InteractCallback {
 
     @Override
     public Result onAttack(final int modifiers, final int action, final KeyMapping leftKey) {
-        if (this.isActive() && action != GLFW.GLFW_RELEASE) {
+        if (this.isActive() && action != InputConstants.RELEASE) {
             return new Result(true);
         }
 
@@ -104,7 +105,7 @@ public abstract class BlockHoldInteraction implements InteractCallback {
 
     @Override
     public Result onUse(final int modifiers, final int action, final KeyMapping rightKey) {
-        if (action == GLFW.GLFW_RELEASE && this.isActive()) {
+        if (action == InputConstants.RELEASE && this.isActive()) {
             this.release();
             HoldInteractionManager.stop();
             // sometimes minecraft can view keybinds as active even after a release event

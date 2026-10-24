@@ -34,7 +34,7 @@ public record TypewriterKeySavePacket(Map<Integer, LinkedTypewriterEntries.Keybo
     public void handle(final ServerPacketContext context) {
         final Level level = context.level();
 
-        if (context.player().canInteractWithBlock(this.pos, 4) &&
+        if (context.player().isWithinBlockInteractionRange(this.pos, 4) &&
                 level.getBlockEntity(this.pos) instanceof final LinkedTypewriterBlockEntity lbe) {
             // make sure all entries have a valid pos
             for (final LinkedTypewriterEntries.KeyboardEntry entry : this.changedKeys.values()) {

@@ -8,7 +8,7 @@ import dev.ryanhcode.offroad.handlers.client.MultiMiningClientHandler;
 import dev.ryanhcode.offroad.mixin_interface.level_renderer.MultiMiningDestructionExtension;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.BlockDestructionProgress;
 import org.spongepowered.asm.mixin.Final;
@@ -19,7 +19,8 @@ import org.spongepowered.asm.mixin.Unique;
 import java.util.Map;
 import java.util.SortedSet;
 
-@Mixin(LevelRenderer.class)
+/** Native 26.3 ClientLevel owns the maps consumed by actual block-breaking extraction. */
+@Mixin(ClientLevel.class)
 public abstract class LevelRenderMixin implements MultiMiningDestructionExtension {
 
     @Shadow
@@ -29,9 +30,6 @@ public abstract class LevelRenderMixin implements MultiMiningDestructionExtensio
     @Shadow
     @Final
     private Long2ObjectMap<SortedSet<BlockDestructionProgress>> destructionProgress;
-
-    @Shadow
-    private int ticks;
 
     @Shadow
     protected abstract void removeProgress(BlockDestructionProgress progress);
@@ -89,7 +87,7 @@ public abstract class LevelRenderMixin implements MultiMiningDestructionExtensio
             });
 
             // update our timer to make sure we keep voided appropriately
-            mmProgress.updateTick(this.ticks);
+            mmProgress.updateTick(((ClientLevel) (Object) this).getGameTime());
         }
     }
 

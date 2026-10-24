@@ -12,6 +12,6 @@ public class AndesitePropellerBlock extends BasePropellerBlock {
 
     @Override
     public BlockEntityType<? extends BasePropellerBlockEntity> getBlockEntityType() {
-        return AeroBlockEntityTypes.ANDESITE_PROPELLER.get();
+        return AeroBlockEntityTypes.ANDESITE_PROPELLER;
     }
 }

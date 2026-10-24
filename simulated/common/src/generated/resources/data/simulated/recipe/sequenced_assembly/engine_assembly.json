@@ -1,8 +1,6 @@
 {
   "type": "create:sequenced_assembly",
-  "ingredient": {
-    "tag": "c:plates/iron"
-  },
+  "ingredient": "#c:plates/iron",
   "loops": 8,
   "results": [
     {
@@ -33,9 +31,7 @@
     {
       "type": "create:cutting",
       "ingredients": [
-        {
-          "item": "simulated:incomplete_engine_assembly"
-        }
+        "simulated:incomplete_engine_assembly"
       ],
       "results": [
         {
@@ -46,9 +42,7 @@
     {
       "type": "create:pressing",
       "ingredients": [
-        {
-          "item": "simulated:incomplete_engine_assembly"
-        }
+        "simulated:incomplete_engine_assembly"
       ],
       "results": [
         {

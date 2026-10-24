@@ -69,7 +69,7 @@ public class RopeItem extends Item {
         if (validLocation) {
             if (heldStack.has(SimDataComponents.ROPE_FIRST_CONNECTION)) {
 
-                if (!level.isClientSide) {
+                if (!level.isClientSide()) {
                     if (!this.attachRope(level, heldStack.get(SimDataComponents.ROPE_FIRST_CONNECTION), clickedPos, !player.hasInfiniteMaterials())) {
                         // failure to connect
                         heldStack.remove(SimDataComponents.ROPE_FIRST_CONNECTION);

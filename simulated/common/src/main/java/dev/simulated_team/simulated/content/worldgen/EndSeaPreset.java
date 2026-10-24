@@ -6,32 +6,32 @@ import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.ryanhcode.sable.sublevel.plot.LevelPlot;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.portal.DimensionTransition;
+import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.level.storage.LevelData;
 import net.minecraft.world.phys.Vec3;
 
 public class EndSeaPreset extends SimulatedWorldPreset {
 	public static Vec3 PLAYER_SPAWN_POS = new Vec3(0, -30, 0);
 
-	public EndSeaPreset(final ResourceLocation id, final Component description) {
+	public EndSeaPreset(final Identifier id, final Component description) {
 		super(id, description);
 	}
 
 	@Override
 	public void onPlayerJoin(final ServerLevel level, final ServerPlayer player) {
 		if(!level.dimension().equals(Level.END)) {
-			player.setRespawnPosition(Level.END, BlockPos.containing(PLAYER_SPAWN_POS), 0.0f, true, false);
+			player.setRespawnPosition(new ServerPlayer.RespawnConfig(
+                    LevelData.RespawnData.of(Level.END,BlockPos.containing(PLAYER_SPAWN_POS),0,0),true),false);
 
 			final ServerLevel endLevel = level.getServer().getLevel(Level.END);
-			final DimensionTransition transition = new DimensionTransition(endLevel, player, DimensionTransition.DO_NOTHING);
-			player.changeDimension(transition);
-			player.teleportTo(PLAYER_SPAWN_POS.x(), PLAYER_SPAWN_POS.y(), PLAYER_SPAWN_POS.z());
+			player.teleport(new TeleportTransition(endLevel,PLAYER_SPAWN_POS,Vec3.ZERO,0,0,TeleportTransition.DO_NOTHING));
 		}
 	}
 

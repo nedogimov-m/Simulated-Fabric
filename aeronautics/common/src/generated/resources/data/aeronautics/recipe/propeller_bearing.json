@@ -2,15 +2,9 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "A": {
-      "tag": "minecraft:wooden_slabs"
-    },
-    "B": {
-      "item": "create:brass_casing"
-    },
-    "S": {
-      "tag": "c:plates/iron"
-    }
+    "A": "#minecraft:wooden_slabs",
+    "B": "create:brass_casing",
+    "S": "#c:plates/iron"
   },
   "pattern": [
     " A ",

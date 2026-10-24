@@ -19,7 +19,7 @@ public class SimDistUtil {
     }
 
     public static float getPartialTick() {
-        return Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true);
+        return Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true);
     }
 
     public static HitResult getHitResult() {

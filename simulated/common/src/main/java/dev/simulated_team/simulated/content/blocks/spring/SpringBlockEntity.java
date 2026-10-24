@@ -89,7 +89,7 @@ public class SpringBlockEntity extends SmartBlockEntity implements BlockEntitySu
         final BlockState state = this.getBlockState();
 
         final Direction facing = state.getValue(SpringBlock.FACING);
-        final Vec3i facingVec = facing.getNormal();
+        final Vec3i facingVec = facing.getUnitVec3i();
 
         double scale = 0.5 - 4.0 / 16.0;
         return JOMLConversion.atCenterOf(this.worldPosition)
@@ -108,7 +108,7 @@ public class SpringBlockEntity extends SmartBlockEntity implements BlockEntitySu
         double newDesiredLength = Math.clamp(this.desiredLength + delta, 1, SpringItemHandler.MAX_LENGTH);
         newDesiredLength = Math.round(newDesiredLength / 0.25) * 0.25;
 
-        final double currentLength = Sable.HELPER.distanceSquaredWithSubLevels(level, this.worldPosition.getCenter(), this.partnerPos.getCenter()) + 1;
+        final double currentLength = Sable.HELPER.distanceSquaredWithSubLevels(level, net.minecraft.world.phys.Vec3.atCenterOf(this.worldPosition), net.minecraft.world.phys.Vec3.atCenterOf(this.partnerPos)) + 1;
         if (delta < 0 && currentLength > newDesiredLength * newDesiredLength * 4) {
             return "too_stretched";
         }
@@ -135,7 +135,7 @@ public class SpringBlockEntity extends SmartBlockEntity implements BlockEntitySu
     public void tick() {
         super.tick();
 
-        if (this.level.isClientSide) {
+        if (this.level.isClientSide()) {
             this.renderLength.updateChaseTarget((float) this.desiredLength);
             this.renderLength.tickChaser();
             return;
@@ -214,8 +214,8 @@ public class SpringBlockEntity extends SmartBlockEntity implements BlockEntitySu
         }
 
         //#region alignment torque
-        final Vector3d globalNormalA = JOMLConversion.atLowerCornerOf(state.getValue(SpringBlock.FACING).getNormal());
-        final Vector3d globalNormalB = JOMLConversion.atLowerCornerOf(partner.getBlockState().getValue(SpringBlock.FACING).getNormal());
+        final Vector3d globalNormalA = JOMLConversion.atLowerCornerOf(state.getValue(SpringBlock.FACING).getUnitVec3i());
+        final Vector3d globalNormalB = JOMLConversion.atLowerCornerOf(partner.getBlockState().getValue(SpringBlock.FACING).getUnitVec3i());
 
         subLevel.logicalPose().transformNormal(globalNormalA);
         if (partnerSubLevel != null) {
@@ -371,7 +371,7 @@ public class SpringBlockEntity extends SmartBlockEntity implements BlockEntitySu
 
     @Override
     public void remove() {
-        if (!this.level.isClientSide && this.partnerPos != null && !this.assembling) {
+        if (!this.level.isClientSide() && this.partnerPos != null && !this.assembling) {
             this.level.destroyBlock(this.partnerPos, false);
         }
 
@@ -379,8 +379,8 @@ public class SpringBlockEntity extends SmartBlockEntity implements BlockEntitySu
     }
 
     @Override
-    protected void write(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(tag, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput tag, final boolean clientPacket) {
+        super.write(tag, clientPacket);
 
         tag.putBoolean("Controller", this.isController);
         tag.putDouble("DesiredLength", this.desiredLength);
@@ -392,7 +392,7 @@ public class SpringBlockEntity extends SmartBlockEntity implements BlockEntitySu
         // we can avoid all that logic if there is no schematic context, or we're placing into a schematic level (just carry over the nbt into it)
         if (schematicContext == null || schematicContext.getType() == SubLevelSchematicSerializationContext.Type.PLACE) {
             if (this.partnerSubLevel != null) {
-                tag.putUUID("GoalSubLevel", this.partnerSubLevel);
+                tag.store("GoalSubLevel", net.minecraft.core.UUIDUtil.CODEC, this.partnerSubLevel);
             }
 
             BlockPos partnerPos = this.partnerPos;
@@ -437,27 +437,29 @@ public class SpringBlockEntity extends SmartBlockEntity implements BlockEntitySu
         }
 
         if (id != null) {
-            tag.putUUID("GoalSubLevel", id);
+            tag.store("GoalSubLevel", net.minecraft.core.UUIDUtil.CODEC, id);
         }
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(tag, registries, clientPacket);
+    protected void read(final net.minecraft.world.level.storage.ValueInput tag, final boolean clientPacket) {
+        super.read(tag, clientPacket);
 
-        this.isController = tag.getBoolean("Controller");
-        this.desiredLength = tag.getDouble("DesiredLength");
+        this.isController = tag.getBooleanOr("Controller", false);
+        this.desiredLength = tag.getDoubleOr("DesiredLength", 0d);
 
         if (this.renderLength.getValue() == 0) {
             this.renderLength.setValue(this.desiredLength);
         }
 
         final SubLevelSchematicSerializationContext schematicContext = SubLevelSchematicSerializationContext.getCurrentContext();
+        this.partnerSubLevel = null;
+        this.partnerPos = null;
         final boolean isPlacingFromSchematic = schematicContext != null && schematicContext.getType() == SubLevelSchematicSerializationContext.Type.PLACE;
         SubLevelSchematicSerializationContext.SchematicMapping mapping = null;
 
-        if (tag.hasUUID("GoalSubLevel")) {
-            UUID subLevelID = tag.getUUID("GoalSubLevel");
+        if (tag.read("GoalSubLevel", net.minecraft.core.UUIDUtil.CODEC).isPresent()) {
+            UUID subLevelID = tag.read("GoalSubLevel", net.minecraft.core.UUIDUtil.CODEC).orElseThrow();
 
             if (isPlacingFromSchematic) {
                 mapping = schematicContext.getMapping(subLevelID);
@@ -475,8 +477,8 @@ public class SpringBlockEntity extends SmartBlockEntity implements BlockEntitySu
             this.partnerSubLevel = subLevelID;
         }
 
-        if (tag.contains("Goal")) {
-            BlockPos blockPos = BlockPos.of(tag.getLong("Goal"));
+        if (tag.getLong("Goal").isPresent()) {
+            BlockPos blockPos = BlockPos.of(tag.getLongOr("Goal", 0L));
 
             if (isPlacingFromSchematic) {
                 if (mapping != null) {
@@ -533,8 +535,8 @@ public class SpringBlockEntity extends SmartBlockEntity implements BlockEntitySu
             return new AABB(this.getBlockPos());
         }
 
-        final Vec3 center = this.getBlockPos().getCenter();
-        Vec3 partnerPos = this.partnerPos.getCenter();
+        final Vec3 center = net.minecraft.world.phys.Vec3.atCenterOf(this.getBlockPos());
+        Vec3 partnerPos = net.minecraft.world.phys.Vec3.atCenterOf(this.partnerPos);
 
         final SubLevel subLevel = Sable.HELPER.getContaining(this);
         final SubLevel partnerSubLevel = Sable.HELPER.getContaining(this.level, this.partnerPos);

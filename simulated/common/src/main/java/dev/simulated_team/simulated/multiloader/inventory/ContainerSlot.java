@@ -2,11 +2,13 @@ package dev.simulated_team.simulated.multiloader.inventory;
 
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.world.entity.SlotAccess;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
-public class ContainerSlot implements NBTSerializable {
+public class ContainerSlot implements NBTSerializable, SlotAccess {
 
     public static final ContainerSlot EMPTY = new ContainerSlot();
 
@@ -43,25 +45,19 @@ public class ContainerSlot implements NBTSerializable {
     }
 
     public int insertStack(final ItemInfoWrapper info, final int maxAmount, final boolean simulate) {
-        //Make sure the incoming item is valid to be inserted into this slot, and the held item is either empty or the same item
-        if (this.canInsert(info) && (this.getStack().isEmpty() || this.getStack().getItem() == info.type())) {
-            //Add max stack size limitation
-            final int insertedAmount = Math.min(Math.min(this.parent.getMaxStackSize(), info.type().getDefaultMaxStackSize()) - this.getStack().getCount(), maxAmount);
-
-            //set the current stack in this slot if this isn't a simulated action
+        if (maxAmount <= 0 || info.type() == Items.AIR || !this.canInsert(info)) {
+            return 0;
+        }
+        if (this.getStack().isEmpty() || (this.getType() == info.type()
+                && this.getStack().getComponentsPatch().equals(info.patchMap()))) {
+            final ItemStack incoming = ItemInfoWrapper.generateFromInfo(info);
+            final int insertedAmount = Math.max(0, Math.min(
+                    this.parent.getMaxStackSize(incoming) - this.getStack().getCount(), maxAmount));
             if (!simulate && insertedAmount > 0) {
-                ItemStack newstack = this.getStack().copy();
-                if (newstack.isEmpty()) {
-                    newstack = ItemInfoWrapper.generateFromInfo(info);
-
-                    newstack.setCount(insertedAmount);
-                } else {
-                    newstack.grow(insertedAmount);
-                }
-
-                this.setStack(newstack);
+                final ItemStack replacement = this.isEmpty() ? incoming : this.getStack().copy();
+                replacement.setCount(this.getStack().getCount() + insertedAmount);
+                this.setStack(replacement);
             }
-
             return insertedAmount;
         }
 
@@ -69,8 +65,9 @@ public class ContainerSlot implements NBTSerializable {
     }
 
     public int extractStack(final ItemInfoWrapper info, final int maxAmount, final boolean simulate) {
-        if (this.canExtract() && !this.getStack().isEmpty()) {
-            if (info != null && this.getStack().getItem() != info.type()) {
+        if (maxAmount > 0 && this.canExtract() && !this.getStack().isEmpty()) {
+            if (info != null && (this.getType() != info.type()
+                    || !this.getStack().getComponentsPatch().equals(info.patchMap()))) {
                 return 0;
             }
 
@@ -113,12 +110,13 @@ public class ContainerSlot implements NBTSerializable {
     }
 
     public void setStack(final ItemStack stack) {
-        this.parent.onStackItemChange(this, this.getStack(), stack);
+        final ItemStack replacement = stack.isEmpty() ? ItemStack.EMPTY : stack;
+        this.parent.onStackItemChange(this, this.getStack(), replacement);
 
-        this.stack = stack;
-        this.type = stack.getItem();
+        this.stack = replacement;
+        this.type = replacement.getItem();
 
-        this.parent.setChanged();
+        this.parent.notifyContentsChanged();
     }
 
     public int getIndex() {
@@ -127,6 +125,17 @@ public class ContainerSlot implements NBTSerializable {
 
     public ItemStack getStack() {
         return this.stack;
+    }
+
+    @Override
+    public ItemStack get() {
+        return this.getStack();
+    }
+
+    @Override
+    public boolean set(final ItemStack stack) {
+        this.setStack(stack);
+        return true;
     }
 
     public Item getType() {
@@ -138,8 +147,19 @@ public class ContainerSlot implements NBTSerializable {
     }
 
     public void clear() {
-        this.stack = ItemStack.EMPTY;
-        this.type = Items.AIR;
+        if (this.parent != null) {
+            this.setStack(ItemStack.EMPTY);
+        }
+    }
+
+    public void write(final net.minecraft.world.level.storage.ValueOutput output) {
+        output.putInt("index", this.getIndex());
+        if (!this.getStack().isEmpty()) output.store("item", ItemStack.CODEC, this.getStack());
+    }
+    public void read(final net.minecraft.world.level.storage.ValueInput input) {
+        try (var ignored = AbstractContainer.suppressChangeNotifications()) {
+            this.setStack(input.read("item", ItemStack.CODEC).orElse(ItemStack.EMPTY));
+        }
     }
 
     @Override
@@ -148,7 +168,7 @@ public class ContainerSlot implements NBTSerializable {
 
         slotTag.putInt("index", this.getIndex());
         if (!this.getStack().isEmpty()) {
-            slotTag.put("item", this.getStack().save(provider));
+            slotTag.put("item", ItemStack.CODEC.encodeStart(provider.createSerializationContext(NbtOps.INSTANCE), this.getStack()).getOrThrow());
         }
 
         return slotTag;
@@ -156,12 +176,11 @@ public class ContainerSlot implements NBTSerializable {
 
     @Override
     public void read(final HolderLookup.Provider provider, final CompoundTag nbt) {
-        this.stack = ItemStack.EMPTY;
-
-        if (nbt.contains("item")) {
-            this.stack = ItemStack.parseOptional(provider, nbt.getCompound("item"));
+        final ItemStack loaded = nbt.getCompound("item")
+                .flatMap(tag -> ItemStack.CODEC.parse(provider.createSerializationContext(NbtOps.INSTANCE), tag).result())
+                .orElse(ItemStack.EMPTY);
+        try (var ignored = AbstractContainer.suppressChangeNotifications()) {
+            this.setStack(loaded);
         }
-
-        this.type = this.stack.getItem();
     }
 }

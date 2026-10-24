@@ -1,22 +1,17 @@
 package dev.simulated_team.simulated.content.blocks.redstone.linked_typewriter.screen;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.simibubi.create.AllKeys;
-import com.simibubi.create.foundation.gui.AllGuiTextures;
+import org.joml.Matrix3x2fStack;
 import com.simibubi.create.foundation.gui.AllIcons;
-import com.simibubi.create.foundation.gui.widget.IconButton;
+import dev.simulated_team.simulated.fabric.client.gui.NativeIconButton;
 import dev.simulated_team.simulated.content.blocks.redstone.linked_typewriter.LinkedTypewriterEntries;
 import dev.simulated_team.simulated.content.blocks.redstone.linked_typewriter.screen.widgets.ConfirmationWidgetBase;
 import dev.simulated_team.simulated.index.SimGUITextures;
 import dev.simulated_team.simulated.index.SimIcons;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.createmod.catnip.animation.LerpedFloat;
-import net.createmod.catnip.gui.element.GuiGameElement;
-import net.createmod.catnip.gui.element.ScreenElement;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
 
@@ -41,16 +36,16 @@ public class KeyEditorScreen {
     //list ensures we don't need to deal with nullability....
     ObjectArrayList<KeyEntryWidget> keyboardEntryWrappers = new ObjectArrayList<>();
 
-    private final IconButton addWidget, confirmWidget, removeAllWidget;
+    private final NativeIconButton addWidget, confirmWidget, removeAllWidget;
 
     public KeyEditorScreen(final LinkedTypewriterScreen parentScreen) {
         this.parentScreen = parentScreen;
 
-        this.addWidget = new IconButton(0, 0, AllIcons.I_ADD).withCallback(() -> {
+        this.addWidget = new NativeIconButton(0, 0, AllIcons.I_ADD).withCallback(() -> {
             this.modifyEntry(null);
         });
 
-        this.confirmWidget = new IconButton(0, 0, AllIcons.I_CONFIRM).withCallback(() -> {
+        this.confirmWidget = new NativeIconButton(0, 0, AllIcons.I_CONFIRM).withCallback(() -> {
             this.parentScreen.switchScreen(false);
         });
 
@@ -172,7 +167,7 @@ public class KeyEditorScreen {
      * Attempts to add an entry to the entries list. Will fail if the list is full of entries already.
      */
     private void addEntry(final LinkedTypewriterEntries.KeyboardEntry entryFromModifier) {
-        this.parentScreen.getNewEntries().setKey(entryFromModifier.glfwKeyCode, entryFromModifier);
+        this.parentScreen.getNewEntries().setKey(entryFromModifier.scanCode, entryFromModifier);
         this.rebuildWrappers();
     }
 
@@ -183,7 +178,7 @@ public class KeyEditorScreen {
         final LinkedTypewriterEntries.KeyboardEntry entry = wrapper.entry;
 
         if (entry != null) {
-            this.parentScreen.getNewEntries().setKey(entry.glfwKeyCode, null);
+            this.parentScreen.getNewEntries().setKey(entry.scanCode, null);
         }
 
         this.rebuildWrappers();
@@ -199,14 +194,14 @@ public class KeyEditorScreen {
             if (newEntry != null) {
                 KeyEntryWidget alreadyPresent = null;
                 for (final KeyEntryWidget wrapperEntry : this.keyboardEntryWrappers) {
-                    if (wrapperEntry.entry.glfwKeyCode == newEntry.glfwKeyCode) {
+                    if (wrapperEntry.entry.scanCode == newEntry.scanCode) {
                         alreadyPresent = wrapperEntry;
                         break;
                     }
                 }
 
                 if (alreadyPresent != null) {
-                    this.parentScreen.getNewEntries().setKey(newEntry.glfwKeyCode, newEntry); // we still want to set the entry...
+                    this.parentScreen.getNewEntries().setKey(newEntry.scanCode, newEntry); // we still want to set the entry...
                     alreadyPresent.entry = newEntry;
                 } else {
                     this.addEntry(newEntry);
@@ -223,7 +218,7 @@ public class KeyEditorScreen {
         this.deactivateAllWidgets();
     }
 
-    public void render(final GuiGraphics guiGraphics, final int mouseX, final int mouseY, final float pt, final PoseStack ps) {
+    public void render(final GuiGraphicsExtractor guiGraphics, final int mouseX, final int mouseY, final float pt, final Matrix3x2fStack ps) {
         guiGraphics.enableScissor(0, this.topPos() + 20, this.parentScreen.width, this.topPos() + KEY_MENU.height - 35);
 
         for (final KeyEntryWidget wrapper : this.keyboardEntryWrappers) {
@@ -232,9 +227,9 @@ public class KeyEditorScreen {
 
         guiGraphics.disableScissor();
 
-        this.addWidget.render(guiGraphics, mouseX, mouseY, pt);
-        this.confirmWidget.render(guiGraphics, mouseX, mouseY, pt);
-        this.removeAllWidget.render(guiGraphics, mouseX, mouseY, pt);
+        this.addWidget.extractRenderState(guiGraphics, mouseX, mouseY, pt);
+        this.confirmWidget.extractRenderState(guiGraphics, mouseX, mouseY, pt);
+        this.removeAllWidget.extractRenderState(guiGraphics, mouseX, mouseY, pt);
 
         final int fadeOffColor = 0x00000000;
         final int fadeFromColor = 0x77000000;
@@ -261,12 +256,12 @@ public class KeyEditorScreen {
         }
     }
 
-    public void renderBG(final GuiGraphics guiGraphics, final float v, final int i, final int i1) {
+    public void renderBG(final GuiGraphicsExtractor guiGraphics, final float v, final int i, final int i1) {
         KEY_MENU.render(guiGraphics, this.leftPos(), this.topPos());
 
         guiGraphics.enableScissor(0, this.topPos() + 20, this.parentScreen.width, this.topPos() + KEY_MENU.height - 35);
         for (final KeyEntryWidget wrapper : this.keyboardEntryWrappers) {
-            wrapper.renderBackground(guiGraphics, v, i, i1);
+            wrapper.extractBackground(guiGraphics, v, i, i1);
         }
         guiGraphics.disableScissor();
     }
@@ -285,15 +280,15 @@ public class KeyEditorScreen {
      * Holds a single redstone frequency for the key, self pointer, and widgets required for functionality. <p/>
      */
     private class KeyEntryWidget {
-        private final NoXYButton editWidget;
-        private final NoXYButton deleteWidget;
+        private final NativeIconButton editWidget;
+        private final NativeIconButton deleteWidget;
         private LinkedTypewriterEntries.KeyboardEntry entry;
 
         public KeyEntryWidget(final LinkedTypewriterEntries.KeyboardEntry entry) {
-            this.editWidget = new NoXYButton(SimIcons.ADD_OR_EDIT)
+            this.editWidget = new NativeIconButton(0, 0, SimIcons.ADD_OR_EDIT)
                     .withCallback(() -> KeyEditorScreen.this.modifyEntry(this));
 
-            this.deleteWidget = new NoXYButton(AllIcons.I_TRASH)
+            this.deleteWidget = new NativeIconButton(0, 0, AllIcons.I_TRASH)
                     .withCallback(() -> KeyEditorScreen.this.removeWidget(this));
 
             this.entry = entry;
@@ -308,11 +303,11 @@ public class KeyEditorScreen {
                     + (index * (SimGUITextures.LINKED_TYPEWRITER_KEY_ENTRY.height + ENTRY_HEIGHT_PADDING_PIXELS));
         }
 
-        public void render(final GuiGraphics guiGraphics, final int mouseX, final int mouseY, final float pt, final PoseStack ps) {
-            ps.pushPose();
+        public void render(final GuiGraphicsExtractor guiGraphics, final int mouseX, final int mouseY, final float pt, final Matrix3x2fStack ps) {
+            ps.pushMatrix();
             final int x = KeyEditorScreen.this.leftPos() + 12;
             final float y = this.getCurrentHeight(pt);
-            ps.translate(x, y, 0);
+            ps.translate(x, y);
 
             final int editIconOffset = 167;
             final float iconY = (float) KEY_ENTRY.height / 2;
@@ -320,25 +315,25 @@ public class KeyEditorScreen {
 
             this.renderItems(guiGraphics, ps);
 
-            ps.popPose();
+            ps.popMatrix();
         }
 
-        public void renderBackground(final GuiGraphics guiGraphics, final float pt, final int mouseX, final int mouseY) {
-            final PoseStack ps = guiGraphics.pose();
+        public void extractBackground(final GuiGraphicsExtractor guiGraphics, final float pt, final int mouseX, final int mouseY) {
+            final Matrix3x2fStack ps = guiGraphics.pose();
 
             final int editIconOffset = 167;
             final float iconY = (float) KEY_ENTRY.height / 2;
 
-            ps.pushPose();
+            ps.pushMatrix();
             final int x = KeyEditorScreen.this.leftPos() + 12;
             final float y = this.getCurrentHeight(pt);
-            ps.translate(x, y, 0);
+            ps.translate(x, y);
 
+            this.updateWidgetPositions(x, editIconOffset, y, iconY);
             KEY_ENTRY.render(guiGraphics, 0, 0);
             this.renderText(guiGraphics, ps);
-            this.renderWidgets(guiGraphics, mouseX, mouseY, pt, ps, editIconOffset, iconY);
-
-            ps.popPose();
+            ps.popMatrix();
+            this.renderWidgets(guiGraphics, mouseX, mouseY, pt);
         }
 
         private void updateWidgetPositions(final int x, final int editIconOffset, final float y, final float iconY) {
@@ -348,58 +343,29 @@ public class KeyEditorScreen {
             this.deleteWidget.setY((int) (y + iconY - 9));
         }
 
-        private void renderItems(final GuiGraphics guiGraphics, final PoseStack ps) {
+        private void renderItems(final GuiGraphicsExtractor guiGraphics, final Matrix3x2fStack ps) {
             if (!KeyEditorScreen.this.parentScreen.modifier.modifying) {
-                ps.pushPose();
-                ps.translate(0, ((float) KEY_ENTRY.height / 2) - 8, 0);
+                ps.pushMatrix();
+                ps.translate(0, ((float) KEY_ENTRY.height / 2) - 8);
 
-                ps.translate(82, 0, 0);
-                GuiGameElement.of(this.entry.getFirstAsItemStack()).render(guiGraphics);
-                ps.translate(18, 0, 0);
-                GuiGameElement.of(this.entry.getSecondAsItemStack()).render(guiGraphics);
-                ps.popPose();
+                ps.translate(82, 0);
+                guiGraphics.item(this.entry.getFirstAsItemStack(), 0, 0);
+                ps.translate(18, 0);
+                guiGraphics.item(this.entry.getSecondAsItemStack(), 0, 0);
+                ps.popMatrix();
             }
         }
 
-        private void renderText(final GuiGraphics guiGraphics, final PoseStack ps) {
-            ps.pushPose();
-            ps.translate((float) 9, 11, 0);
-            guiGraphics.drawString(Minecraft.getInstance().font, InputConstants.getKey(this.entry.glfwKeyCode, -1).getDisplayName(), 0, 0, 0xFFFFFF, true);
-            ps.popPose();
+        private void renderText(final GuiGraphicsExtractor guiGraphics, final Matrix3x2fStack ps) {
+            ps.pushMatrix();
+            ps.translate((float) 9, 11);
+            guiGraphics.text(Minecraft.getInstance().font, InputConstants.Type.KEYBOARD.getOrCreate(this.entry.scanCode).getDisplayName(), 0, 0, 0xFFFFFFFF, true);
+            ps.popMatrix();
         }
 
-        private void renderWidgets(final GuiGraphics guiGraphics, final int mouseX, final int mouseY, final float pt, final PoseStack ps, final int editIconOffset, final float iconY) {
-            ps.pushPose();
-            ps.translate(editIconOffset, iconY - 9, 0);
-            this.editWidget.render(guiGraphics, mouseX, mouseY, pt);
-
-            ps.translate(23, 0, 0);
-            this.deleteWidget.render(guiGraphics, mouseX, mouseY, pt);
-            ps.popPose();
-        }
-    }
-
-    public static class NoXYButton extends IconButton {
-        public NoXYButton(final ScreenElement icon) {
-            super(0, 0, icon);
-        }
-
-        @Override
-        public void doRender(final GuiGraphics graphics, final int mouseX, final int mouseY, final float partialTicks) {
-            if (this.visible) {
-                this.isHovered = mouseX >= this.getX() && mouseY >= this.getY() && mouseX < this.getX() + this.width && mouseY < this.getY() + this.height;
-
-                final AllGuiTextures button = !this.active ? AllGuiTextures.BUTTON_DISABLED
-                        : this.isHovered && AllKeys.isMouseButtonDown(0) ? AllGuiTextures.BUTTON_DOWN
-                        : this.isHovered ? AllGuiTextures.BUTTON_HOVER
-                        : this.green ? AllGuiTextures.BUTTON_GREEN : AllGuiTextures.BUTTON;
-
-                RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-
-                graphics.blit(button.location, 0, 0, button.getStartX(), button.getStartY(), button.getWidth(),
-                        button.getHeight());
-                this.icon.render(graphics, 1, 1);
-            }
+        private void renderWidgets(final GuiGraphicsExtractor guiGraphics, final int mouseX, final int mouseY, final float pt) {
+            this.editWidget.extractRenderState(guiGraphics, mouseX, mouseY, pt);
+            this.deleteWidget.extractRenderState(guiGraphics, mouseX, mouseY, pt);
         }
     }
 

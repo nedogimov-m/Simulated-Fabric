@@ -2,22 +2,15 @@ package dev.simulated_team.simulated.content.blocks.nav_table.navigation_target;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.simulated_team.simulated.content.blocks.nav_table.NavTableBlockEntity;
-import dev.simulated_team.simulated.content.blocks.nav_table.NavTableRenderer;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.entity.ItemRenderer;
-import net.minecraft.world.item.ItemDisplayContext;
+import dev.simulated_team.simulated.fabric.registry.NativePartsRenderer;
+import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 
+/** Native custom target geometry is extracted at the item pedestal, then submitted without a live owner. */
 public interface RenderableNavigationTarget extends NavigationTarget {
-
-    /**
-     * Renders the Item's partials centered on the {@link NavTableRenderer Navigation Table's} item Pedestal <p>
-     * Because of this, The Partial model must be centered at its origin
-     */
-    default void renderInNavTable(final ItemStack self, final NavTableBlockEntity navBE, final BlockState navState, final float partialTicks, final PoseStack ms, final MultiBufferSource buffer, final int light, final int overlay) {
-        final ItemRenderer itemRenderer = Minecraft.getInstance().getItemRenderer();
-        itemRenderer.renderStatic(self, ItemDisplayContext.FIXED, light, overlay, ms, buffer, navBE.getLevel(), 0);
+    default void extractInNavTable(ItemStack self,NavTableBlockEntity owner,BlockState state,float partial,PoseStack pose,
+                                   NativePartsRenderer.Parts parts,ItemStackRenderState defaultItem) {
+        parts.addItem(defaultItem,pose);
     }
 }

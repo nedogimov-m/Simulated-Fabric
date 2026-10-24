@@ -12,8 +12,8 @@ import java.util.List;
 public class PortableEngineDisplaySource extends AbstractNumericDisplaysource {
 
     @Override
-    List<Component> getOptions() {
-        return SimLang.translatedOptions("display_source.portable_engine", "current_burn", "total_burn");
+    List<String> getOptions() {
+        return List.of("simulated.display_source.portable_engine.current_burn", "simulated.display_source.portable_engine.total_burn");
     }
 
     @Override
@@ -32,7 +32,7 @@ public class PortableEngineDisplaySource extends AbstractNumericDisplaysource {
             return ZERO.copy();
         }
 
-        switch (displayLinkContext.sourceConfig().getInt(this.getSelectionKey())) {
+        switch (displayLinkContext.sourceConfig().getIntOr(this.getSelectionKey(), 0)) {
             case 0 -> {
                 if (be.isCurrentFuelInfinite()) {
                     return SimLang.translate("portable_engine.infinite").component();

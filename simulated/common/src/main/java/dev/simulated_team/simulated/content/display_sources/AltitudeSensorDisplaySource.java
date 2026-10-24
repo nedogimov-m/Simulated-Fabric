@@ -3,7 +3,6 @@ package dev.simulated_team.simulated.content.display_sources;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.source.NumericSingleLineDisplaySource;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
-import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
 import dev.simulated_team.simulated.content.blocks.altitude_sensor.AltitudeSensorBlockEntity;
 import dev.simulated_team.simulated.data.SimLang;
 import net.minecraft.network.chat.Component;
@@ -17,7 +16,7 @@ public class AltitudeSensorDisplaySource extends NumericSingleLineDisplaySource 
             return ZERO.copy();
         }
 
-        switch (context.sourceConfig().getInt("AltitudeSensorSelection")) {
+        switch (context.sourceConfig().getIntOr("AltitudeSensorSelection", 0)) {
             case 0 -> {
                 assert be.hasLevel();
                 final float airPressure = (float) be.getAirPressure() * 100.0f;
@@ -31,15 +30,12 @@ public class AltitudeSensorDisplaySource extends NumericSingleLineDisplaySource 
     }
 
     @Override
-    public void initConfigurationWidgets(final DisplayLinkContext context, final ModularGuiLineBuilder builder, final boolean isFirstLine) {
-        super.initConfigurationWidgets(context, builder, isFirstLine);
-        if (isFirstLine) {
-            return;
-        }
-
-        builder.addSelectionScrollInput(0, 95, (selectionScrollInput, label) -> {
-            selectionScrollInput.forOptions(SimLang.translatedOptions("display_source.altitude_sensor", "air_pressure", "height"));
-        }, "AltitudeSensorSelection");
+    public java.util.List<com.simibubi.create.content.redstone.displayLink.DisplaySourceConfiguration> configuration(final DisplayLinkContext context) {
+        var options = new java.util.ArrayList<>(super.configuration(context));
+        options.add(new com.simibubi.create.content.redstone.displayLink.DisplaySourceConfiguration(
+                "AltitudeSensorSelection", java.util.List.of("simulated.display_source.altitude_sensor.air_pressure", "simulated.display_source.altitude_sensor.height"), 0,
+                0, 0, 1, 0, 1, 0, 95, "", ""));
+        return java.util.List.copyOf(options);
     }
 
     @Override

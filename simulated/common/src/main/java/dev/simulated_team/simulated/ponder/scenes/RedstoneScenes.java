@@ -25,7 +25,7 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.RedStoneWireBlock;
+import net.minecraft.world.level.block.RedstoneWireBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.AABB;
@@ -127,7 +127,7 @@ public class RedstoneScenes {
         effects.indicateRedstone(new BlockPos(3, 1, 1));
         scene.idle(5);
         world.toggleRedstonePower(select.position(modulatingLink));
-        world.modifyBlock(mainDust, s -> s.setValue(RedStoneWireBlock.POWER, 15), false);
+        world.modifyBlock(mainDust, s -> s.setValue(RedstoneWireBlock.POWER, 15), false);
         world.modifyBlockEntityNBT(select.position(nixieTube), NixieTubeBlockEntity.class,
             nbt -> nbt.putInt("RedstoneStrength", 15));
         effects.indicateRedstone(modulatingLink);
@@ -143,7 +143,7 @@ public class RedstoneScenes {
         world.toggleRedstonePower(link1);
         scene.idle(5);
         world.toggleRedstonePower(select.position(modulatingLink));
-        world.modifyBlock(mainDust, s -> s.setValue(RedStoneWireBlock.POWER, 0), false);
+        world.modifyBlock(mainDust, s -> s.setValue(RedstoneWireBlock.POWER, 0), false);
         world.modifyBlockEntityNBT(select.position(nixieTube), NixieTubeBlockEntity.class,
             nbt -> nbt.putInt("RedstoneStrength", 0));
 
@@ -191,7 +191,7 @@ public class RedstoneScenes {
         scene.idle(5);
         world.toggleRedstonePower(select.position(modulatingLink));
         effects.indicateRedstone(modulatingLink);
-        world.modifyBlock(mainDust, s -> s.setValue(RedStoneWireBlock.POWER, 4), false);
+        world.modifyBlock(mainDust, s -> s.setValue(RedstoneWireBlock.POWER, 4), false);
         world.modifyBlockEntityNBT(select.position(nixieTube), NixieTubeBlockEntity.class,
             nbt -> nbt.putInt("RedstoneStrength", 4));
         scene.idle(25);
@@ -199,7 +199,7 @@ public class RedstoneScenes {
         effects.indicateRedstone(new BlockPos(3, 2, 6));
         scene.idle(5);
         effects.indicateRedstone(modulatingLink);
-        world.modifyBlock(mainDust, s -> s.setValue(RedStoneWireBlock.POWER, 11), false);
+        world.modifyBlock(mainDust, s -> s.setValue(RedstoneWireBlock.POWER, 11), false);
         world.modifyBlockEntityNBT(select.position(nixieTube), NixieTubeBlockEntity.class,
             nbt -> nbt.putInt("RedstoneStrength", 11));
         final Vec3 link3Vec = vector.blockSurface(new BlockPos(3, 1, 5), Direction.SOUTH)
@@ -216,7 +216,7 @@ public class RedstoneScenes {
         world.toggleRedstonePower(link3);
         scene.idle(5);
         world.toggleRedstonePower(select.position(modulatingLink));
-        world.modifyBlock(mainDust, s -> s.setValue(RedStoneWireBlock.POWER, 0), false);
+        world.modifyBlock(mainDust, s -> s.setValue(RedstoneWireBlock.POWER, 0), false);
         world.modifyBlockEntityNBT(select.position(nixieTube), NixieTubeBlockEntity.class,
             nbt -> nbt.putInt("RedstoneStrength", 0));
 
@@ -272,7 +272,7 @@ public class RedstoneScenes {
         scene.idle(5);
         world.toggleRedstonePower(select.position(modulatingLink));
         effects.indicateRedstone(modulatingLink);
-        world.modifyBlock(mainDust, s -> s.setValue(RedStoneWireBlock.POWER, 11), false);
+        world.modifyBlock(mainDust, s -> s.setValue(RedstoneWireBlock.POWER, 11), false);
         world.modifyBlockEntityNBT(select.position(nixieTube), NixieTubeBlockEntity.class,
             nbt -> nbt.putInt("RedstoneStrength", 11));
         scene.idle(15);
@@ -291,8 +291,8 @@ public class RedstoneScenes {
             final BlockEntity blockEntity = level.getBlockEntity(modulatingLink);
             final RegistryAccess registryAccess = level.registryAccess();
             final CompoundTag tag = blockEntity.saveWithFullMetadata(registryAccess);
-            tag.put(FrequencyLast, iron.save(registryAccess, new CompoundTag()));
-            blockEntity.loadWithComponents(tag, registryAccess);
+            tag.put(FrequencyLast, dev.simulated_team.simulated.fabric.registry.NativePonderNbt.item(registryAccess,iron));
+            dev.simulated_team.simulated.fabric.registry.NativePonderNbt.load(blockEntity,tag,registryAccess);
         });
     }
 
@@ -572,7 +572,7 @@ public class RedstoneScenes {
             final int fi = i;
             scene.idle(10);
             world.modifyBlockEntityNBT(accumulator, RedstoneAccumulatorBlockEntity.class, tag -> tag.putInt("OutputSignal", fi));
-            world.modifyBlock(outputDustPos, s -> s.setValue(RedStoneWireBlock.POWER, fi), false);
+            world.modifyBlock(outputDustPos, s -> s.setValue(RedstoneWireBlock.POWER, fi), false);
             world.modifyBlockEntityNBT(tube, NixieTubeBlockEntity.class, tag -> tag.putInt("RedstoneStrength", fi));
         }
 
@@ -600,7 +600,7 @@ public class RedstoneScenes {
         for (int i = 1; i <= 7; ++i) {
             final int fi = 11 - i;
             world.modifyBlockEntityNBT(accumulator, RedstoneAccumulatorBlockEntity.class, tag -> tag.putInt("OutputSignal", fi));
-            world.modifyBlock(outputDustPos, s -> s.setValue(RedStoneWireBlock.POWER, fi), false);
+            world.modifyBlock(outputDustPos, s -> s.setValue(RedstoneWireBlock.POWER, fi), false);
             world.modifyBlockEntityNBT(tube, NixieTubeBlockEntity.class, tag -> tag.putInt("RedstoneStrength", fi));
             scene.idle(10);
         }
@@ -625,7 +625,7 @@ public class RedstoneScenes {
         for (int i = 4; i <= 15; ++i) {
             final int fi = i;
             world.modifyBlockEntityNBT(accumulator, RedstoneAccumulatorBlockEntity.class, tag -> tag.putInt("OutputSignal", fi));
-            world.modifyBlock(outputDustPos, s -> s.setValue(RedStoneWireBlock.POWER, fi), false);
+            world.modifyBlock(outputDustPos, s -> s.setValue(RedstoneWireBlock.POWER, fi), false);
             world.modifyBlockEntityNBT(tube, NixieTubeBlockEntity.class, tag -> tag.putInt("RedstoneStrength", fi));
             scene.idle(20);
 
@@ -686,7 +686,7 @@ public class RedstoneScenes {
         for (int i = 1; i <= 7; ++i) {
             final int fi = i;
             world.modifyBlockEntityNBT(select.position(lever), AnalogLeverBlockEntity.class, tag -> tag.putInt("State", fi));
-            world.modifyBlock(inputWirePos, s -> s.setValue(RedStoneWireBlock.POWER, fi), false);
+            world.modifyBlock(inputWirePos, s -> s.setValue(RedstoneWireBlock.POWER, fi), false);
             world.modifyBlockEntityNBT(inputTube, NixieTubeBlockEntity.class, tag -> tag.putInt("RedstoneStrength", fi));
             scene.idle(2);
         }
@@ -703,7 +703,7 @@ public class RedstoneScenes {
         for (int i = 1; i <= 7; ++i) {
             final int fi = i;
             world.modifyBlockEntityNBT(inductor, RedstoneInductorBlockEntity.class, tag -> tag.putInt("OutputSignal", fi));
-            world.modifyBlock(outputWirePos, s -> s.setValue(RedStoneWireBlock.POWER, fi), false);
+            world.modifyBlock(outputWirePos, s -> s.setValue(RedstoneWireBlock.POWER, fi), false);
             world.modifyBlockEntityNBT(outputTube, NixieTubeBlockEntity.class, tag -> tag.putInt("RedstoneStrength", fi));
             scene.idle(10);
         }
@@ -713,7 +713,7 @@ public class RedstoneScenes {
         for (int i = 1; i <= 7; ++i) {
             final int fi = 7 - i;
             world.modifyBlockEntityNBT(select.position(lever), AnalogLeverBlockEntity.class, tag -> tag.putInt("State", fi));
-            world.modifyBlock(inputWirePos, s -> s.setValue(RedStoneWireBlock.POWER, fi), false);
+            world.modifyBlock(inputWirePos, s -> s.setValue(RedstoneWireBlock.POWER, fi), false);
             world.modifyBlockEntityNBT(inputTube, NixieTubeBlockEntity.class, tag -> tag.putInt("RedstoneStrength", fi));
             scene.idle(2);
         }
@@ -724,7 +724,7 @@ public class RedstoneScenes {
         for (int i = 1; i <= 7; ++i) {
             final int fi = 7 - i;
             world.modifyBlockEntityNBT(inductor, RedstoneInductorBlockEntity.class, tag -> tag.putInt("OutputSignal", fi));
-            world.modifyBlock(outputWirePos, s -> s.setValue(RedStoneWireBlock.POWER, fi), false);
+            world.modifyBlock(outputWirePos, s -> s.setValue(RedstoneWireBlock.POWER, fi), false);
             world.modifyBlockEntityNBT(outputTube, NixieTubeBlockEntity.class, tag -> tag.putInt("RedstoneStrength", fi));
             scene.idle(10);
         }
@@ -744,7 +744,7 @@ public class RedstoneScenes {
         for (int i = 1; i <= 15; ++i) {
             final int fi = i;
             world.modifyBlockEntityNBT(select.position(lever), AnalogLeverBlockEntity.class, tag -> tag.putInt("State", fi));
-            world.modifyBlock(inputWirePos, s -> s.setValue(RedStoneWireBlock.POWER, fi), false);
+            world.modifyBlock(inputWirePos, s -> s.setValue(RedstoneWireBlock.POWER, fi), false);
             world.modifyBlockEntityNBT(inputTube, NixieTubeBlockEntity.class, tag -> tag.putInt("RedstoneStrength", fi));
             scene.idle(2);
         }
@@ -755,7 +755,7 @@ public class RedstoneScenes {
         for (int i = 1; i <= 15; ++i) {
             final int fi = i;
             world.modifyBlockEntityNBT(inductor, RedstoneAccumulatorBlockEntity.class, tag -> tag.putInt("OutputSignal", fi));
-            world.modifyBlock(outputWirePos, s -> s.setValue(RedStoneWireBlock.POWER, fi), false);
+            world.modifyBlock(outputWirePos, s -> s.setValue(RedstoneWireBlock.POWER, fi), false);
             world.modifyBlockEntityNBT(outputTube, NixieTubeBlockEntity.class, tag -> tag.putInt("RedstoneStrength", fi));
 
             if (i == 2) overlay.showText(60)
@@ -812,7 +812,7 @@ public class RedstoneScenes {
                 .pointAt(leverVec);
         scene.idle(70);
 
-        final IntegerProperty power = RedStoneWireBlock.POWER;
+        final IntegerProperty power = RedstoneWireBlock.POWER;
         overlay.showControls(vector.centerOf(leverPos), Pointing.DOWN, 50).rightClick();
         scene.idle(7);
         for (int i = 0; i < 13; i++) {
@@ -843,7 +843,7 @@ public class RedstoneScenes {
                 .placeNearTarget()
                 .pointAt(leverVec);
         scene.idle(70);
-        overlay.showControls(vector.centerOf(leverPos), Pointing.DOWN, 40).rightClick().withItem(AllItems.WRENCH.asStack());
+        overlay.showControls(vector.centerOf(leverPos), Pointing.DOWN, 40).rightClick().withItem(new net.minecraft.world.item.ItemStack(AllItems.WRENCH));
         scene.idle(6);
         for (int i = 0; i < 10; i++) {
             final int state = i + 1;

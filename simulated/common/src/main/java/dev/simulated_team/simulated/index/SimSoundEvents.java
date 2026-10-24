@@ -1,13 +1,12 @@
 package dev.simulated_team.simulated.index;
 
-import dev.simulated_team.simulated.Simulated;
 import dev.simulated_team.simulated.api.sound.SimSoundEntry;
 import dev.simulated_team.simulated.api.sound.SoundEventRegistry;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 
 public class SimSoundEvents {
-    public static final SoundEventRegistry REGISTRY = new SoundEventRegistry(Simulated.MOD_ID);
+    public static final SoundEventRegistry REGISTRY = new SoundEventRegistry("simulated");
 
     public static final String BLOCK_PLACED = "subtitles.block.generic.place";
 

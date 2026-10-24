@@ -13,6 +13,6 @@ public class WoodenPropellerBlock extends BasePropellerBlock {
 
     @Override
     public BlockEntityType<? extends BasePropellerBlockEntity> getBlockEntityType() {
-        return AeroBlockEntityTypes.WOODEN_PROPELLER.get();
+        return AeroBlockEntityTypes.WOODEN_PROPELLER;
     }
 }

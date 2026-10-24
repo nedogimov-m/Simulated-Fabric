@@ -1,7 +1,7 @@
 package dev.simulated_team.simulated.content.blocks.gimbal_sensor;
 
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.index.SimBlockShapes;
 import dev.simulated_team.simulated.multiloader.CommonRedstoneBlock;
@@ -24,7 +24,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
-public class GimbalSensorBlock extends Block implements IBE<GimbalSensorBlockEntity>, IWrenchable, CommonRedstoneBlock {
+public class GimbalSensorBlock extends Block implements NativeEntityBlock<GimbalSensorBlockEntity>, NativeWrenchable, CommonRedstoneBlock {
 
     public static final Property<Direction.Axis> HORIZONTAL_AXIS = BlockStateProperties.HORIZONTAL_AXIS;
     public GimbalSensorBlock(final Properties pProperties) {
@@ -71,7 +71,7 @@ public class GimbalSensorBlock extends Block implements IBE<GimbalSensorBlockEnt
 
     @Override
     public BlockEntityType<? extends GimbalSensorBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.GIMBAL_SENSOR.get();
+        return SimBlockEntityTypes.GIMBAL_SENSOR;
     }
 
     @Override
@@ -94,7 +94,7 @@ public class GimbalSensorBlock extends Block implements IBE<GimbalSensorBlockEnt
     @Override
     public InteractionResult onWrenched(final BlockState state, final UseOnContext context) {
 
-        final InteractionResult result = IWrenchable.super.onWrenched(state, context);
+        final InteractionResult result = NativeWrenchable.super.onWrenched(state, context);
 
         if(result == InteractionResult.SUCCESS)
         {
@@ -104,5 +104,17 @@ public class GimbalSensorBlock extends Block implements IBE<GimbalSensorBlockEnt
             }
         }
         return result;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

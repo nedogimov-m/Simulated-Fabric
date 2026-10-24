@@ -9,6 +9,7 @@ import dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem;
 import dev.ryanhcode.sable.sublevel.system.SubLevelTrackingSystem;
 import dev.simulated_team.simulated.Simulated;
 import dev.simulated_team.simulated.content.blocks.docking_connector.DockingConnectorBlockEntity;
+import dev.simulated_team.simulated.content.blocks.handle.ServerHandleHoldingHandler;
 import dev.simulated_team.simulated.content.blocks.redstone_magnet.RedstoneMagnetBlockEntity;
 import dev.simulated_team.simulated.content.blocks.rope.strand.server.ServerLevelRopeManager;
 import dev.simulated_team.simulated.content.blocks.rope.strand.server.ServerRopeTrackingSystem;
@@ -24,11 +25,11 @@ import dev.simulated_team.simulated.index.SimBlocks;
 import dev.simulated_team.simulated.index.SimTags;
 import dev.simulated_team.simulated.index.SimWorldPresets;
 import dev.simulated_team.simulated.mixin_interface.PrimaryLevelDataExtension;
-import dev.simulated_team.simulated.registrate.SimulatedRegistrate;
+import dev.simulated_team.simulated.index.SimNavigationTargets;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -43,6 +44,14 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import org.jetbrains.annotations.Nullable;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
+import net.minecraft.server.packs.PackType;
 
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -55,6 +64,8 @@ public class SimulatedCommonEvents {
      * @param level The level ticking.
      */
     public static void onServerTickEnd(final ServerLevel level) {
+        ServerLevelRopeManager.getOrCreate(level).tickRiders();
+        PhysicsStaffServerHandler.get(level).tick();
         RedstoneMagnetBlockEntity.GLOBAL_REDSTONE_MAGNET_MAP.tick(level);
         DockingConnectorBlockEntity.MAGNET_CONTROLLER.tick(level);
 
@@ -75,15 +86,15 @@ public class SimulatedCommonEvents {
     }
 
     public static void onServerStopped(final MinecraftServer server) {
-
+        ServerHandleHoldingHandler.unload(server);
     }
 
     public static void onPlayerLoggedIn(final Player player) {
-        for (final Map.Entry<ResourceLocation, SimulatedWorldPreset> entry : SimWorldPresets.PRESETS.entrySet()) {
+        for (final Map.Entry<Identifier, SimulatedWorldPreset> entry : SimWorldPresets.PRESETS.entrySet()) {
             final ServerLevel level = (ServerLevel) player.level();
 
             if (player instanceof final ServerPlayer serverPlayer) {
-                final ResourceLocation worldPreset = ((PrimaryLevelDataExtension) level.getServer().getWorldData()).getPreset();
+                final Identifier worldPreset = ((PrimaryLevelDataExtension) level.getServer().getWorldData()).getPreset();
 
                 if (entry.getValue().id().equals(worldPreset)) {
                     entry.getValue().onPlayerJoin(level, serverPlayer);
@@ -95,9 +106,9 @@ public class SimulatedCommonEvents {
     }
 
     public static void onChunkLoad(final LevelAccessor level, final ChunkAccess chunk, final boolean newChunk) {
-        for (final Map.Entry<ResourceLocation, SimulatedWorldPreset> entry : SimWorldPresets.PRESETS.entrySet()) {
+        for (final Map.Entry<Identifier, SimulatedWorldPreset> entry : SimWorldPresets.PRESETS.entrySet()) {
             if(level instanceof final ServerLevel serverLevel) {
-                final ResourceLocation worldPreset = ((PrimaryLevelDataExtension) serverLevel.getServer().getWorldData()).getPreset();
+                final Identifier worldPreset = ((PrimaryLevelDataExtension) serverLevel.getServer().getWorldData()).getPreset();
 
                 if(entry.getValue().id().equals(worldPreset)) {
                     entry.getValue().onChunkLoad(serverLevel, chunk, newChunk);
@@ -145,11 +156,27 @@ public class SimulatedCommonEvents {
 
     public static void register() {
         SableEventPlatform.INSTANCE.onSubLevelContainerReady(SimulatedCommonEvents::onContainerReady);
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            ServerHandleHoldingHandler.tick(server);
+            for (final ServerLevel level : server.getAllLevels()) onServerTickEnd(level);
+        });
+        ServerLifecycleEvents.SERVER_STOPPED.register(SimulatedCommonEvents::onServerStopped);
+        ServerPlayConnectionEvents.JOIN.register((connection, sender, server) -> onPlayerLoggedIn(connection.player));
+        ServerChunkEvents.CHUNK_LOAD.register(SimulatedCommonEvents::onChunkLoad);
+        ServerLifecycleEvents.SYNC_DATA_PACK_CONTENTS.register((player, joined) -> EndSeaPhysicsData.syncDataPacket(packet -> player.connection.send(packet)));
+        ResourceLoader.get(PackType.SERVER_DATA).registerReloadListener(EndSeaPhysicsData.ReloadListener.ID, EndSeaPhysicsData.ReloadListener.INSTANCE);
+        CommandRegistrationCallback.EVENT.register((dispatcher, registries, environment) ->
+                dev.simulated_team.simulated.command.SimCommand.register(dispatcher, registries));
+        UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
+            if (player.isSpectator()) return InteractionResult.PASS;
+            final var result = rightClickBlock(level, hit.getBlockPos(), player, player.getItemInHand(hand));
+            return result == null ? InteractionResult.PASS : result;
+        });
     }
 
-    public static void modifyDefaultComponents(final BiConsumer<ItemLike, Consumer<DataComponentPatch.Builder>> modify) {
-        final ResourceLocation basePunchStrengthId = Simulated.path("base_punch_strength");
-        final ResourceLocation basePunchCooldownId = Simulated.path("base_punch_cooldown");
+    public static void modifyDefaultComponents(final BiConsumer<ItemLike, Consumer<net.minecraft.core.component.DataComponentMap.Builder>> modify) {
+        final Identifier basePunchStrengthId = Simulated.path("base_punch_strength");
+        final Identifier basePunchCooldownId = Simulated.path("base_punch_cooldown");
 
         modify.accept(AllItems.EXTENDO_GRIP, builder -> {
             final AttributeModifier strengthModifier = new AttributeModifier(basePunchStrengthId, 10.0f, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL);
@@ -169,6 +196,6 @@ public class SimulatedCommonEvents {
                     .build());
         });
 
-        SimulatedRegistrate.onAddDefaultComponents(modify);
+        SimNavigationTargets.onAddDefaultComponents(modify);
     }
 }

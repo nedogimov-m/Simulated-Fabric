@@ -1,8 +1,6 @@
 {
   "type": "create:sequenced_assembly",
-  "ingredient": {
-    "tag": "c:plates/iron"
-  },
+  "ingredient": "#c:plates/iron",
   "loops": 5,
   "results": [
     {
@@ -33,12 +31,8 @@
     {
       "type": "create:deploying",
       "ingredients": [
-        {
-          "item": "simulated:incomplete_gyroscopic_mechanism"
-        },
-        {
-          "item": "create:cogwheel"
-        }
+        "simulated:incomplete_gyroscopic_mechanism",
+        "create:cogwheel"
       ],
       "results": [
         {
@@ -49,12 +43,8 @@
     {
       "type": "create:deploying",
       "ingredients": [
-        {
-          "item": "simulated:incomplete_gyroscopic_mechanism"
-        },
-        {
-          "item": "create:shaft"
-        }
+        "simulated:incomplete_gyroscopic_mechanism",
+        "create:shaft"
       ],
       "results": [
         {
@@ -65,12 +55,8 @@
     {
       "type": "create:deploying",
       "ingredients": [
-        {
-          "item": "simulated:incomplete_gyroscopic_mechanism"
-        },
-        {
-          "tag": "c:nuggets/brass"
-        }
+        "simulated:incomplete_gyroscopic_mechanism",
+        "#c:nuggets/brass"
       ],
       "results": [
         {

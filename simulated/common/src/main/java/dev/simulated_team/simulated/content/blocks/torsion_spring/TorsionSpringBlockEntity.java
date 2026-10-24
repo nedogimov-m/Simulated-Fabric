@@ -1,7 +1,6 @@
 package dev.simulated_team.simulated.content.blocks.torsion_spring;
 
 import com.google.common.collect.ImmutableList;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
@@ -15,7 +14,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.ValueSettingsFormatt
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
 import com.simibubi.create.foundation.utility.CreateLang;
 import com.simibubi.create.infrastructure.config.AllConfigs;
-import dev.engine_room.flywheel.lib.transform.TransformStack;
 import dev.simulated_team.simulated.data.SimLang;
 import dev.simulated_team.simulated.data.advancements.SimAdvancements;
 import dev.simulated_team.simulated.mixin_interface.extra_kinetics.KineticBlockEntityExtension;
@@ -133,17 +131,17 @@ public class TorsionSpringBlockEntity extends KineticBlockEntity implements Extr
     }
 
     @Override
-    protected void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(compound, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput compound, final boolean clientPacket) {
+        super.write(compound, clientPacket);
 
         if (this.sequencedAngleLimit >= 0)
             compound.putDouble("SequencedAngleLimit", this.sequencedAngleLimit);
     }
 
     @Override
-    protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(compound, registries, clientPacket);
-        this.sequencedAngleLimit = compound.contains("SequencedAngleLimit") ? compound.getDouble("SequencedAngleLimit") : -1;
+    protected void read(final net.minecraft.world.level.storage.ValueInput compound, final boolean clientPacket) {
+        super.read(compound, clientPacket);
+        this.sequencedAngleLimit = compound.getDoubleOr("SequencedAngleLimit", -1);
     }
 
     public static class Output extends GeneratingKineticBlockEntity implements ExtraKineticsBlockEntity {
@@ -275,7 +273,7 @@ public class TorsionSpringBlockEntity extends KineticBlockEntity implements Extr
                 if (!this.level.isLoaded(this.source))
                     return;
 
-                BlockEntity blockEntity = this.level.getBlockEntity(this.source);
+                BlockEntity blockEntity = com.simibubi.create.foundation.utility.LoadedLevelAccess.blockEntity(this.level, this.source);
 
                 if (blockEntity instanceof final ExtraKinetics ek && ((KineticBlockEntityExtension) this).simulated$getConnectedToExtraKinetics()) {
                     blockEntity = ek.getExtraKinetics();
@@ -351,8 +349,8 @@ public class TorsionSpringBlockEntity extends KineticBlockEntity implements Extr
         }
 
         @Override
-        protected void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-            super.write(compound, registries, clientPacket);
+        protected void write(final net.minecraft.world.level.storage.ValueOutput compound, final boolean clientPacket) {
+            super.write(compound, clientPacket);
             compound.putDouble("OldAngle", this.oldAngle);
             compound.putDouble("Angle", this.angle);
             compound.putDouble("TargetAngle", this.targetAngle);
@@ -368,20 +366,20 @@ public class TorsionSpringBlockEntity extends KineticBlockEntity implements Extr
         }
 
         @Override
-        protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-            super.read(compound, registries, clientPacket);
-            this.oldAngle = compound.getDouble("OldAngle");
-            this.angle = compound.getDouble("Angle");
-            this.targetAngle = compound.getDouble("TargetAngle");
-            this.lastSpringSpeed = compound.getFloat("LastSpringSpeed");
-            this.sequencedAngleLimit = compound.contains("SequencedAngleLimit") ? compound.getDouble("SequencedAngleLimit") : -1;
-            this.rotationProgressTicks = compound.getInt("RotationProgressTicks");
-            this.rotationDurationTicks = compound.getInt("RotationDurationTicks");
-            this.generatedSpeed = compound.getFloat("GeneratedSpeed");
-            this.queuedSpeed = compound.getFloat("QueuedSpeed");
+        protected void read(final net.minecraft.world.level.storage.ValueInput compound, final boolean clientPacket) {
+            super.read(compound, clientPacket);
+            this.oldAngle = compound.getDoubleOr("OldAngle", 0d);
+            this.angle = compound.getDoubleOr("Angle", 0d);
+            this.targetAngle = compound.getDoubleOr("TargetAngle", 0d);
+            this.lastSpringSpeed = compound.getFloatOr("LastSpringSpeed", 0f);
+            this.sequencedAngleLimit = compound.getDoubleOr("SequencedAngleLimit", -1);
+            this.rotationProgressTicks = compound.getIntOr("RotationProgressTicks", 0);
+            this.rotationDurationTicks = compound.getIntOr("RotationDurationTicks", 0);
+            this.generatedSpeed = compound.getFloatOr("GeneratedSpeed", 0f);
+            this.queuedSpeed = compound.getFloatOr("QueuedSpeed", 0f);
 
-            if (compound.contains("CurrentState"))
-                this.currentState = State.values()[compound.getInt("CurrentState")];
+            if (compound.getInt("CurrentState").isPresent())
+                this.currentState = State.values()[compound.getIntOr("CurrentState", 0)];
         }
 
         @Override
@@ -424,13 +422,13 @@ public class TorsionSpringBlockEntity extends KineticBlockEntity implements Extr
         @Override
         public Vec3 getLocalOffset(final LevelAccessor level, final BlockPos pos, final BlockState state) {
             return super.getLocalOffset(level, pos, state)
-                    .add(Vec3.atLowerCornerOf(state.getValue(TorsionSpringBlock.FACING).getNormal()).scale(-5 / 16f));
+                    .add(Vec3.atLowerCornerOf(state.getValue(TorsionSpringBlock.FACING).getUnitVec3i()).scale(-5 / 16f));
         }
 
         @Override
-        public void rotate(final LevelAccessor level, final BlockPos pos, final BlockState state, final PoseStack ms) {
+        public void rotate(final LevelAccessor level, final BlockPos pos, final BlockState state, final org.joml.Matrix4f ms) {
             if (!this.getSide().getAxis().isHorizontal()) {
-                TransformStack.of(ms)
+                ms
                         .rotateY((AngleHelper.horizontalAngle(state.getValue(TorsionSpringBlock.FACING)) + 180) * (float) Math.PI / 180);
             }
             super.rotate(level, pos, state, ms);

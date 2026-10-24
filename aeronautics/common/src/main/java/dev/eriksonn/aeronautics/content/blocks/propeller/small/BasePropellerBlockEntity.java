@@ -7,9 +7,10 @@ import dev.eriksonn.aeronautics.index.AeroAdvancements;
 import dev.ryanhcode.sable.api.block.propeller.BlockEntityPropeller;
 import dev.ryanhcode.sable.api.block.propeller.BlockEntitySubLevelPropellerActor;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
@@ -47,7 +48,7 @@ public abstract class BasePropellerBlockEntity extends KineticBlockEntity implem
      */
     public PropellerActorBehaviour createBehavior() {
         final PropellerActorBehaviour prop = new PropellerActorBehaviour(this, this);
-        prop.setThrustDirection(JOMLConversion.toJOML(Vec3.atLowerCornerOf(this.getBlockDirection().getNormal())));
+        prop.setThrustDirection(JOMLConversion.toJOML(Vec3.atLowerCornerOf(this.getBlockDirection().getUnitVec3i())));
 
         prop.setParticleAmountUpdater(() -> 0.12 * Math.abs(this.rotationSpeed));
         prop.setParticleCountProperties(5, 2);
@@ -137,17 +138,17 @@ public abstract class BasePropellerBlockEntity extends KineticBlockEntity implem
     }
 
     @Override
-    protected void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(compound, registries, clientPacket);
+    protected void write(final ValueOutput compound, final boolean clientPacket) {
+        super.write(compound, clientPacket);
 
         compound.putFloat("RotationSpeed", this.rotationSpeed);
     }
 
     @Override
-    protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(compound, registries, clientPacket);
+    protected void read(final ValueInput compound, final boolean clientPacket) {
+        super.read(compound, clientPacket);
 
-        this.rotationSpeed = compound.getFloat("RotationSpeed");
+        this.rotationSpeed = compound.getFloatOr("RotationSpeed", 0f);
     }
 
     /**

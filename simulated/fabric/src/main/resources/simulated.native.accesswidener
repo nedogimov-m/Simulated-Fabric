@@ -1,0 +1,7 @@
+accessWidener v2 official
+accessible class net/minecraft/client/gui/GuiGraphicsExtractor$ScissorStack
+accessible method net/minecraft/world/entity/decoration/HangingEntity recalculateBoundingBox ()V
+accessible field net/minecraft/server/level/ServerLevel entityManager Lnet/minecraft/world/level/entity/PersistentEntitySectionManager;
+accessible field net/minecraft/world/level/entity/PersistentEntitySectionManager sectionStorage Lnet/minecraft/world/level/entity/EntitySectionStorage;
+accessible field net/minecraft/world/entity/Entity levelCallback Lnet/minecraft/world/level/entity/EntityInLevelCallback;
+accessible field net/minecraft/world/level/storage/SavedDataStorage dataFolder Ljava/nio/file/Path;

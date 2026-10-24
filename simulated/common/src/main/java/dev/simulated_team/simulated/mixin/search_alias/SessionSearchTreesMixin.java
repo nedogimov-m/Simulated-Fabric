@@ -19,7 +19,7 @@ public class SessionSearchTreesMixin {
 
     @WrapOperation(method = "*", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/ItemStack;getTooltipLines(Lnet/minecraft/world/item/Item$TooltipContext;Lnet/minecraft/world/entity/player/Player;Lnet/minecraft/world/item/TooltipFlag;)Ljava/util/List;"))
     private static List<Component> simulated$getTooltipLines(ItemStack instance, Item.TooltipContext i, Player list, TooltipFlag mutablecomponent, Operation<List<Component>> original) {
-        List<Component> tooltipLines = original.call(instance, i, list, mutablecomponent);
+        List<Component> tooltipLines = new java.util.ArrayList<>(original.call(instance, i, list, mutablecomponent));
         tooltipLines.addAll(SearchAlias.getAliases(instance).stream().map(Component::literal).toList());
         return tooltipLines;
     }

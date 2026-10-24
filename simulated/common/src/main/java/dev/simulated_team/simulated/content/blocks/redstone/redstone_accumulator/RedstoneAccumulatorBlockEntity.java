@@ -1,14 +1,12 @@
 package dev.simulated_team.simulated.content.blocks.redstone.redstone_accumulator;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.content.equipment.clipboard.ClipboardCloneable;
-import com.simibubi.create.content.redstone.diodes.BrassDiodeScrollValueBehaviour;
+import dev.simulated_team.simulated.content.blocks.behaviour.TimedScrollValueBehaviour;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
-import dev.engine_room.flywheel.lib.transform.TransformStack;
 import net.createmod.catnip.animation.LerpedFloat;
 import net.createmod.catnip.math.AngleHelper;
 import net.minecraft.core.BlockPos;
@@ -50,7 +48,7 @@ public class RedstoneAccumulatorBlockEntity extends SmartBlockEntity implements 
 
     @Override
     public void addBehaviours(final List<BlockEntityBehaviour> behaviours) {
-        this.inputDelay = new BrassDiodeScrollValueBehaviour(
+        this.inputDelay = new TimedScrollValueBehaviour(
                 Component.translatable("block.simulated.redstone_accumulator.input_delay"),
                 this, new RedstoneAccumulatorValueBoxTransform());
         this.inputDelay.between(2, 60 * 20 * 60);
@@ -89,23 +87,23 @@ public class RedstoneAccumulatorBlockEntity extends SmartBlockEntity implements 
             this.level.updateNeighborsAt(this.worldPosition, this.getBlockState().getBlock());
             this.level.updateNeighborsAt(this.worldPosition.relative(facing), this.getBlockState().getBlock());
         }
-        if(this.level.isClientSide) this.lerpedState.tickChaser();
+        if(this.level.isClientSide()) this.lerpedState.tickChaser();
         this.lerpedState.chase(this.outputSignal, 0.4, LerpedFloat.Chaser.EXP);
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        this.outputSignal = tag.getInt("OutputSignal");
-        this.delayTicks = tag.getInt("DelayTicks");
+    protected void read(final net.minecraft.world.level.storage.ValueInput tag, final boolean clientPacket) {
+        this.outputSignal = tag.getIntOr("OutputSignal", 0);
+        this.delayTicks = tag.getIntOr("DelayTicks", 0);
         this.lerpedState.chase(this.outputSignal, 0.4, LerpedFloat.Chaser.EXP);
-        super.read(tag, registries, clientPacket);
+        super.read(tag, clientPacket);
     }
 
     @Override
-    protected void write(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
+    protected void write(final net.minecraft.world.level.storage.ValueOutput tag, final boolean clientPacket) {
         tag.putInt("OutputSignal", this.outputSignal);
         tag.putInt("DelayTicks", this.delayTicks);
-        super.write(tag, registries, clientPacket);
+        super.write(tag, clientPacket);
     }
 
     private void inputDelayChanged(final Integer integer) {
@@ -162,7 +160,7 @@ public class RedstoneAccumulatorBlockEntity extends SmartBlockEntity implements 
             return true;
         } else {
             final BlockState blockState = this.getBlockState();
-            if (blockState.getValue(RedstoneAccumulatorBlock.INVERTED) != tag.getBoolean("Inverted")) {
+            if (blockState.getValue(RedstoneAccumulatorBlock.INVERTED) != tag.getBooleanOr("Inverted", false)) {
                 this.level.setBlockAndUpdate(this.worldPosition, blockState.cycle(RedstoneAccumulatorBlock.INVERTED));
             }
 
@@ -183,11 +181,11 @@ public class RedstoneAccumulatorBlockEntity extends SmartBlockEntity implements 
         }
 
         @Override
-        public void rotate(final LevelAccessor levelAccessor, final BlockPos blockPos, final BlockState blockState, final PoseStack poseStack) {
+        public void rotate(final LevelAccessor levelAccessor, final BlockPos blockPos, final BlockState blockState, final org.joml.Matrix4f poseStack) {
             final float yRot = AngleHelper.horizontalAngle(blockState.getValue(RedstoneAccumulatorBlock.FACING)) + 180;
-            TransformStack.of(poseStack)
-                    .rotateYDegrees(yRot)
-                    .rotateXDegrees(90);
+            poseStack
+                    .rotateY((float) Math.toRadians(yRot))
+                    .rotateX((float) Math.toRadians(90));
         }
     }
 }

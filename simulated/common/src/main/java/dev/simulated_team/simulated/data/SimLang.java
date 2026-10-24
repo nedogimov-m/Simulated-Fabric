@@ -3,8 +3,6 @@ package dev.simulated_team.simulated.data;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.simibubi.create.foundation.utility.FilesHelper;
-import com.tterrag.registrate.providers.RegistrateLangProvider;
 import dev.simulated_team.simulated.Simulated;
 import dev.simulated_team.simulated.data.advancements.SimAdvancements;
 import dev.simulated_team.simulated.index.SimKeys;
@@ -90,8 +88,8 @@ public class SimLang {
     }
 
 
-    public static void registrateLang(final RegistrateLangProvider provider) {
-        final BiConsumer<String, String> consumer = provider::add;
+    public static void provideLang(final BiConsumer<String, String> consumer) {
+
         SimKeys.provideLang(consumer);
         SimAdvancements.provideLang(consumer);
         SimSoundEvents.REGISTRY.provideLang(consumer);
@@ -105,7 +103,13 @@ public class SimLang {
 
     private static Map<String, String> getLangMap(final String lang) {
         final String filepath = "datagen/lang/%s.json".formatted(lang);
-        final JsonObject langObject = FilesHelper.loadJsonResource(filepath).getAsJsonObject();
+        final JsonObject langObject;
+        try (var stream = SimLang.class.getClassLoader().getResourceAsStream(filepath)) {
+            if (stream == null) throw new IllegalArgumentException("Missing language resource " + filepath);
+            try (var reader = new java.io.InputStreamReader(stream, java.nio.charset.StandardCharsets.UTF_8)) {
+                langObject = com.google.gson.JsonParser.parseReader(reader).getAsJsonObject();
+            }
+        } catch (java.io.IOException failure) { throw new java.io.UncheckedIOException(failure); }
 
         final Map<String, String> langMap = new HashMap<>();
         flattenJson(langMap, langObject, null);

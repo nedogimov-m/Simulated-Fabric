@@ -1,7 +1,7 @@
 package dev.simulated_team.simulated.content.blocks.swivel_bearing;
 
 import com.simibubi.create.content.contraptions.AssemblyException;
-import com.simibubi.create.content.contraptions.IDisplayAssemblyExceptions;
+import dev.simulated_team.simulated.util.assembly.SimAssemblyException.Provider;
 import com.simibubi.create.content.contraptions.bearing.BearingBlock;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.IRotate;
@@ -83,7 +83,7 @@ import java.util.function.BiPredicate;
 
 import static net.minecraft.ChatFormatting.GOLD;
 
-public class SwivelBearingBlockEntity extends KineticBlockEntity implements ExtraKinetics, IDisplayAssemblyExceptions, BlockEntitySubLevelActor {
+public class SwivelBearingBlockEntity extends KineticBlockEntity implements ExtraKinetics, Provider, BlockEntitySubLevelActor {
     private static final MutableComponent SCROLL_OPTION_TITLE = Component.translatable(Simulated.MOD_ID + ".scroll_option.swivel_default_locked");
 
     @NotNull
@@ -163,7 +163,7 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
         super.tick();
         this.cogwheel.tick();
 
-        if (level.isClientSide) {
+        if (level.isClientSide()) {
             if (this.isTooFast()) {
                 this.playGrindingEffect();
             }
@@ -262,14 +262,14 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
     private void playGrindingEffect() {
         final Direction facing = this.getBlockState().getValue(SwivelBearingBlock.FACING);
 
-        final RandomSource random = this.level.random;
+        final RandomSource random = this.level.getRandom();
 
         final int stepX = facing.getStepX();
         final int stepY = facing.getStepY();
         final int stepZ = facing.getStepZ();
 
         for (int i = 0; i < 2; i++) {
-            final Vec3 particlePos = this.getBlockPos().getCenter()
+            final Vec3 particlePos = net.minecraft.world.phys.Vec3.atCenterOf(this.getBlockPos())
                     .add(stepX * 7.0 / 16.0, stepY * 7.0 / 16.0, stepZ * 7.0 / 16.0)
                     .add((random.nextFloat() - 0.5f) * (stepX == 0 ? 1 : 0), (random.nextFloat() - 0.5f) * (stepY == 0 ? 1 : 0), (random.nextFloat() - 0.5f) * (stepZ == 0 ? 1 : 0));
 
@@ -369,7 +369,7 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
         final SubLevel subLevelA = this.getContainingSubLevel();
         final SubLevel subLevelB = this.getAttachedSubLevel();
 
-        final Vec3i facingVec3I = this.getBlockState().getValue(DirectionalKineticBlock.FACING).getNormal();
+        final Vec3i facingVec3I = this.getBlockState().getValue(DirectionalKineticBlock.FACING).getUnitVec3i();
         final Vector3dc facingVec = new Vector3d(facingVec3I.getX(), facingVec3I.getY(), facingVec3I.getZ());
 
         double inertiaA = Double.MAX_VALUE;
@@ -422,7 +422,7 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
 
         final ServerSubLevel assembledSubLevel;
         final BlockPos assembleOffset;
-        final BlockState link = SimBlocks.SWIVEL_BEARING_LINK_BLOCK.getDefaultState()
+        final BlockState link = SimBlocks.SWIVEL_BEARING_LINK_BLOCK.defaultBlockState()
                 .setValue(SwivelBearingPlateBlock.FACING, this.getBlockState().getValue(SwivelBearingBlock.FACING));
 
         if (result != null) {
@@ -494,23 +494,30 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
             return;
         }
 
-        this.removeHandle();
         final SubLevel subLevel = SubLevelContainer.getContainer(this.level).getSubLevel(this.getSubLevelID());
         final BlockPos platePos = this.getPlatePos();
         if (platePos != null) {
-            this.destroyPlate();
-
             if (Objects.equals(subLevel, Sable.HELPER.getContaining(this.level, this.getBlockPos()))) {
                 this.lastException = SimAssemblyException.sameSubLevel();
                 this.level.playSound(null, platePos, SimSoundEvents.ASSEMBLER_FAIL.event(), SoundSource.BLOCKS, 1.0f, 1.0f);
+                return;
             } else if (subLevel != null) {
-                // if destroying the plate removed the sub-level, skip disassembling
                 if (!subLevel.isRemoved()) {
-                    SimAssemblyHelper.disassembleSubLevel(this.level, subLevel, platePos, this.getBlockPos(), Rotation.NONE, true);
+                    if (!SimAssemblyHelper.disassembleSubLevel(this.level, subLevel, platePos, this.getBlockPos(), Rotation.NONE, true, () -> {
+                        this.removeHandle();
+                        this.destroyPlate();
+                    })) return;
                 } else {
+                    this.removeHandle();
+                    this.destroyPlate();
                     this.level.playSound(null, platePos, SimSoundEvents.SIMULATED_CONTRAPTION_STOPS.event(), SoundSource.BLOCKS, 1.0f, 1.0f);
                 }
+            } else {
+                this.removeHandle();
+                this.destroyPlate();
             }
+        } else {
+            this.removeHandle();
         }
 
         this.getLevel().setBlockAndUpdate(this.getBlockPos(), this.getBlockState().setValue(SwivelBearingBlock.ASSEMBLED, false));
@@ -558,7 +565,7 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
             if (!plateState.is(SimBlocks.SWIVEL_BEARING_LINK_BLOCK)) return;
 
             final Direction plateFacing = plateState.getValue(SwivelBearingPlateBlock.FACING);
-            this.attachConstraints(plateSubLevel, JOMLConversion.toJOML(platePos.relative(plateFacing).getCenter()));
+            this.attachConstraints(plateSubLevel, JOMLConversion.toJOML(net.minecraft.world.phys.Vec3.atCenterOf(platePos.relative(plateFacing))));
         }
     }
 
@@ -579,9 +586,9 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
 
         if (!plateState.is(SimBlocks.SWIVEL_BEARING_LINK_BLOCK)) return;
 
-        final Vector3d anchorPos = JOMLConversion.toJOML(this.getBlockPos().relative(this.getBlockState().getValue(DirectionalKineticBlock.FACING)).getCenter());
-        final Vec3 facingVec = Vec3.atLowerCornerOf(this.getBlockState().getValue(DirectionalKineticBlock.FACING).getNormal());
-        final Vec3 plateFacingVec = Vec3.atLowerCornerOf(plateState.getValue(DirectionalKineticBlock.FACING).getNormal());
+        final Vector3d anchorPos = JOMLConversion.toJOML(net.minecraft.world.phys.Vec3.atCenterOf(this.getBlockPos().relative(this.getBlockState().getValue(DirectionalKineticBlock.FACING))));
+        final Vec3 facingVec = Vec3.atLowerCornerOf(this.getBlockState().getValue(DirectionalKineticBlock.FACING).getUnitVec3i());
+        final Vec3 plateFacingVec = Vec3.atLowerCornerOf(plateState.getValue(DirectionalKineticBlock.FACING).getUnitVec3i());
 
         final RotaryConstraintConfiguration constraint = new RotaryConstraintConfiguration(
                 anchorPos,
@@ -599,8 +606,8 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
     }
 
     @Override
-    protected void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(compound, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput compound, final boolean clientPacket) {
+        super.write(compound, clientPacket);
         compound.putDouble("TargetAngle", this.targetAngleDegrees);
 
         BlockPos platePos = this.getPlatePos();
@@ -622,30 +629,30 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
         }
 
         if (id != null) {
-            compound.putUUID("SubLevelID", id);
+            compound.store("SubLevelID", net.minecraft.core.UUIDUtil.CODEC, id);
         }
 
         if (platePos != null) {
-            compound.put("SwivelPlate", NbtUtils.writeBlockPos(platePos));
+            compound.store("SwivelPlate", dev.simulated_team.simulated.api.SimBlockEntityCodecs.BLOCK_POS, platePos);
         }
 
         if (this.sequencedAngleLimit >= 0)
             compound.putDouble("SequencedAngleLimit", this.sequencedAngleLimit);
 
-        AssemblyException.write(compound, registries, this.lastException);
+        SimAssemblyException.write(compound, this.lastException);
     }
 
     @Override
-    protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(compound, registries, clientPacket);
-        this.targetAngleDegrees = compound.getDouble("TargetAngle");
+    protected void read(final net.minecraft.world.level.storage.ValueInput compound, final boolean clientPacket) {
+        super.read(compound, clientPacket);
+        this.targetAngleDegrees = compound.getDoubleOr("TargetAngle", 0d);
 
         final SubLevelSchematicSerializationContext schematicContext = SubLevelSchematicSerializationContext.getCurrentContext();
 
         SubLevelSchematicSerializationContext.SchematicMapping mapping = null;
 
-        if (compound.hasUUID("SubLevelID")) {
-            UUID subLevelID = compound.getUUID("SubLevelID");
+        if (compound.read("SubLevelID", net.minecraft.core.UUIDUtil.CODEC).isPresent()) {
+            UUID subLevelID = compound.read("SubLevelID", net.minecraft.core.UUIDUtil.CODEC).orElseThrow();
 
             if (schematicContext != null) {
                 mapping = schematicContext.getMapping(subLevelID);
@@ -658,13 +665,13 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
             this.setSubLevelID(subLevelID);
         }
 
-        if (compound.contains("SwivelPlate")) {
-            final BlockPos blockPos = NbtUtils.readBlockPos(compound, "SwivelPlate").orElseThrow();
+        if (compound.read("SwivelPlate", dev.simulated_team.simulated.api.SimBlockEntityCodecs.BLOCK_POS).isPresent()) {
+            final BlockPos blockPos = compound.read("SwivelPlate", dev.simulated_team.simulated.api.SimBlockEntityCodecs.BLOCK_POS).orElseThrow();
             this.setPlatePos(blockPos);
         }
 
-        this.sequencedAngleLimit = compound.contains("SequencedAngleLimit") ? compound.getDouble("SequencedAngleLimit") : -1;
-        this.lastException = AssemblyException.read(compound, registries);
+        this.sequencedAngleLimit = compound.getDoubleOr("SequencedAngleLimit", -1) >= 0 ? compound.getDoubleOr("SequencedAngleLimit", 0d) : -1;
+        this.lastException = SimAssemblyException.read(compound);
     }
 
     @Override
@@ -682,7 +689,7 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
 
     @Override
     public void remove() {
-        if (!this.level.isClientSide && !this.assembling) {
+        if (!this.level.isClientSide() && !this.assembling) {
             // If we're actually removed and not just unloaded, let's break the plate as well
             this.destroyPlate();
         }
@@ -708,7 +715,7 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
     }
 
     private @NotNull Vector3d getConstraintPos(final BlockPos relative, final BlockPos offset) {
-        return JOMLConversion.toJOML(relative.offset(offset).getCenter());
+        return JOMLConversion.toJOML(net.minecraft.world.phys.Vec3.atCenterOf(relative.offset(offset)));
     }
 
     private void destroyPlate() {
@@ -721,7 +728,7 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
             if (this.subLevelID != null && subLevel == null) return;
 
             if (this.getLevel().getBlockState(platePos).is(SimBlocks.SWIVEL_BEARING_LINK_BLOCK)) {
-                SimBlocks.SWIVEL_BEARING_LINK_BLOCK.get().withBlockEntityDo(this.level, platePos, SwivelBearingPlateBlockEntity::beforeAssembly);
+                SimBlocks.SWIVEL_BEARING_LINK_BLOCK.withBlockEntityDo(this.level, platePos, SwivelBearingPlateBlockEntity::beforeAssembly);
                 this.getLevel().setBlock(platePos, Blocks.AIR.defaultBlockState(), 2);
             }
         }
@@ -755,12 +762,17 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
 
     @Override
     public float propagateRotationTo(final KineticBlockEntity target, final BlockState stateFrom, final BlockState stateTo, final BlockPos diff, final boolean connectedViaAxes, final boolean connectedViaCogs) {
-        return this.getPlatePos() != null && stateTo.getBlock() instanceof SwivelBearingPlateBlock ? 1 : super.propagateRotationTo(target, stateFrom, stateTo, diff, connectedViaAxes, connectedViaCogs);
+        return this.isOwnedPlate(target, stateTo) ? 1 : super.propagateRotationTo(target, stateFrom, stateTo, diff, connectedViaAxes, connectedViaCogs);
     }
 
     @Override
     public boolean isCustomConnection(final KineticBlockEntity other, final BlockState state, final BlockState otherState) {
-        return this.getPlatePos() != null && otherState.getBlock() instanceof SwivelBearingPlateBlock;
+        return this.isOwnedPlate(other, otherState);
+    }
+
+    private boolean isOwnedPlate(final KineticBlockEntity target, final BlockState state) {
+        return state.getBlock() instanceof SwivelBearingPlateBlock
+                && this.getPlatePos() != null && this.getPlatePos().equals(target.getBlockPos());
     }
 
     @Override
@@ -852,7 +864,7 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
         @Override
         public Vec3 getLocalOffset(final LevelAccessor level, final BlockPos pos, final BlockState state) {
             return super.getLocalOffset(level, pos, state)
-                    .subtract(Vec3.atLowerCornerOf(state.getValue(SwivelBearingBlock.FACING).getNormal())
+                    .subtract(Vec3.atLowerCornerOf(state.getValue(SwivelBearingBlock.FACING).getUnitVec3i())
                             .scale(5 / 16f));
         }
 
@@ -907,10 +919,6 @@ public class SwivelBearingBlockEntity extends KineticBlockEntity implements Extr
             return this.parent;
         }
 
-        @Override
-        protected void addStressImpactStats(final List<Component> tooltip, final float stressAtBase) {
-            super.addStressImpactStats(tooltip, stressAtBase);
-        }
 
         @Override
         protected boolean canPropagateDiagonally(final IRotate block, final BlockState state) {

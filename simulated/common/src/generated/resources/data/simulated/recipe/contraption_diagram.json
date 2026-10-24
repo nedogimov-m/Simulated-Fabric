@@ -2,12 +2,8 @@
   "type": "minecraft:crafting_shapeless",
   "category": "misc",
   "ingredients": [
-    {
-      "item": "minecraft:paper"
-    },
-    {
-      "item": "simulated:physics_assembler"
-    }
+    "minecraft:paper",
+    "simulated:physics_assembler"
   ],
   "result": {
     "count": 1,

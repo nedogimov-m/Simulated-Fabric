@@ -2,8 +2,8 @@ package dev.simulated_team.simulated.content.blocks.spring;
 
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.Create;
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import com.simibubi.create.foundation.block.WrenchableDirectionalBlock;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.api.block.BlockSubLevelAssemblyListener;
@@ -34,7 +34,7 @@ import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class SpringBlock extends WrenchableDirectionalBlock implements IBE<SpringBlockEntity>, BlockSubLevelAssemblyListener, IWrenchable {
+public class SpringBlock extends WrenchableDirectionalBlock implements NativeEntityBlock<SpringBlockEntity>, BlockSubLevelAssemblyListener, NativeWrenchable {
     public static final EnumProperty<Size> SIZE = EnumProperty.create("size", Size.class);
 
     public SpringBlock(final Properties properties) {
@@ -48,13 +48,8 @@ public class SpringBlock extends WrenchableDirectionalBlock implements IBE<Sprin
     }
 
     @Override
-    public ItemStack getCloneItemStack(final LevelReader levelReader, final BlockPos blockPos, final BlockState blockState) {
-        return SimItems.SPRING.asStack();
-    }
-
-    @Override
-    public void onRemove(final BlockState pState, final Level pLevel, final BlockPos pPos, final BlockState pNewState, final boolean pMovedByPiston) {
-        IBE.onRemove(pState, pLevel, pPos, pNewState);
+    public ItemStack getCloneItemStack(final LevelReader levelReader, final BlockPos blockPos, final BlockState blockState, final boolean includeData) {
+        return new net.minecraft.world.item.ItemStack(SimItems.SPRING);
     }
 
     @Override
@@ -63,8 +58,8 @@ public class SpringBlock extends WrenchableDirectionalBlock implements IBE<Sprin
     }
 
     @Override
-    public BlockState updateShape(final BlockState pState, final Direction pFacing, final BlockState pFacingState, final LevelAccessor pLevel, final BlockPos pCurrentPos, final BlockPos pFacingPos) {
-        return pState.getValue(FACING).getOpposite() == pFacing && !pState.canSurvive(pLevel, pCurrentPos) ? Blocks.AIR.defaultBlockState() : super.updateShape(pState, pFacing, pFacingState, pLevel, pCurrentPos, pFacingPos);
+    public BlockState updateShape(final BlockState pState, final net.minecraft.world.level.LevelReader pLevel, final net.minecraft.world.level.ScheduledTickAccess tickAccess, final BlockPos pCurrentPos, final Direction pFacing, final BlockPos pFacingPos, final BlockState pFacingState, final net.minecraft.util.RandomSource random) {
+        return pState.getValue(FACING).getOpposite() == pFacing && !pState.canSurvive(pLevel, pCurrentPos) ? Blocks.AIR.defaultBlockState() : super.updateShape(pState, pLevel, tickAccess, pCurrentPos, pFacing, pFacingPos, pFacingState, random);
     }
 
     public static boolean canAttach(final LevelReader pReader, final BlockPos pPos, final Direction pDirection) {
@@ -125,7 +120,7 @@ public class SpringBlock extends WrenchableDirectionalBlock implements IBE<Sprin
 
         level.setBlockAndUpdate(pos, newState);
         level.setBlockAndUpdate(partnerPos, newPartnerState);
-        AllSoundEvents.WRENCH_ROTATE.playOnServer(level, pos, 1, Create.RANDOM.nextFloat() + .5f);
+        level.playSound(null, pos, AllSoundEvents.WRENCH_ROTATE, net.minecraft.sounds.SoundSource.BLOCKS, 1, Create.RANDOM.nextFloat() + .5f);
 
         return InteractionResult.SUCCESS;
     }
@@ -137,7 +132,7 @@ public class SpringBlock extends WrenchableDirectionalBlock implements IBE<Sprin
 
     @Override
     public BlockEntityType<? extends SpringBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.SPRING.get();
+        return SimBlockEntityTypes.SPRING;
     }
 
     @Override
@@ -191,4 +186,16 @@ public class SpringBlock extends WrenchableDirectionalBlock implements IBE<Sprin
         }
     }
 
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
+    }
 }

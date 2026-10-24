@@ -3,24 +3,12 @@
   "accept_mirrored": true,
   "category": "misc",
   "key": {
-    "A": {
-      "item": "create:andesite_alloy"
-    },
-    "C": {
-      "tag": "c:ingots/copper"
-    },
-    "F": {
-      "item": "create:fluid_pipe"
-    },
-    "M": {
-      "item": "create:precision_mechanism"
-    },
-    "P": {
-      "tag": "c:slime_balls"
-    },
-    "R": {
-      "item": "simulated:rope_coupling"
-    }
+    "A": "create:andesite_alloy",
+    "C": "#c:ingots/copper",
+    "F": "create:fluid_pipe",
+    "M": "create:precision_mechanism",
+    "P": "#c:slime_balls",
+    "R": "simulated:rope_coupling"
   },
   "pattern": [
     "   P",

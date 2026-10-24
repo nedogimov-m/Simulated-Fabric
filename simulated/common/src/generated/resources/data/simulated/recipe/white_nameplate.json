@@ -2,15 +2,9 @@
   "type": "minecraft:crafting_shapeless",
   "category": "building",
   "ingredients": [
-    {
-      "item": "minecraft:paper"
-    },
-    {
-      "item": "minecraft:stick"
-    },
-    {
-      "item": "create:andesite_alloy"
-    }
+    "minecraft:paper",
+    "minecraft:stick",
+    "create:andesite_alloy"
   ],
   "result": {
     "count": 4,

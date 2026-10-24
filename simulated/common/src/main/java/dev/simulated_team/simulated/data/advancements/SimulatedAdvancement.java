@@ -1,14 +1,15 @@
 package dev.simulated_team.simulated.data.advancements;
 
-import com.tterrag.registrate.util.entry.ItemProviderEntry;
 import dev.simulated_team.simulated.util.SimColors;
 import net.minecraft.advancements.*;
-import net.minecraft.advancements.critereon.InventoryChangeTrigger;
-import net.minecraft.advancements.critereon.ItemPredicate;
-import net.minecraft.advancements.critereon.ItemUsedOnLocationTrigger;
+import net.minecraft.advancements.triggers.InventoryChangeTrigger;
+import net.minecraft.advancements.predicates.ItemPredicate;
+import net.minecraft.advancements.triggers.ItemUsedOnLocationTrigger;
+import net.minecraft.advancements.triggers.Criterion;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.player.Player;
@@ -21,10 +22,12 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.AABB;
 
 import java.util.List;
+import java.util.ArrayList;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
+import java.util.function.Supplier;
 
 // i pretty much yoinked everything from Create's advancement/trigger stuff
 // the only notable difference is it's not hardcoded to simulated, and addons *should* be able to use it
@@ -32,12 +35,13 @@ public class SimulatedAdvancement {
     static final String SECRET_SUFFIX = "\n§7(Hidden Advancement)";
 
     private final Advancement.Builder builder;
+    private final Builder sourceBuilder;
     private SimpleSimulatedTrigger builtinTrigger;
     private SimulatedAdvancement parent;
 
     AdvancementHolder datagenResult;
 
-    private final ResourceLocation background;
+    private final Identifier background;
     private final String lang;
 
     private final String id;
@@ -45,7 +49,7 @@ public class SimulatedAdvancement {
     private String title;
     private String description;
 
-    public SimulatedAdvancement(final String id, final UnaryOperator<Builder> b, final ResourceLocation background, final String modid, final BiFunction<String,String, SimpleSimulatedTrigger> triggerHandler) {
+    public SimulatedAdvancement(final String id, final UnaryOperator<Builder> b, final Identifier background, final String modid, final BiFunction<String,String, SimpleSimulatedTrigger> triggerHandler) {
         this.builder = Advancement.Builder.advancement();
         this.id = id;
         this.modid = modid;
@@ -53,16 +57,13 @@ public class SimulatedAdvancement {
         this.lang = "advancement." + modid + ".";
 
         final Builder t = new Builder();
+        this.sourceBuilder = t;
         b.apply(t);
 
         if(!t.externalTrigger) {
             this.builtinTrigger = triggerHandler.apply(modid,id + "_builtin");
             this.builder.addCriterion("0", this.builtinTrigger.createCriterion(this.builtinTrigger.instance()));
         }
-
-        this.builder.display(t.icon, Component.translatable(this.titleKey()),
-                Component.translatable(this.descriptionKey()).withStyle(s -> s.withColor(SimColors.ADVANCABLE_GOLD)),
-                id.equals("root") ? this.background : null, t.type.advancementType, t.type.toast, t.type.announce, t.type.hide);
 
         if(t.type == TaskType.SECRET)
             this.description += SECRET_SUFFIX;
@@ -79,9 +80,9 @@ public class SimulatedAdvancement {
     public boolean isAlreadyAwardedTo(final Player player) {
         if (!(player instanceof final ServerPlayer sp))
             return true;
-        final AdvancementHolder advancement = sp.getServer()
+        final AdvancementHolder advancement = sp.level().getServer()
                 .getAdvancements()
-                .get(ResourceLocation.fromNamespaceAndPath(this.modid, this.id));
+                .get(Identifier.fromNamespaceAndPath(this.modid, this.id));
         if (advancement == null)
             return true;
         return sp.getAdvancements()
@@ -125,9 +126,24 @@ public class SimulatedAdvancement {
         if (this.parent != null)
             this.builder.parent(this.parent.datagenResult);
 
-        this.datagenResult = this.builder.save(t, ResourceLocation.fromNamespaceAndPath(this.modid, this.id)
-                .toString());
+        // Native item components bind after mod initializers. Match Create26.3's deferred
+        // advancement construction so Simulated and both addons can declare icons safely.
+        for (final DeferredCriterion criterion : sourceBuilder.deferredCriteria)
+            this.builder.addCriterion(criterion.key(), criterion.factory().get());
+        final var icon = net.minecraft.world.item.ItemStackTemplate.fromNonEmptyStack(sourceBuilder.iconFactory.get());
+        final var titleComponent = Component.translatable(this.titleKey());
+        final var descriptionComponent = Component.translatable(this.descriptionKey()).withStyle(s -> s.withColor(SimColors.ADVANCABLE_GOLD));
+        final TaskType type = sourceBuilder.type;
+        if (id.equals("root")) this.builder.rootDisplay(icon, titleComponent, descriptionComponent, this.background,
+                type.advancementType, type.toast, type.announce, type.hide);
+        else this.builder.display(icon, titleComponent, descriptionComponent,
+                type.advancementType, type.toast, type.announce, type.hide);
+
+        this.datagenResult = this.builder.build(Identifier.fromNamespaceAndPath(this.modid, this.id));
+        t.accept(this.datagenResult);
     }
+
+    private record DeferredCriterion(String key, Supplier<Criterion<? extends CriterionTriggerInstance>> factory) {}
 
     public void provideLang(final BiConsumer<String, String> consumer) {
         consumer.accept(this.titleKey(), this.title);
@@ -168,7 +184,8 @@ public class SimulatedAdvancement {
         private TaskType type = TaskType.NORMAL;
         private boolean externalTrigger;
         private int keyIndex;
-        private ItemStack icon;
+        private Supplier<ItemStack> iconFactory;
+        private final List<DeferredCriterion> deferredCriteria = new ArrayList<>();
 
         public Builder special(final TaskType type) {
             this.type = type;
@@ -180,16 +197,13 @@ public class SimulatedAdvancement {
             return this;
         }
 
-        public Builder icon(final ItemProviderEntry<?, ?> item) {
-            return this.icon(item.asStack());
-        }
-
         public Builder icon(final ItemLike item) {
-            return this.icon(new ItemStack(item));
+            this.iconFactory = () -> new ItemStack(item);
+            return this;
         }
 
         public Builder icon(final ItemStack stack) {
-            this.icon = stack;
+            this.iconFactory = () -> stack;
             return this;
         }
 
@@ -204,36 +218,36 @@ public class SimulatedAdvancement {
         }
 
         public Builder whenBlockPlaced(final Block block) {
-            return this.externalTrigger(ItemUsedOnLocationTrigger.TriggerInstance.placedBlock(block));
+            return this.deferredTrigger(() -> ItemUsedOnLocationTrigger.TriggerInstance.placedBlock(BuiltInRegistries.BLOCK, block));
         }
 
         public Builder whenIconCollected() {
-            return this.externalTrigger(InventoryChangeTrigger.TriggerInstance.hasItems(this.icon.getItem()));
+            return this.deferredTrigger(() -> InventoryChangeTrigger.TriggerInstance.hasItems(this.iconFactory.get().getItem()));
         }
 
         public Builder whenIconPlaced() {
-            if(this.icon.getItem() instanceof final BlockItem blockItem) {
-                return this.externalTrigger(ItemUsedOnLocationTrigger.TriggerInstance.placedBlock(blockItem.getBlock()));
-            }
-            return this.whenIconCollected();
-        }
-
-        public Builder whenItemCollected(final ItemProviderEntry<?, ?> item) {
-            return this.whenItemCollected(item.asStack()
-                    .getItem());
+            return this.deferredTrigger(() -> this.iconFactory.get().getItem() instanceof final BlockItem blockItem
+                    ? ItemUsedOnLocationTrigger.TriggerInstance.placedBlock(BuiltInRegistries.BLOCK, blockItem.getBlock())
+                    : InventoryChangeTrigger.TriggerInstance.hasItems(this.iconFactory.get().getItem()));
         }
 
         public Builder whenItemCollected(final ItemLike itemProvider) {
-            return this.externalTrigger(InventoryChangeTrigger.TriggerInstance.hasItems(itemProvider));
+            return this.deferredTrigger(() -> InventoryChangeTrigger.TriggerInstance.hasItems(itemProvider));
         }
 
         public Builder whenItemCollected(final TagKey<Item> tag) {
-            return this.externalTrigger(InventoryChangeTrigger.TriggerInstance
-                    .hasItems(ItemPredicate.Builder.item().of(tag).build()));
+            return this.deferredTrigger(() -> InventoryChangeTrigger.TriggerInstance
+                    .hasItems(ItemPredicate.Builder.item().of(BuiltInRegistries.ITEM, tag).build()));
         }
 
         public  Builder awardedForFree() {
-            return this.externalTrigger(InventoryChangeTrigger.TriggerInstance.hasItems(new ItemLike[] {}));
+            return this.deferredTrigger(() -> InventoryChangeTrigger.TriggerInstance.hasItems(new ItemLike[] {}));
+        }
+
+        private Builder deferredTrigger(final Supplier<Criterion<? extends CriterionTriggerInstance>> factory) {
+            this.deferredCriteria.add(new DeferredCriterion(String.valueOf(this.keyIndex++), factory));
+            this.externalTrigger = true;
+            return this;
         }
 
         public Builder externalTrigger(final Criterion<? extends CriterionTriggerInstance> trigger) {

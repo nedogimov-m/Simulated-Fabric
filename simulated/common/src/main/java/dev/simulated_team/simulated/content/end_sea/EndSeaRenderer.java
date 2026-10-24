@@ -1,41 +1,19 @@
 package dev.simulated_team.simulated.content.end_sea;
 
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
-import dev.simulated_team.simulated.Simulated;
-import foundry.veil.api.client.render.VeilRenderSystem;
-import foundry.veil.api.client.render.ext.VeilMultiBind;
-import foundry.veil.api.client.render.framebuffer.AdvancedFbo;
-import foundry.veil.api.client.render.shader.program.ShaderProgram;
-import foundry.veil.api.client.render.shader.uniform.ShaderUniform;
-import net.minecraft.client.Camera;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
+import foundry.veil.api.client.render.gpu.GpuFramebuffer;
+import foundry.veil.api.client.render.vertex.VertexArray;
+import foundry.veil.api.event.VeilRenderLevelStageEvent;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
-import org.joml.Vector3dc;
-import org.lwjgl.opengl.GL30;
 
-// todo good rendering for negative physics depthGradient?
-/**
- * Renders the end-sea effect
- */
-public class EndSeaRenderer {
-
-    private static final ResourceLocation SHADER = Simulated.path("end_sea");
-
-    private static final int LAYER_COUNT = 48;
-    private static final VertexFormat FORMAT = VertexFormat.builder()
-            .add("Position", VertexFormatElement.POSITION)
-            .add("Color", VertexFormatElement.COLOR)
-            .add("UV0", VertexFormatElement.UV0)
-            .add("UV2", VertexFormatElement.UV2)
-            .build();
-
+/** Original 48-layer End Sea effect, rendered after native vanilla passes close. */
+public final class EndSeaRenderer {
+    private static final int LAYER_COUNT=48;
     private static final Vec3[] LAYER_COLORS = new Vec3[]{
             new Vec3(0.022087, 0.098399, 0.110818),
             new Vec3(0.011892, 0.095924, 0.089485),
@@ -55,67 +33,28 @@ public class EndSeaRenderer {
             new Vec3(0.080955, 0.314821, 0.661491)
     };
 
-    public static void tick() {
-
-    }
-
-    public static void render(final Camera camera, final GameRenderer gameRenderer) {
-        final Minecraft minecraft = Minecraft.getInstance();
-        final EndSeaPhysics physics = EndSeaPhysicsData.of(minecraft.level);
-        if (physics == null) {
-            return;
-        }
-
-        if (EndSeaShadowRenderer.renderingShadowMap()) {
-            return;
-        }
-
-//        final VeilDebug debug = VeilDebug.get();
-//        debug.pushDebugGroup("end_sea");
-        renderLayers(physics, camera);
-//        debug.popDebugGroup();
-    }
-
-    private static void renderLayers(final EndSeaPhysics physics, final Camera camera) {
-        final Minecraft minecraft = Minecraft.getInstance();
-
-        final ShaderProgram shader = VeilRenderSystem.setShader(SHADER);
-        shader.bind();
-        shader.setDefaultUniforms(VertexFormat.Mode.QUADS);
-        final AdvancedFbo shadowBuffer = EndSeaShadowRenderer.getShadowsFramebuffer();
-
-        shader.setTexture("ShadowDepthSampler", GL30.GL_TEXTURE_2D, shadowBuffer.getDepthTextureAttachment().getId());
-        shader.setTexture("ShadowStrengthSampler", GL30.GL_TEXTURE_2D, shadowBuffer.getColorTextureAttachment(0).getId());
-
-        final BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, FORMAT);
-
-        for (int i = 0; i < LAYER_COLORS.length; i++) {
-            LAYER_COLORS[i] = LAYER_COLORS[i].lerp(LAYER_COLORS[i].normalize(), 1.0);
-        }
-
-        final Vector3dc renderOrigin = EndSeaShadowRenderer.getLastRenderOrigin();
+    public static void tick() {}
+    public static void render(VeilRenderLevelStageEvent.Stage stage,VeilRenderLevelStageEvent.Context context) {
+        if(stage!=VeilRenderLevelStageEvent.Stage.END_MAIN)return;
+        var minecraft=Minecraft.getInstance();
+        var physics=minecraft.level==null?null:EndSeaPhysicsData.of(minecraft.level);
+        var shadowBuffer=EndSeaShadowRenderer.getShadowsFramebuffer();
+        if(physics==null||minecraft.player==null||shadowBuffer==null)return;
+        var camera=context.camera();var device=RenderSystem.getDevice();
+        try(var target=GpuFramebuffer.borrow(device,"End Sea world target",context.mainTarget());
+            var mesh=VertexArray.create(device,"End Sea layers");
+            var memory=new ByteBufferBuilder(4*LAYER_COUNT*DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP.getVertexSize())) {
+        var builder=new BufferBuilder(memory,PrimitiveTopology.QUADS,DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP);
+        final var renderOrigin = EndSeaShadowRenderer.getLastRenderOrigin();
 
         final PoseStack poseStack = new PoseStack();
-        poseStack.translate(renderOrigin.x() - camera.getPosition().x, 0.0, renderOrigin.z() - camera.getPosition().z);
+        poseStack.translate(renderOrigin.x() - camera.pos.x, 0.0, renderOrigin.z() - camera.pos.z);
         poseStack.scale(EndSeaShadowRenderer.SHADOW_VOLUME_RADIUS, 1.0f, EndSeaShadowRenderer.SHADOW_VOLUME_RADIUS);
-        poseStack.translate(0.0, physics.startY() - camera.getPosition().y, 0.0);
+        poseStack.translate(0.0, physics.startY() - camera.pos.y, 0.0);
 
-        final ShaderUniform volumeSize = shader.getUniform("ShadowVolumeSize");
-        if (volumeSize != null) {
-            volumeSize.setFloat(EndSeaShadowRenderer.SHADOW_VOLUME_RADIUS);
-        }
-
-        final ShaderUniform startY = shader.getUniform("StartY");
-
-        if (startY != null) {
-            startY.setFloat((float) physics.startY());
-        }
-
-        final LocalPlayer player = minecraft.player;
-        final float renderTime = player.tickCount + minecraft.getTimer().getGameTimeDeltaPartialTick(false);
-
+        final float renderTime=minecraft.player.tickCount+camera.cameraEntityPartialTicks;
         for (int i = 0; i < LAYER_COUNT; i++) {
-            final Vec3 layer = LAYER_COLORS[i % LAYER_COLORS.length];
+            final Vec3 layer = LAYER_COLORS[i % LAYER_COLORS.length].normalize();
             final float yCoord = -i / 2f;
             final float uvScale = EndSeaShadowRenderer.SHADOW_VOLUME_RADIUS * 2.0f / 25.0f;
             final float uvShift = (float) Mth.frac(renderTime / 2000.0) + (float) (renderOrigin.z() / EndSeaShadowRenderer.SHADOW_VOLUME_RADIUS * uvScale / 2f);
@@ -145,22 +84,14 @@ public class EndSeaRenderer {
                     .setUv2(0, 1);
         }
 
-        RenderSystem.disableCull();
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(false);
-
-        // additive
-        RenderSystem.enableBlend();
-        RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE, GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
-
-        BufferUploader.drawWithShader(builder.buildOrThrow());
-        ShaderProgram.unbind();
-
-        RenderSystem.disableBlend();
-        RenderSystem.defaultBlendFunc();
-
-        RenderSystem.disableDepthTest();
-        RenderSystem.enableCull();
-        RenderSystem.depthMask(true);
+        var encoder=context.createCommandEncoder();
+        mesh.upload(encoder,builder.buildOrThrow(),VertexArray.DrawUsage.STATIC);encoder.submit();
+        try(var draw=mesh.retain()) {
+            EndSeaShadowRenderer.nativePass().layers(target,shadowBuffer,camera.projectionMatrix,camera.viewRotationMatrix,
+                    (float)camera.pos.y,(float)physics.startY(),EndSeaShadowRenderer.SHADOW_VOLUME_RADIUS,draw);
+        }
+        }
+        EndSeaShadowRenderer.renderVoidAnchors(context);
     }
+    private EndSeaRenderer(){}
 }

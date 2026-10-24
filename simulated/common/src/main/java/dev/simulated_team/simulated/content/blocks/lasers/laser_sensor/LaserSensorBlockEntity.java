@@ -1,11 +1,9 @@
 package dev.simulated_team.simulated.content.blocks.lasers.laser_sensor;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import com.simibubi.create.foundation.blockEntity.behaviour.filtering.FilteringBehaviour;
-import dev.engine_room.flywheel.lib.transform.TransformStack;
 import dev.simulated_team.simulated.data.advancements.SimAdvancements;
 import dev.simulated_team.simulated.index.SimTags;
 import dev.simulated_team.simulated.util.SimColors;
@@ -44,7 +42,7 @@ public class LaserSensorBlockEntity extends SmartBlockEntity implements Clearabl
 
     @Override
     public void addBehaviours(final List<BlockEntityBehaviour> behaviours) {
-        behaviours.add(this.filter = new FilteringBehaviour(this, new FilterValueBoxTransform()).withPredicate(this::isItemValidFilter));
+        behaviours.add(this.filter = new FilteringBehaviour(this).withPredicate(this::isItemValidFilter));
     }
 
     private boolean isItemValidFilter(final ItemStack itemStack) {
@@ -56,7 +54,7 @@ public class LaserSensorBlockEntity extends SmartBlockEntity implements Clearabl
     @Override
     public void tick() {
         super.tick();
-        if (this.level == null || this.level.isClientSide) {
+        if (this.level == null || this.level.isClientSide()) {
             return;
         }
 
@@ -100,16 +98,16 @@ public class LaserSensorBlockEntity extends SmartBlockEntity implements Clearabl
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(tag, registries, clientPacket);
+    protected void read(final net.minecraft.world.level.storage.ValueInput tag, final boolean clientPacket) {
+        super.read(tag, clientPacket);
 
-        this.currentPower = tag.getInt("CurrentPower");
-        this.updateCooldown = Math.clamp(tag.getInt("UpdateCooldown"), 0, MAX_COOLDOWN);
+        this.currentPower = tag.getIntOr("CurrentPower", 0);
+        this.updateCooldown = Math.clamp(tag.getIntOr("UpdateCooldown", 0), 0, MAX_COOLDOWN);
     }
 
     @Override
-    protected void write(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(tag, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput tag, final boolean clientPacket) {
+        super.write(tag, clientPacket);
 
         tag.putInt("CurrentPower", this.currentPower);
         tag.putInt("UpdateCooldown", this.updateCooldown);
@@ -143,7 +141,7 @@ public class LaserSensorBlockEntity extends SmartBlockEntity implements Clearabl
         if (stack.is(SimTags.Items.LASER_POINTER_LENS)) {
             color = SimColors.MEDIA_OURPLE;
         } else if (item instanceof final DyeItem dyeItem) {
-            color = dyeItem.getDyeColor().getTextColor();
+            color = stack.getOrDefault(net.minecraft.core.component.DataComponents.DYE, net.minecraft.world.item.DyeColor.WHITE).getTextColor();
         }
 
         return testColor == color;
@@ -165,7 +163,7 @@ public class LaserSensorBlockEntity extends SmartBlockEntity implements Clearabl
         }
 
         @Override
-        public void rotate(final LevelAccessor level, final BlockPos pos, final BlockState state, final PoseStack ms) {
+        public void rotate(final LevelAccessor level, final BlockPos pos, final BlockState state, final org.joml.Matrix4f ms) {
             super.rotate(level, pos, state, ms);
             final Direction facing = state.getValue(LaserSensorBlock.FACING);
 
@@ -175,8 +173,8 @@ public class LaserSensorBlockEntity extends SmartBlockEntity implements Clearabl
             if (this.getSide() != Direction.UP)
                 return;
 
-            TransformStack.of(ms)
-                    .rotateZDegrees(-AngleHelper.horizontalAngle(facing) + 180);
+            ms
+                    .rotateZ((float) Math.toRadians(-AngleHelper.horizontalAngle(facing) + 180));
         }
     }
 }

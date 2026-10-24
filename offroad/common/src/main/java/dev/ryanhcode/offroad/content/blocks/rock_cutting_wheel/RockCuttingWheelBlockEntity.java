@@ -44,7 +44,7 @@ public class RockCuttingWheelBlockEntity extends SmartBlockEntity {
 
     @Override
     protected AABB createRenderBoundingBox() {
-        return AABB.encapsulatingFullBlocks(this.worldPosition, this.worldPosition.offset(this.getBlockState().getValue(BlockStateProperties.FACING).getNormal()));
+        return AABB.encapsulatingFullBlocks(this.worldPosition, this.worldPosition.offset(this.getBlockState().getValue(BlockStateProperties.FACING).getUnitVec3i()));
     }
 
     public float getAnimatedSpeed(final float partialTicks) {

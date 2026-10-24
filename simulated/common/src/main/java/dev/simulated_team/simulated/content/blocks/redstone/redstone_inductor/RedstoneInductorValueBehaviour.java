@@ -1,6 +1,6 @@
 package dev.simulated_team.simulated.content.blocks.redstone.redstone_inductor;
 
-import com.simibubi.create.content.redstone.diodes.BrassDiodeScrollValueBehaviour;
+import dev.simulated_team.simulated.content.blocks.behaviour.TimedScrollValueBehaviour;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueSettingsBoard;
@@ -12,7 +12,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
-public class RedstoneInductorValueBehaviour extends BrassDiodeScrollValueBehaviour {
+public class RedstoneInductorValueBehaviour extends TimedScrollValueBehaviour {
 
     public RedstoneInductorValueBehaviour(final Component label, final SmartBlockEntity be, final ValueBoxTransform slot) {
         super(label, be, slot);

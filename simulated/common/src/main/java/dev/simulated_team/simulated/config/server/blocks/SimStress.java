@@ -1,61 +1,31 @@
 package dev.simulated_team.simulated.config.server.blocks;
 
-import com.simibubi.create.infrastructure.config.CStress;
-import com.tterrag.registrate.builders.BlockBuilder;
-import com.tterrag.registrate.util.nullness.NonNullUnaryOperator;
-import dev.simulated_team.simulated.Simulated;
-import it.unimi.dsi.fastutil.objects.Object2DoubleMap;
-import it.unimi.dsi.fastutil.objects.Object2DoubleOpenHashMap;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import dev.simulated_team.simulated.config.AddonStressConfig;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import net.minecraft.world.item.DyeColor;
 
-public class SimStress extends CStress {
-
-    private static final Object2DoubleMap<ResourceLocation> DEFAULT_IMPACTS = new Object2DoubleOpenHashMap<>();
-    private static final Object2DoubleMap<ResourceLocation> DEFAULT_CAPACITIES = new Object2DoubleOpenHashMap<>();
-
-    @Override
-    public void registerAll(final ModConfigSpec.Builder builder) {
-        builder.comment(new String[]{".", Comments.su, Comments.impact}).push("impact");
-        DEFAULT_IMPACTS.forEach((id, value) -> this.impacts.put(id, builder.define(id.getPath(), value)));
-        builder.pop();
-        builder.comment(new String[]{".", Comments.su, Comments.capacity}).push("capacity");
-        DEFAULT_CAPACITIES.forEach((id, value) -> this.capacities.put(id, builder.define(id.getPath(), value)));
-        builder.pop();
+public final class SimStress extends AddonStressConfig {
+    public SimStress() {
+        super("simulated", impacts(), capacities());
     }
 
-    public static <B extends Block, P> NonNullUnaryOperator<BlockBuilder<B, P>> setNoImpact() {
-        return setImpact(0.0F);
+    private static Map<String, Double> impacts() {
+        final Map<String, Double> values = new LinkedHashMap<>();
+        values.put("swivel_bearing", 4.0);
+        values.put("rope_winch", 4.0);
+        values.put("torsion_spring", 16.0);
+        values.put("auger_shaft", 0.5);
+        values.put("auger_cog", 0.5);
+        return values;
     }
-
-    public static <B extends Block, P> NonNullUnaryOperator<BlockBuilder<B, P>> setImpact(final double value) {
-        return (builder) -> {
-            assertFromSimulated(builder);
-            DEFAULT_IMPACTS.put(Simulated.path(builder.getName()), value);
-            return builder;
-        };
-    }
-
-    public static <B extends Block, P> NonNullUnaryOperator<BlockBuilder<B, P>> setCapacity(final double value) {
-        return (builder) -> {
-            assertFromSimulated(builder);
-            DEFAULT_CAPACITIES.put(Simulated.path(builder.getName()), value);
-            return builder;
-        };
-    }
-
-
-    private static void assertFromSimulated(final BlockBuilder<?, ?> builder) {
-        if (!builder.getOwner().getModid().equals("simulated")) {
-            throw new IllegalStateException("Non-Simulated blocks cannot be added to Simulated's config.");
+    private static Map<String, Double> capacities() {
+        final Map<String, Double> values = new LinkedHashMap<>();
+        values.put("torsion_spring", 8.0);
+        values.put("steering_wheel", 16.0);
+        for (DyeColor color : DyeColor.values()) {
+            values.put(color.getSerializedName() + "_portable_engine", 64.0);
         }
-    }
-
-    private static class Comments {
-        static String su = "[in Stress Units]";
-        static String impact =
-                "Configure the individual stress impact of mechanical blocks. Note that this cost is doubled for every speed increase it receives.";
-        static String capacity = "Configure how much stress a source can accommodate for.";
+        return values;
     }
 }

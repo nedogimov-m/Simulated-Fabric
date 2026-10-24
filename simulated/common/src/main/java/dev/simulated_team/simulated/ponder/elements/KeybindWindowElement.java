@@ -1,32 +1,25 @@
 package dev.simulated_team.simulated.ponder.elements;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-import net.createmod.catnip.gui.element.GuiGameElement;
 import net.createmod.catnip.gui.element.ScreenElement;
 import net.createmod.catnip.math.Pointing;
 import net.createmod.ponder.api.PonderPalette;
 import net.createmod.ponder.api.element.InputElementBuilder;
 import net.createmod.ponder.enums.PonderGuiTextures;
 import net.createmod.ponder.foundation.PonderScene;
-import net.createmod.ponder.foundation.element.InputWindowElement;
 import net.createmod.ponder.foundation.ui.PonderUI;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Window element that renders a key mapping.
  *
  * @author Ocelot
  */
-public class KeybindWindowElement extends InputWindowElement {
+public class KeybindWindowElement extends net.createmod.ponder.foundation.element.AnimatedOverlayElementBase implements net.createmod.ponder.api.element.PonderOverlayElement {
 
     private final Vec3 sceneSpace;
     private final Pointing direction;
@@ -37,7 +30,6 @@ public class KeybindWindowElement extends InputWindowElement {
     ItemStack item = ItemStack.EMPTY;
 
     public KeybindWindowElement(final Vec3 sceneSpace, final Pointing direction) {
-        super(sceneSpace, direction);
         this.sceneSpace = sceneSpace;
         this.direction = direction;
     }
@@ -95,73 +87,42 @@ public class KeybindWindowElement extends InputWindowElement {
     }
 
     @Override
-    public void render(final @NotNull PonderScene scene, final PonderUI screen, final @NotNull GuiGraphics graphics, final float partialTicks, final float fade) {
-        final Font font = screen.getFontRenderer();
-        int width = 0;
-        int height = 0;
-
-        float xFade = this.direction == Pointing.RIGHT ? -1 : this.direction == Pointing.LEFT ? 1 : 0;
-        float yFade = this.direction == Pointing.DOWN ? -1 : this.direction == Pointing.UP ? 1 : 0;
-        xFade *= 10 * (1 - fade);
-        yFade *= 10 * (1 - fade);
-
-        final boolean hasItem = !this.item.isEmpty();
+    public net.createmod.ponder.api.element.PonderOverlayElement.RenderState extractOverlayRenderState(
+            final PonderScene scene, final float partial) {
+        final float fade = getFade(partial);
+        if (fade < 1 / 16f) return null;
+        final var point = scene.getTransform().sceneToScreen(this.sceneSpace, partial);
+        final Pointing direction = this.direction;
+        final float dx = (direction == Pointing.RIGHT ? -1 : direction == Pointing.LEFT ? 1 : 0) * 10 * (1 - fade);
+        final float dy = (direction == Pointing.DOWN ? -1 : direction == Pointing.UP ? 1 : 0) * 10 * (1 - fade);
+        final float x = point.x + dx, y = point.y + dy;
+        final Component text = this.keybind == null ? Component.empty() : this.keybind.copy();
         final boolean hasText = this.keybind != null;
-        final boolean hasIcon = this.icon != null;
-        int keyWidth = 0;
-        final Component text = hasText ? this.keybind : Component.empty();
-
-        if (fade < 1 / 16f) {
-            return;
-        }
-        final Vec2 sceneToScreen = scene.getTransform()
-                .sceneToScreen(this.sceneSpace, partialTicks);
-
-        if (hasIcon) {
-            width += 24;
-            height = 24;
-        }
-
-        if (hasText) {
-            keyWidth = font.width(text);
-            width += keyWidth;
-        }
-
-        if (hasItem) {
-            width += 24;
-            height = 24;
-        }
-
-        final PoseStack poseStack = graphics.pose();
-        poseStack.pushPose();
-        poseStack.translate(sceneToScreen.x + xFade, sceneToScreen.y + yFade, 400);
-
-        PonderUI.renderSpeechBox(graphics, 0, 0, width, height, false, this.direction, true);
-
-        poseStack.translate(0, 0, 100);
-
-        if (hasText) {
-            graphics.drawString(font, text, 2, (int) ((height - font.lineHeight) / 2f + 2),
-                    PonderPalette.WHITE.getColorObject().scaleAlpha(fade).getRGB(), false);
-        }
-
-        if (hasIcon) {
-            poseStack.pushPose();
-            poseStack.translate(keyWidth, 0, 0);
-            poseStack.scale(1.5f, 1.5f, 1.5f);
-            this.icon.render(graphics, 0, 0);
-            poseStack.popPose();
-        }
-
-        if (hasItem) {
-            GuiGameElement.of(this.item)
-                    .<GuiGameElement.GuiRenderBuilder>at(keyWidth + (hasIcon ? 24 : 0), 0)
-                    .scale(1.5)
-                    .render(graphics);
-            RenderSystem.disableDepthTest();
-        }
-
-        poseStack.popPose();
+        final ScreenElement icon = this.icon;
+        final ItemStack item = this.item.copy();
+        final int color = Math.clamp((int) (fade * 255), 0, 255) << 24 | PonderPalette.WHITE.getColor() & 0xffffff;
+        return (phase, gui, font, viewport) -> {
+            if (phase != net.createmod.ponder.api.element.PonderOverlayElement.Phase.AFTER_BUILTINS) return;
+            final boolean hasItem = !item.isEmpty(), hasIcon = icon != null;
+            final int textWidth = hasText ? font.width(text) : 0;
+            final int width = textWidth + (hasIcon ? 24 : 0) + (hasItem ? 24 : 0);
+            final int height = hasIcon || hasItem ? 24 : 0;
+            final var pose = gui.pose();
+            pose.pushMatrix();
+            try {
+                pose.translate(viewport.x() + x, viewport.y() + y);
+                PonderUI.renderSpeechBox(gui, 0, 0, width, height, false, direction, true);
+                if (hasText) gui.text(font, text, 2, (height - font.lineHeight) / 2 + 2, color, false);
+                if (hasIcon) {
+                    pose.pushMatrix(); pose.translate(textWidth, 0); pose.scale(1.5f, 1.5f);
+                    icon.render(gui, 0, 0); pose.popMatrix();
+                }
+                if (hasItem) {
+                    pose.pushMatrix(); pose.translate(textWidth + (hasIcon ? 24 : 0), 0); pose.scale(1.5f, 1.5f);
+                    gui.item(item, 0, 0); pose.popMatrix();
+                }
+            } finally { pose.popMatrix(); }
+        };
     }
 
 }

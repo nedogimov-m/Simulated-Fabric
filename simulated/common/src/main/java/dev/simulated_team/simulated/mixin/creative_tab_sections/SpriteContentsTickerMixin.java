@@ -8,14 +8,14 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 
-@Mixin(targets = "net.minecraft.client.renderer.texture.SpriteContents$Ticker")
+@Mixin(targets = "net.minecraft.client.renderer.texture.SpriteContents$AnimationState")
 public class SpriteContentsTickerMixin implements TickerExtension {
 
     @Unique
     private boolean simulated$playing = true;
 
-    @WrapOperation(method = "tickAndUpload", at = @At(value = "FIELD", target = "Lnet/minecraft/client/renderer/texture/SpriteContents$Ticker;frame:I", opcode = 181/* PUTFIELD */))
-    private void simulated$putField(SpriteContents.Ticker instance, int value, Operation<Void> original) {
+    @WrapOperation(method = "tick", at = @At(value = "FIELD", target = "Lnet/minecraft/client/renderer/texture/SpriteContents$AnimationState;frame:I", opcode = 181/* PUTFIELD */))
+    private void simulated$putField(SpriteContents.AnimationState instance, int value, Operation<Void> original) {
         if(this.simulated$isPlaying()) {
             original.call(instance, value);
         }

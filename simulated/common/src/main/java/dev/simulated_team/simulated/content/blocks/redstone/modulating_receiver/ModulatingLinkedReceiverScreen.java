@@ -1,12 +1,13 @@
 package dev.simulated_team.simulated.content.blocks.redstone.modulating_receiver;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.*;
 import com.simibubi.create.foundation.gui.AllIcons;
-import com.simibubi.create.foundation.gui.widget.IconButton;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
+import dev.simulated_team.simulated.fabric.client.gui.NativePartsPreview;
+import dev.simulated_team.simulated.fabric.registry.NativePartsRenderer;
+import net.minecraft.util.LightCoordsUtil;
+import dev.simulated_team.simulated.fabric.client.gui.NativeIconButton;
 import com.simibubi.create.foundation.gui.widget.ScrollInput;
-import dev.engine_room.flywheel.lib.transform.PoseTransformStack;
-import dev.engine_room.flywheel.lib.transform.TransformStack;
 import dev.simulated_team.simulated.data.SimLang;
 import dev.simulated_team.simulated.index.SimGUITextures;
 import dev.simulated_team.simulated.index.SimPartialModels;
@@ -14,19 +15,17 @@ import dev.simulated_team.simulated.network.packets.ConfigureModulatingLinkedRec
 import dev.simulated_team.simulated.util.SimColors;
 import foundry.veil.api.network.VeilPacketManager;
 import net.createmod.catnip.data.Iterate;
-import net.createmod.catnip.gui.AbstractSimiScreen;
+import dev.simulated_team.simulated.fabric.client.gui.NativePanelScreen;
 import net.createmod.catnip.gui.ScreenOpener;
-import net.createmod.catnip.gui.element.GuiGameElement;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 
-public class ModulatingLinkedReceiverScreen extends AbstractSimiScreen {
+public class ModulatingLinkedReceiverScreen extends NativePanelScreen {
     private final ModulatingLinkedReceiverBlockEntity be;
     private final SimGUITextures background;
-    private IconButton confirmButton;
+    private NativeIconButton confirmButton;
     private ScrollInput minScroll;
     private ScrollInput maxScroll;
     private int lastModification;
@@ -56,7 +55,7 @@ public class ModulatingLinkedReceiverScreen extends AbstractSimiScreen {
         final int y = this.guiTop;
 
         this.confirmButton =
-                new IconButton(x + this.background.width - 33, y + this.background.height - 24, AllIcons.I_CONFIRM);
+                new NativeIconButton(x + this.background.width - 33, y + this.background.height - 24, AllIcons.I_CONFIRM);
         this.confirmButton.withCallback(() -> {
             this.onClose();
         });
@@ -102,15 +101,13 @@ public class ModulatingLinkedReceiverScreen extends AbstractSimiScreen {
     }
 
     @Override
-    protected void renderWindow(final GuiGraphics graphics, final int mouseX, final int mouseY, final float partialTicks) {
+    protected void renderWindow(final GuiGraphicsExtractor graphics, final int mouseX, final int mouseY, final float partialTicks) {
         final int x = this.guiLeft;
         final int y = this.guiTop;
 
-        final PoseStack ms = graphics.pose();
-
         this.background.render(graphics, x, y);
 
-        graphics.drawString(this.font, this.title, x + (this.background.width - 8) / 2 - this.font.width(this.title) / 2, y + 4, SimColors.TITLE_DARK_RED, false);
+        graphics.text(this.font, this.title, x + (this.background.width - 8) / 2 - this.font.width(this.title) / 2, y + 4, 0xff000000 | SimColors.TITLE_DARK_RED, false);
 
         int currentX = 22;
 
@@ -137,33 +134,13 @@ public class ModulatingLinkedReceiverScreen extends AbstractSimiScreen {
 
         final SimGUITextures sprite = SimGUITextures.MODULATINGLINK_POWERED_LANE;
 
-        sprite.bind();
-
-        graphics.blit(sprite.location, x + bandStart + 1, y + 25, sprite.startX, sprite.startY, minPos - bandStart, sprite.height);
-
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
-        final Tesselator tesselator = Tesselator.getInstance();
-        final BufferBuilder bufferbuilder = tesselator.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
-
-        final float imageSize = 256f;
-        final float uvx1 = (sprite.startX + minPos - bandStart) / imageSize;
-        final float uvx2 = (sprite.startX + maxPos - bandStart) / imageSize;
-        final float uvy1 = sprite.startY / imageSize;
-        final float uvy2 = (sprite.startY + sprite.height) / imageSize;
-
-        final float px1 = (float) (x + minPos);
-        final float px2 = (float) (x + maxPos);
-        final float py1 = (float) (y + 25);
-        final float py2 = (y + 25 + sprite.height);
-
-        bufferbuilder.addVertex(ms.last().pose(), px2, py1, 0).setUv(uvx2, uvy1).setColor(1f, 1f, 1f, 0f);
-        bufferbuilder.addVertex(ms.last().pose(), px1, py1, 0).setUv(uvx1, uvy1).setColor(1f, 1f, 1f, 1f);
-        bufferbuilder.addVertex(ms.last().pose(), px1, py2, 0).setUv(uvx1, uvy2).setColor(1f, 1f, 1f, 1f);
-        bufferbuilder.addVertex(ms.last().pose(), px2, py2, 0).setUv(uvx2, uvy2).setColor(1f, 1f, 1f, 0f);
-        BufferUploader.drawWithShader(bufferbuilder.buildOrThrow());
-        RenderSystem.disableBlend();
+        graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, sprite.location,
+                x + bandStart + 1, y + 25, sprite.startX, sprite.startY, minPos - bandStart, sprite.height, sprite.texWidth, sprite.texHeight);
+        dev.simulated_team.simulated.fabric.client.gui.NativeGuiQuads.texturedHorizontalGradient(graphics, sprite.location,
+                x + minPos, y + 25, x + maxPos, y + 25 + sprite.height,
+                (sprite.startX + minPos - bandStart) / 256f, sprite.startY / 256f,
+                (sprite.startX + maxPos - bandStart) / 256f, (sprite.startY + sprite.height) / 256f,
+                0xFFFFFFFF, 0x00FFFFFF);
 
         SimGUITextures.MODULATINGLINK_MARKER.render(graphics, x + minPos, y + 23);
         SimGUITextures.MODULATINGLINK_MARKER.render(graphics, x + maxPos, y + 23);
@@ -176,39 +153,29 @@ public class ModulatingLinkedReceiverScreen extends AbstractSimiScreen {
         final float minPos2 = 5.5f * ((this.be.minRange - 1) * (smoothing + maxDistance - 1)) / ((maxDistance - 1) * (smoothing + this.be.minRange - 1));
         final float maxPos2 = 5.5f * ((this.be.maxRange - 1) * (smoothing + maxDistance - 1)) / ((maxDistance - 1) * (smoothing + this.be.maxRange - 1));
 
+        final var parts = new NativePartsRenderer.Parts(LightCoordsUtil.FULL_BRIGHT);
+        final var pose = new PoseStack();
+        pose.translate(34, 34, 100);
+        pose.scale(40, 40, 40);
+        pose.rotate(Axis.XP.rotationDegrees(-22));
+        pose.rotate(Axis.YP.rotationDegrees(63));
         for (final boolean bottom : Iterate.trueAndFalse) {
-
-
-            final TransformStack<PoseTransformStack> msr = TransformStack.of(ms);
-            msr.pushPose()
-                    .translate(x + this.background.width + 4, y + this.background.height + 4, 100)
-                    .scale(40)
-                    .rotateXDegrees(-22)
-                    .rotateYDegrees(63);
-            if (!bottom)
-                msr.translate(0, -0.5 / 16.0, 0);//why on earth are these translations backwards?
-            msr.translate(0, -(bottom ? minPos2 : maxPos2) / 16.0, 0);
-
-            GuiGameElement.of(SimPartialModels.MODULATING_RECEIVER_PLATE)
-                    .render(graphics);
-            msr.popPose();
+            pose.pushPose();
+            if (!bottom) pose.translate(0, -.5 / 16, 0);
+            pose.translate(0, -(bottom ? minPos2 : maxPos2) / 16, 0);
+            pose.scale(1, -1, 1);
+            parts.add(SimPartialModels.MODULATING_RECEIVER_PLATE, pose);
+            pose.popPose();
         }
-
-        ms.pushPose();
-        final TransformStack<PoseTransformStack> msr = TransformStack.of(ms);
-        msr.pushPose()
-                .translate(x + this.background.width + 4, y + this.background.height + 4, 100)
-                .scale(40)
-                .rotateXDegrees(-22)
-                .rotateYDegrees(63);
-        GuiGameElement.of(this.be.getBlockState()
-                        .setValue(ModulatingLinkedReceiverBlock.FACING, Direction.UP))
-                .render(graphics);
-        msr.popPose();
+        pose.scale(1, -1, 1);
+        final net.minecraft.world.level.block.state.BlockState previewState = this.be.getBlockState()
+                .setValue(ModulatingLinkedReceiverBlock.FACING, Direction.UP);
+        parts.add(previewState, pose);
+        NativePartsPreview.extract(graphics, parts, x + background.width - 30, y + background.height - 30, 94, 94);
     }
 
-    private void label(final GuiGraphics graphics, final int x, final int y, final Component text) {
-        graphics.drawString(this.font, text, this.guiLeft + x, this.guiTop + 26 + y, 0xFFFFEE);
+    private void label(final GuiGraphicsExtractor graphics, final int x, final int y, final Component text) {
+        graphics.text(this.font, text, this.guiLeft + x, this.guiTop + 26 + y, 0xFFFFFFEE);
     }
 
     @Override

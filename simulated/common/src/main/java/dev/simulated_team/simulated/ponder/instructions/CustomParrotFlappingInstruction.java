@@ -7,7 +7,7 @@ import net.createmod.ponder.foundation.PonderScene;
 import net.createmod.ponder.foundation.instruction.TickingInstruction;
 import net.createmod.ponder.foundation.ui.PonderUI;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.animal.Parrot;
+import net.minecraft.world.entity.animal.parrot.Parrot;
 
 import java.util.Objects;
 

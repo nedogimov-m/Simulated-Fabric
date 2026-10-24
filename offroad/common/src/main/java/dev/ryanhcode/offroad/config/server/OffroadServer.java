@@ -1,8 +1,8 @@
 package dev.ryanhcode.offroad.config.server;
 
-import net.createmod.catnip.config.ConfigBase;
+import com.simibubi.create.infrastructure.config.NativeConfigBase;
 
-public class OffroadServer extends ConfigBase {
+public class OffroadServer extends NativeConfigBase {
 
 	public final OffroadBlockConfigs blocks = this.nested(0, OffroadBlockConfigs::new, Comments.blockConfig);
 	public final OffroadKinetics kinetics = this.nested(0, OffroadKinetics::new, Comments.kinetics);

@@ -1,21 +1,16 @@
 package dev.simulated_team.simulated.index;
 
 import com.simibubi.create.AllBlocks;
-import com.tterrag.registrate.util.entry.ItemProviderEntry;
 import dev.simulated_team.simulated.Simulated;
-import dev.simulated_team.simulated.data.SimBlockStateGen;
 import dev.simulated_team.simulated.ponder.new_ponder_tooltip.NewPonderTooltipManager;
 import dev.simulated_team.simulated.ponder.scenes.*;
 import net.createmod.ponder.api.registration.PonderSceneRegistrationHelper;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
-import net.neoforged.neoforge.registries.DeferredHolder;
 
 public class SimPonderScenes {
-    public static void register(final PonderSceneRegistrationHelper<ResourceLocation> registry) {
-        final PonderSceneRegistrationHelper<ItemProviderEntry<?, ?>> helper = registry.withKeyFunction(DeferredHolder::getId);
+    public static void register(final PonderSceneRegistrationHelper<Identifier> registry) {
+        final PonderSceneRegistrationHelper<net.minecraft.world.level.ItemLike> helper = registry.withKeyFunction(item -> net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item.asItem()));
 
         //PHYSICS
         helper.forComponents(SimBlocks.PHYSICS_ASSEMBLER)
@@ -102,10 +97,7 @@ public class SimPonderScenes {
 
     }
 
-    private static ItemProviderEntry<Item, Item> vanillaItemProvider(final String id) {
-        return new ItemProviderEntry<>(
-                Simulated.getRegistrate(),
-                DeferredHolder.create(ResourceKey.create(Registries.ITEM, ResourceLocation.withDefaultNamespace(id)))
-        );
+    private static Item vanillaItemProvider(final String id) {
+        return net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace(id));
     }
 }

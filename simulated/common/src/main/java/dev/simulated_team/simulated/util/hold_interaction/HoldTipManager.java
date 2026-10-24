@@ -40,7 +40,7 @@ public class HoldTipManager {
                 final List<MutableComponent> tip = new ArrayList<>();
                 tip.add(Component.literal(""));
                 tip.add(hoverTip);
-                CreateClient.VALUE_SETTINGS_HANDLER.showHoverTip(tip);
+                com.simibubi.create.foundation.blockEntity.behaviour.ValueSettingsClient.INSTANCE.showHoverTip(tip);
             }
         }
     }

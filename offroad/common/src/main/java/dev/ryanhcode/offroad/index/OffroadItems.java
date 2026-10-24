@@ -1,72 +1,28 @@
 package dev.ryanhcode.offroad.index;
 
-import com.simibubi.create.AllBlocks;
-import com.simibubi.create.AllItems;
-import com.simibubi.create.foundation.data.AssetLookup;
-import com.tterrag.registrate.util.entry.ItemEntry;
-import dev.simulated_team.simulated.registrate.SimulatedRegistrate;
-import com.tterrag.registrate.providers.RegistrateRecipeProvider;
-import dev.ryanhcode.offroad.Offroad;
 import dev.ryanhcode.offroad.content.components.TireLike;
 import dev.ryanhcode.offroad.content.items.tire.TireItem;
-import net.minecraft.data.recipes.RecipeCategory;
-import net.minecraft.data.recipes.ShapedRecipeBuilder;
-import net.minecraft.data.recipes.ShapelessRecipeBuilder;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
+import dev.simulated_team.simulated.fabric.registry.NativeItemCatalog;
+import dev.simulated_team.simulated.fabric.registry.NativeRegistrations;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
 
-public class OffroadItems {
-    private static final SimulatedRegistrate REGISTRATE = Offroad.getRegistrate();
+/** Real native tire items; their component defaults are used by both placement and recipes. */
+public final class OffroadItems {
+    private static final Identifier SECTION = id("offroad");
+    public static final TireItem SMALL_TIRE = tire("small_tire", TireLike.SMALL_TIRE);
+    public static final TireItem TIRE = tire("tire", TireLike.TIRE);
+    public static final TireItem LARGE_TIRE = tire("large_tire", TireLike.LARGE_TIRE);
+    public static final TireItem MONSTROUS_TIRE = tire("monstrous_tire", TireLike.MONSTROUS_TIRE);
 
-    public static final ItemEntry<TireItem> SMALL_TIRE = REGISTRATE.item("small_tire", TireItem::new)
-            .properties(x -> x.component(OffroadDataComponents.TIRE, TireLike.SMALL_TIRE))
-            .recipe((c, p) -> ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, c.get(), 1)
-                    .requires(AllBlocks.SHAFT)
-                    .requires(Items.DRIED_KELP)
-                    .unlockedBy("has_ingredient", RegistrateRecipeProvider.has(AllBlocks.SHAFT.get()))
-                    .save(p))
-            .model(AssetLookup.itemModelWithPartials())
-            .register();
-
-    public static final ItemEntry<TireItem> TIRE = REGISTRATE.item("tire", TireItem::new)
-            .properties(x -> x.component(OffroadDataComponents.TIRE, TireLike.TIRE))
-            .recipe((c, p) -> ShapedRecipeBuilder.shaped(RecipeCategory.MISC, c.get(), 1)
-                    .pattern(" K ")
-                    .pattern("KSK")
-                    .pattern(" K ")
-                    .define('K', Items.DRIED_KELP.asItem())
-                    .define('S', AllBlocks.SHAFT.asItem())
-                    .unlockedBy("has_ingredient", RegistrateRecipeProvider.has(AllBlocks.SHAFT.get()))
-                    .save(p))
-            .model(AssetLookup.itemModelWithPartials())
-            .register();
-
-    public static final ItemEntry<TireItem> LARGE_TIRE = REGISTRATE.item("large_tire", TireItem::new)
-            .properties(x -> x.component(OffroadDataComponents.TIRE, TireLike.LARGE_TIRE))
-            .recipe((c, p) -> ShapedRecipeBuilder.shaped(RecipeCategory.MISC, c.get(), 1)
-                    .pattern(" B ")
-                    .pattern("BSB")
-                    .pattern(" B ")
-                    .define('B', AllBlocks.BELT.asItem())
-                    .define('S', AllBlocks.SHAFT.asItem())
-                    .unlockedBy("has_ingredient", RegistrateRecipeProvider.has(AllBlocks.SHAFT.get()))
-                    .save(p))
-            .model(AssetLookup.itemModelWithPartials())
-            .register();
-
-    public static final ItemEntry<TireItem> MONSTROUS_TIRE = REGISTRATE.item("monstrous_tire", TireItem::new)
-            .properties(x -> x.component(OffroadDataComponents.TIRE, TireLike.MONSTROUS_TIRE))
-            .recipe((c, p) -> ShapedRecipeBuilder.shaped(RecipeCategory.MISC, c.get(), 1)
-                    .pattern(" K ")
-                    .pattern("KSK")
-                    .pattern(" K ")
-                    .define('K', Blocks.DRIED_KELP_BLOCK.asItem())
-                    .define('S', AllBlocks.SHAFT.asItem())
-                    .unlockedBy("has_ingredient", RegistrateRecipeProvider.has(AllBlocks.SHAFT.get()))
-                    .save(p))
-            .model(AssetLookup.itemModelWithPartials())
-            .register();
-
-    public static void init() {
+    private static TireItem tire(String name, TireLike tire) {
+        final TireItem item = NativeRegistrations.item(id(name), TireItem::new,
+                new Item.Properties().component(OffroadDataComponents.TIRE, tire));
+        NativeItemCatalog.add(item, SECTION, NativeItemCatalog.Visibility.MAIN);
+        return item;
     }
+
+    public static void init() {}
+    private static Identifier id(String path) { return Identifier.fromNamespaceAndPath("offroad", path); }
+    private OffroadItems() {}
 }

@@ -2,13 +2,14 @@ package dev.ryanhcode.offroad.handlers.server;
 
 import com.simibubi.create.content.kinetics.base.BlockBreakingKineticBlockEntity;
 import com.simibubi.create.foundation.utility.BlockHelper;
-import dev.engine_room.flywheel.lib.util.LevelAttached;
+import dev.simulated_team.simulated.fabric.registry.NativeLevelData;
 import dev.ryanhcode.offroad.handlers.MultiminingDataTickResult;
 import dev.ryanhcode.offroad.network.borehead_bearing.ClientboundMultiMiningSync;
 import foundry.veil.api.network.VeilPacketManager;
 import io.netty.buffer.ByteBuf;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -19,7 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class MultiMiningServerManager {
 
-    public static final LevelAttached<MultiMiningServerManager> ATTACHED_DATA = new LevelAttached<>(level -> {
+    public static final NativeLevelData<MultiMiningServerManager> ATTACHED_DATA = new NativeLevelData<>(Identifier.fromNamespaceAndPath("offroad", "multi_mining_server"), level -> {
         if (level.isClientSide()) {
             return null;
         }
@@ -30,12 +31,12 @@ public class MultiMiningServerManager {
     /**
      * We use Create's block breaking kinetic BE ID to avoid ID conflicts
      */
-    private static final AtomicInteger MULTIMINING_IDS = BlockBreakingKineticBlockEntity.NEXT_BREAKER_ID;
+
 
     /**
      * Block breaking ID that is synced to client to ensure that we don't needlessly create excess IDs and to reduce data sent to client
      */
-    private final int breakingId = -MULTIMINING_IDS.incrementAndGet();
+    private final int breakingId = BlockBreakingKineticBlockEntity.nextBreakerId();
 
     private final Map<BlockPos, BlockBreakingData> breakingDataMap = new Object2ObjectOpenHashMap<>();
     private final Map<BlockPos, ClientboundMultiMiningSync> dirtyBreakingData = new Object2ObjectOpenHashMap<>();
@@ -44,7 +45,7 @@ public class MultiMiningServerManager {
      * @return Whether the given position is a newly added one
      */
     public static boolean addOrRefreshPos(final Level level, final BlockPos pos, final MultiMiningSupplier supplier) {
-        if (level.isClientSide) {
+        if (level.isClientSide()) {
             return false;
         }
 
@@ -57,7 +58,7 @@ public class MultiMiningServerManager {
     }
 
     public static void tick(final Level level) {
-        if (level.isClientSide) {
+        if (level.isClientSide()) {
             return;
         }
 
@@ -193,7 +194,7 @@ public class MultiMiningServerManager {
 
                 if (this.getDestroyProgress() >= 10) {
                     Collections.shuffle(this.suppliers);
-                    BlockHelper.destroyBlock(level, this.getBreakingPos(), 1, stack -> {
+                    BlockHelper.destroyBlock((ServerLevel) level, this.getBreakingPos(), 1, stack -> {
                         for (final MultiMiningSupplier supplier : this.suppliers) {
                             supplier.itemCallback(stack);
                             if (stack.isEmpty()) {

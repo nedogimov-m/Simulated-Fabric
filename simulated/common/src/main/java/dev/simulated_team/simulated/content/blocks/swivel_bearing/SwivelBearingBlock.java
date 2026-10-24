@@ -1,25 +1,24 @@
 package dev.simulated_team.simulated.content.blocks.swivel_bearing;
 
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.simpleRelays.CogwheelBlockItem;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.ryanhcode.sable.api.block.BlockSubLevelAssemblyListener;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.index.SimBlockShapes;
 import dev.simulated_team.simulated.index.SimBlocks;
 import dev.simulated_team.simulated.util.extra_kinetics.ExtraKinetics;
 import dev.simulated_team.simulated.util.placement_helpers.CogwheelPlacementExtension;
-import net.createmod.catnip.placement.IPlacementHelper;
-import net.createmod.catnip.placement.PlacementHelpers;
+import dev.simulated_team.simulated.api.AssistedPlacement.Helper;
+import dev.simulated_team.simulated.api.AssistedPlacement;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
@@ -38,10 +37,10 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class SwivelBearingBlock extends DirectionalKineticBlock implements IBE<SwivelBearingBlockEntity>, IRotate, ExtraKinetics.ExtraKineticsBlock, BlockSubLevelAssemblyListener {
+public class SwivelBearingBlock extends DirectionalKineticBlock implements NativeEntityBlock<SwivelBearingBlockEntity>, IRotate, ExtraKinetics.ExtraKineticsBlock, BlockSubLevelAssemblyListener , NativeWrenchable {
     public static final BooleanProperty ASSEMBLED = BooleanProperty.create("assembled");
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
-    private static final int placementHelperId = PlacementHelpers.register(new CogwheelPlacementExtension((i) -> i.getItem() instanceof CogwheelBlockItem, SimBlocks.SWIVEL_BEARING::has));
+    private static final int placementHelperId = AssistedPlacement.register(new CogwheelPlacementExtension((i) -> i.getItem() instanceof CogwheelBlockItem, state -> state.is(SimBlocks.SWIVEL_BEARING)));
 
     public SwivelBearingBlock(final Properties properties) {
         super(properties);
@@ -54,34 +53,34 @@ public class SwivelBearingBlock extends DirectionalKineticBlock implements IBE<S
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
+    protected InteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
         if (!player.mayBuild()) {
-            return ItemInteractionResult.FAIL;
+            return InteractionResult.FAIL;
         }
 
         if (player.isShiftKeyDown()) {
-            return ItemInteractionResult.FAIL;
+            return InteractionResult.FAIL;
         }
 
         if (player.getItemInHand(interactionHand).isEmpty()) {
-            if (level.isClientSide) {
-                return ItemInteractionResult.SUCCESS;
+            if (level.isClientSide()) {
+                return InteractionResult.SUCCESS;
             }
 
             this.withBlockEntityDo(level, blockPos, be -> be.assembleNextTick = true);
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
 
         final ItemStack heldItem = player.getItemInHand(interactionHand);
-        final IPlacementHelper helper = PlacementHelpers.get(placementHelperId);
+        final Helper helper = AssistedPlacement.get(placementHelperId);
         if (helper.matchesItem(heldItem)) {
             return helper
-                    .getOffset(player, level, blockState, blockPos, blockHitResult)
+                    .getOffset(player, level, blockState, blockPos, blockHitResult, heldItem)
                     .placeInWorld(level, (BlockItem) heldItem.getItem(), player, interactionHand, blockHitResult);
         }
 
 
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     @Override
@@ -103,7 +102,7 @@ public class SwivelBearingBlock extends DirectionalKineticBlock implements IBE<S
         if (!rotated.canSurvive(level, context.getClickedPos()))
             return InteractionResult.PASS;
 
-        if (!level.isClientSide) {
+        if (!level.isClientSide()) {
             this.withBlockEntityDo(level, pos, SwivelBearingBlockEntity::disassemble);
         }
 
@@ -112,7 +111,7 @@ public class SwivelBearingBlock extends DirectionalKineticBlock implements IBE<S
         KineticBlockEntity.switchToBlockState(level, pos, this.updateAfterWrenched(rotated, context));
 
         if (level.getBlockState(pos) != state)
-            IWrenchable.playRotateSound(level, pos);
+            NativeWrenchable.playRotateSound(level, pos);
 
         return InteractionResult.SUCCESS;
     }
@@ -124,7 +123,7 @@ public class SwivelBearingBlock extends DirectionalKineticBlock implements IBE<S
 
     @Override
     public BlockEntityType<? extends SwivelBearingBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.SWIVEL_BEARING.get();
+        return SimBlockEntityTypes.SWIVEL_BEARING;
     }
 
     @Override
@@ -145,5 +144,17 @@ public class SwivelBearingBlock extends DirectionalKineticBlock implements IBE<S
     @Override
     public void afterMove(final ServerLevel originLevel, final ServerLevel resultingLevel, final BlockState newState, final BlockPos oldPos, final BlockPos newPos) {
         this.withBlockEntityDo(resultingLevel, newPos, SwivelBearingBlockEntity::associatePlateWithParent);
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

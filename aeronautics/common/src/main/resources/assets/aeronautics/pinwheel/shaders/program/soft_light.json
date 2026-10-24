@@ -1,4 +1,22 @@
 {
-  "vertex": "veil:blit_screen",
-  "fragment": "aeronautics:soft_light"
+  "vertex": "veil:core/gpu_blit",
+  "fragment": "aeronautics:soft_light",
+  "textures": {
+    "DiffuseSampler0": {
+      "type": "framebuffer",
+      "name": "aeronautics:soft_light"
+    },
+    "DiffuseDepthSampler": {
+      "type": "framebuffer",
+      "name": "aeronautics:soft_light:depth"
+    },
+    "MainSampler": {
+      "type": "framebuffer",
+      "name": "minecraft:main"
+    },
+    "MainDepthSampler": {
+      "type": "framebuffer",
+      "name": "minecraft:main:depth"
+    }
+  }
 }

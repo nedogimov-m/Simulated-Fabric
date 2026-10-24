@@ -1,8 +1,8 @@
 package dev.simulated_team.simulated.config.server.physics;
 
-import net.createmod.catnip.config.ConfigBase;
+import com.simibubi.create.infrastructure.config.NativeConfigBase;
 
-public class SimPhysics extends ConfigBase {
+public class SimPhysics extends NativeConfigBase {
 
     public final ConfigFloat redstoneMagnetStrength = this.f(1000, 0, Float.MAX_VALUE, "redstoneMagnetStrength", Comments.redstoneMagnetStrength);
     public final ConfigFloat dockingConnectorStrength = this.f(1000, 0, Float.MAX_VALUE, "dockingConnectorStrength", Comments.dockingConnectorStrength);

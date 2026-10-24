@@ -2,15 +2,9 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "A": {
-      "tag": "minecraft:wooden_slabs"
-    },
-    "B": {
-      "item": "create:industrial_iron_block"
-    },
-    "C": {
-      "item": "create:cogwheel"
-    }
+    "A": "#minecraft:wooden_slabs",
+    "B": "create:industrial_iron_block",
+    "C": "create:cogwheel"
   },
   "pattern": [
     " A ",

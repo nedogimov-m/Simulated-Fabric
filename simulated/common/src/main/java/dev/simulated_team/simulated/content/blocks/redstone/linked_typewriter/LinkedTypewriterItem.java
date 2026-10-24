@@ -2,9 +2,7 @@ package dev.simulated_team.simulated.content.blocks.redstone.linked_typewriter;
 
 import com.simibubi.create.content.redstone.link.RedstoneLinkBlockEntity;
 import com.simibubi.create.content.redstone.link.RedstoneLinkNetworkHandler;
-import com.simibubi.create.foundation.utility.RaycastHelper;
 import dev.simulated_team.simulated.content.blocks.redstone.AbstractLinkedReceiverBlockEntity;
-import dev.simulated_team.simulated.mixin.accessor.RedstoneLinkBlockEntityAccessor;
 import net.createmod.catnip.data.Couple;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -13,7 +11,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
@@ -45,12 +42,12 @@ public class LinkedTypewriterItem extends BlockItem {
         if (be instanceof final AbstractLinkedReceiverBlockEntity abe) {
             frequency = abe.getFrequency();
         } else if (be instanceof final RedstoneLinkBlockEntity lbe) {
-            frequency = ((RedstoneLinkBlockEntityAccessor) lbe).getLink().getNetworkKey();
+            frequency = lbe.getLink().getNetworkKey();
         }
 
         //should never be null here, but whatever
         if (frequency != null) {
-            if (!level.isClientSide) {
+            if (!level.isClientSide()) {
                 return InteractionResult.CONSUME;
             }
 
@@ -64,7 +61,7 @@ public class LinkedTypewriterItem extends BlockItem {
             LinkedTypewriterInteractionHandler.setMode(LinkedTypewriterInteractionHandler.Mode.BINDING_FROM_ITEM);
             LinkedTypewriterItemBindHandler.setClickedPos(clickedPos);
             return InteractionResult.SUCCESS;
-        } else if (level.isClientSide) {
+        } else if (level.isClientSide()) {
             LinkedTypewriterItemBindHandler.reset();
         }
 
@@ -72,9 +69,9 @@ public class LinkedTypewriterItem extends BlockItem {
     }
 
     @Override
-    public InteractionResultHolder<ItemStack> use(final Level level, final Player player, final InteractionHand usedHand) {
-        final BlockHitResult blockHitResult = RaycastHelper.rayTraceRange(level, player, player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE));
-        if (blockHitResult.getType() == HitResult.Type.MISS && level.isClientSide) {
+    public InteractionResult use(final Level level, final Player player, final InteractionHand usedHand) {
+        final BlockHitResult blockHitResult = getPlayerPOVHitResult(level,player,net.minecraft.world.level.ClipContext.Fluid.NONE);
+        if (blockHitResult.getType() == HitResult.Type.MISS && level.isClientSide()) {
             LinkedTypewriterItemBindHandler.reset();
         }
 
@@ -82,14 +79,10 @@ public class LinkedTypewriterItem extends BlockItem {
     }
 
     @Override
-    public void appendHoverText(final ItemStack stack, final TooltipContext context, final List<Component> tooltipComponents, final TooltipFlag tooltipFlag) {
-        super.appendHoverText(stack, context, tooltipComponents, tooltipFlag);
-        if (stack.has(DataComponents.BLOCK_ENTITY_DATA)) {
-            final CompoundTag tag = stack.get(DataComponents.BLOCK_ENTITY_DATA).copyTag();
-            if (tag.contains("Keys", CompoundTag.TAG_LIST)) {
-                final int keyCount = tag.getList("Keys", CompoundTag.TAG_COMPOUND).size();
-                tooltipComponents.add(Component.translatable("simulated.linked_typewriter.key_count", keyCount).withStyle(ChatFormatting.GOLD));
-            }
-        }
+    public void appendHoverText(final ItemStack stack,final TooltipContext context,final net.minecraft.world.item.component.TooltipDisplay display,final java.util.function.Consumer<Component> tooltip,final TooltipFlag flag) {
+        super.appendHoverText(stack,context,display,tooltip,flag);
+        final var data=stack.get(DataComponents.BLOCK_ENTITY_DATA);
+        if(data!=null&&display.shows(DataComponents.BLOCK_ENTITY_DATA))data.copyTagWithoutId().getList("Keys").ifPresent(keys->
+                tooltip.accept(Component.translatable("simulated.linked_typewriter.key_count",keys.size()).withStyle(ChatFormatting.GOLD)));
     }
 }

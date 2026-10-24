@@ -3,17 +3,17 @@ package dev.simulated_team.simulated.content.blocks.analog_transmission;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.RotatedPillarKineticBlock;
 import com.simibubi.create.content.kinetics.simpleRelays.CogwheelBlockItem;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.index.SimBlocks;
 import dev.simulated_team.simulated.util.extra_kinetics.ExtraKinetics;
 import dev.simulated_team.simulated.util.placement_helpers.CogwheelPlacementExtension;
-import net.createmod.catnip.placement.IPlacementHelper;
-import net.createmod.catnip.placement.PlacementHelpers;
+import dev.simulated_team.simulated.api.AssistedPlacement.Helper;
+import dev.simulated_team.simulated.api.AssistedPlacement;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
@@ -31,9 +31,9 @@ import net.minecraft.world.phys.BlockHitResult;
 /**
  * The parent Block. Implements {@link ExtraKinetics.ExtraKineticsBlock ExtraKienticsBlock} to ensure {@link com.simibubi.create.content.kinetics.RotationPropagator} sees the ExtraKinetic BlockEntity
  */
-public class AnalogTransmissionBlock extends RotatedPillarKineticBlock implements IBE<AnalogTransmissionBlockEntity>, ExtraKinetics.ExtraKineticsBlock {
+public class AnalogTransmissionBlock extends RotatedPillarKineticBlock implements NativeEntityBlock<AnalogTransmissionBlockEntity>, ExtraKinetics.ExtraKineticsBlock {
 
-    public static final int placementHelperId = PlacementHelpers.register(new CogwheelPlacementExtension((i) -> i.getItem() instanceof CogwheelBlockItem, SimBlocks.ANALOG_TRANSMISSION::has));
+    public static final int placementHelperId = AssistedPlacement.register(new CogwheelPlacementExtension((i) -> i.getItem() instanceof CogwheelBlockItem, state -> state.is(SimBlocks.ANALOG_TRANSMISSION)));
 
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
@@ -42,13 +42,13 @@ public class AnalogTransmissionBlock extends RotatedPillarKineticBlock implement
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
+    protected InteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
         final ItemStack heldItem = player.getItemInHand(interactionHand);
 
-        final IPlacementHelper helper = PlacementHelpers.get(placementHelperId);
+        final Helper helper = AssistedPlacement.get(placementHelperId);
         if (helper.matchesItem(heldItem)) {
             return helper
-                    .getOffset(player, level, blockState, blockPos, blockHitResult)
+                    .getOffset(player, level, blockState, blockPos, blockHitResult, heldItem)
                     .placeInWorld(level, (BlockItem) heldItem.getItem(), player, interactionHand, blockHitResult);
         }
 
@@ -88,6 +88,18 @@ public class AnalogTransmissionBlock extends RotatedPillarKineticBlock implement
 
     @Override
     public BlockEntityType<? extends AnalogTransmissionBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.SIMPLE_BE.get();
+        return SimBlockEntityTypes.SIMPLE_BE;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

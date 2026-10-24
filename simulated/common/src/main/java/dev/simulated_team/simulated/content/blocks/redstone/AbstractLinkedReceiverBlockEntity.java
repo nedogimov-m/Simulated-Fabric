@@ -18,7 +18,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.util.Tuple;
+import org.apache.commons.lang3.tuple.Pair;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -51,7 +51,7 @@ public abstract class AbstractLinkedReceiverBlockEntity extends SmartBlockEntity
     protected void createLink() {
         final Pair<ValueBoxTransform, ValueBoxTransform> slots =
                 ValueBoxTransform.Dual.makeSlots(LinkedReceiverFrequencySlot::new);
-        this.link = LinkBehaviour.receiver(this, slots, (signal) -> {});
+        this.link = LinkBehaviour.receiver(this, (signal) -> {});
     }
 
     public void setSignal(final int power, final double rawValue) {
@@ -65,7 +65,7 @@ public abstract class AbstractLinkedReceiverBlockEntity extends SmartBlockEntity
     public void tick() {
         super.tick();
 
-        if (this.level.isClientSide) {
+        if (this.level.isClientSide()) {
             return;
         }
 
@@ -86,9 +86,9 @@ public abstract class AbstractLinkedReceiverBlockEntity extends SmartBlockEntity
             final Direction attachedFace = blockState.getValue(RedstoneLinkBlock.FACING)
                     .getOpposite();
             final BlockPos attachedPos = this.worldPosition.relative(attachedFace);
-            this.level.blockUpdated(this.worldPosition, this.level.getBlockState(this.worldPosition)
+            this.level.updateNeighborsAt(this.worldPosition, this.level.getBlockState(this.worldPosition)
                     .getBlock());
-            this.level.blockUpdated(attachedPos, this.level.getBlockState(attachedPos)
+            this.level.updateNeighborsAt(attachedPos, this.level.getBlockState(attachedPos)
                     .getBlock());
             this.receivedSignalChanged = false;
             //sendData();
@@ -125,10 +125,10 @@ public abstract class AbstractLinkedReceiverBlockEntity extends SmartBlockEntity
                         subLevel.logicalPose().transformNormalInverse(relativePos);
                     }
 
-                    final Tuple<Integer, Double> signal = this.getSignalFromLink(JOMLConversion.toMojang(relativePos), link.getTransmittedStrength());
-                    if (signal.getA() > newSignal) {
-                        newSignal = signal.getA();
-                        rawValue = signal.getB();
+                    final Pair<Integer, Double> signal = this.getSignalFromLink(JOMLConversion.toMojang(relativePos), link.getTransmittedStrength());
+                    if (signal.getLeft() > newSignal) {
+                        newSignal = signal.getLeft();
+                        rawValue = signal.getRight();
                     }
                 }
         }
@@ -136,19 +136,19 @@ public abstract class AbstractLinkedReceiverBlockEntity extends SmartBlockEntity
     }
 
     @Override
-    public void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
+    public void write(final net.minecraft.world.level.storage.ValueOutput compound, final boolean clientPacket) {
         compound.putInt("Receive", this.getReceivedSignal());
         compound.putDouble("ReceivedValue", this.rawSignalValue);
         compound.putBoolean("ReceivedChanged", this.receivedSignalChanged);
-        super.write(compound, registries, clientPacket);
+        super.write(compound, clientPacket);
     }
 
     @Override
-    protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(compound, registries, clientPacket);
-        this.receivedSignal = compound.getInt("Receive");
-        this.rawSignalValue = compound.getDouble("ReceivedValue");
-        this.receivedSignalChanged = compound.getBoolean("ReceivedChanged");
+    protected void read(final net.minecraft.world.level.storage.ValueInput compound, final boolean clientPacket) {
+        super.read(compound, clientPacket);
+        this.receivedSignal = compound.getIntOr("Receive", 0);
+        this.rawSignalValue = compound.getDoubleOr("ReceivedValue", 0d);
+        this.receivedSignalChanged = compound.getBooleanOr("ReceivedChanged", false);
     }
 
     public int getReceivedSignal() {
@@ -159,7 +159,7 @@ public abstract class AbstractLinkedReceiverBlockEntity extends SmartBlockEntity
         return this.link.getNetworkKey();
     }
 
-    public abstract Tuple<Integer, Double> getSignalFromLink(Vec3 relativePosition, int transmittedStrength);
+    public abstract Pair<Integer, Double> getSignalFromLink(Vec3 relativePosition, int transmittedStrength);
 
     @Override
     public void remove() {
@@ -168,9 +168,9 @@ public abstract class AbstractLinkedReceiverBlockEntity extends SmartBlockEntity
         final Direction attachedFace = this.getBlockState().getValue(RedstoneLinkBlock.FACING)
                 .getOpposite();
         final BlockPos attachedPos = this.worldPosition.relative(attachedFace);
-        this.level.blockUpdated(this.worldPosition, this.level.getBlockState(this.worldPosition)
+        this.level.updateNeighborsAt(this.worldPosition, this.level.getBlockState(this.worldPosition)
                 .getBlock());
-        this.level.blockUpdated(attachedPos, this.level.getBlockState(attachedPos)
+        this.level.updateNeighborsAt(attachedPos, this.level.getBlockState(attachedPos)
                 .getBlock());
     }
 }

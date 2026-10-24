@@ -1,7 +1,6 @@
 package dev.simulated_team.simulated.content.blocks.lasers.optical_sensor;
 
 import com.google.common.collect.ImmutableList;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.equipment.clipboard.ClipboardCloneable;
 import com.simibubi.create.content.redstone.DirectedDirectionalBlock;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
@@ -11,7 +10,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.ValueSettingsBoard;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueSettingsFormatter;
 import com.simibubi.create.foundation.blockEntity.behaviour.filtering.FilteringBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
-import dev.engine_room.flywheel.lib.transform.TransformStack;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.simulated_team.simulated.content.blocks.lasers.AbstractLaserBlockEntity;
@@ -84,7 +82,7 @@ public class OpticalSensorBlockEntity extends AbstractLaserBlockEntity implement
 
     @Override
     public void addBehaviours(final List<BlockEntityBehaviour> behaviours) {
-        behaviours.add(this.filter = new FilteringBehaviour(this, new FilterValueBoxTransform()));
+        behaviours.add(this.filter = new FilteringBehaviour(this));
         final int maxRange = SimConfigService.INSTANCE.server().blocks.opticalSensorRange.get();
         behaviours.add(this.range = new RangeScrollValueBehaviour(
                 SimLang.translate("optical_sensor.max_length").component(), this, new RangeValueBoxTransform()
@@ -181,7 +179,7 @@ public class OpticalSensorBlockEntity extends AbstractLaserBlockEntity implement
      */
     public boolean tryApplyDye(final ItemStack item) {
         if (item.getItem() instanceof final DyeItem dyeItem) {
-            final Color color = new Color(dyeItem.getDyeColor().getTextColor());
+            final Color color = new Color(item.getOrDefault(net.minecraft.core.component.DataComponents.DYE, net.minecraft.world.item.DyeColor.WHITE).getTextColor());
             
             // color is grayscale
             if (color.getRed() == color.getGreen() && color.getGreen() == color.getBlue()) {
@@ -201,14 +199,14 @@ public class OpticalSensorBlockEntity extends AbstractLaserBlockEntity implement
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(tag, registries, clientPacket);
-        this.opacity = Math.clamp(tag.contains("Opacity") ? tag.getFloat("Opacity") : 1, 0, 1);
+    protected void read(final net.minecraft.world.level.storage.ValueInput tag, final boolean clientPacket) {
+        super.read(tag, clientPacket);
+        this.opacity = Math.clamp(tag.getFloatOr("Opacity", 1), 0, 1);
     }
 
     @Override
-    protected void write(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(tag, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput tag, final boolean clientPacket) {
+        super.write(tag, clientPacket);
         tag.putFloat("Opacity", this.opacity);
     }
 
@@ -233,7 +231,7 @@ public class OpticalSensorBlockEntity extends AbstractLaserBlockEntity implement
         if(simulate) {
             return true;
         }
-        this.opacity = tag.getFloat("Opacity");
+        this.opacity = tag.getFloatOr("Opacity", 0f);
         return true;
     }
 
@@ -253,15 +251,15 @@ public class OpticalSensorBlockEntity extends AbstractLaserBlockEntity implement
         }
 
         @Override
-        public void rotate(final LevelAccessor level, final BlockPos pos, final BlockState state, final PoseStack ms) {
+        public void rotate(final LevelAccessor level, final BlockPos pos, final BlockState state, final org.joml.Matrix4f ms) {
             super.rotate(level, pos, state, ms);
             final Direction facing = state.getValue(DirectedDirectionalBlock.FACING);
             if (facing.getAxis() == Direction.Axis.Y)
                 return;
             if (this.getSide() != Direction.UP)
                 return;
-            TransformStack.of(ms)
-                    .rotateZDegrees(-AngleHelper.horizontalAngle(facing) + 180);
+            ms
+                    .rotateZ((float) Math.toRadians(-AngleHelper.horizontalAngle(facing) + 180));
         }
     }
 
@@ -279,7 +277,7 @@ public class OpticalSensorBlockEntity extends AbstractLaserBlockEntity implement
         }
 
         @Override
-        public void rotate(final LevelAccessor level, final BlockPos pos, final BlockState state, final PoseStack ms) {
+        public void rotate(final LevelAccessor level, final BlockPos pos, final BlockState state, final org.joml.Matrix4f ms) {
             super.rotate(level, pos, state, ms);
             final Direction facing = state.getValue(DirectedDirectionalBlock.FACING);
 
@@ -289,8 +287,8 @@ public class OpticalSensorBlockEntity extends AbstractLaserBlockEntity implement
             if (this.getSide() != Direction.UP)
                 return;
 
-            TransformStack.of(ms)
-                    .rotateZDegrees(-AngleHelper.horizontalAngle(facing) + 180);
+            ms
+                    .rotateZ((float) Math.toRadians(-AngleHelper.horizontalAngle(facing) + 180));
         }
     }
 

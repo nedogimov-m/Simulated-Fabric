@@ -35,13 +35,13 @@ public class DiagramItem extends Item {
             return InteractionResult.CONSUME;
         }
 
-        if (!world.isClientSide) {
+        if (!world.isClientSide()) {
             diagram.playPlacementSound();
             world.addFreshEntity(diagram);
         }
 
         stack.shrink(1);
-        return InteractionResult.sidedSuccess(world.isClientSide);
+        return InteractionResult.SUCCESS;
     }
 
 }

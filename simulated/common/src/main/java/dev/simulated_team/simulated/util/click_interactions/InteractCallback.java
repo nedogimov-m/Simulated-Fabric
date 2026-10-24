@@ -94,9 +94,9 @@ public interface InteractCallback {
 
         public boolean matches(final KeyMapping mapping) {
             if (this.mouse) {
-                return mapping.matchesMouse(this.key);
+                return mapping.matches(com.mojang.blaze3d.platform.InputConstants.Type.MOUSE.getOrCreate(this.key));
             } else {
-                return mapping.matches(this.key, this.scanCode);
+                return mapping.matches(new net.minecraft.client.input.KeyEvent(this.key,this.scanCode,0));
             }
         }
     }

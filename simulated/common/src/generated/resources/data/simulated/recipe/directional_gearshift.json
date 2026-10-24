@@ -2,18 +2,10 @@
   "type": "minecraft:crafting_shapeless",
   "category": "misc",
   "ingredients": [
-    {
-      "item": "create:andesite_casing"
-    },
-    {
-      "item": "create:cogwheel"
-    },
-    {
-      "item": "minecraft:redstone_torch"
-    },
-    {
-      "item": "create:shaft"
-    }
+    "create:andesite_casing",
+    "create:cogwheel",
+    "minecraft:redstone_torch",
+    "create:shaft"
   ],
   "result": {
     "count": 1,

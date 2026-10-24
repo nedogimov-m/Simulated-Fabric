@@ -79,7 +79,6 @@ public class MergingGlueBlockEntity extends SmartBlockEntity implements BlockEnt
                     final MergingGlueBlockEntity partner = this.getPartnerGlue();
 
                     if (partner != null) {
-                        this.breakGlue();
                         partner.disassembleToPartner(switch (this.endRotation) {
                             case NONE -> Rotation.NONE;
                             case CLOCKWISE_90 ->  Rotation.COUNTERCLOCKWISE_90;
@@ -91,7 +90,6 @@ public class MergingGlueBlockEntity extends SmartBlockEntity implements BlockEnt
                 }
             }
 
-            this.breakGlue();
             this.disassembleToPartner(this.endRotation);
             return;
         }
@@ -109,7 +107,7 @@ public class MergingGlueBlockEntity extends SmartBlockEntity implements BlockEnt
 
         final SubLevel subLevel = Sable.HELPER.getContaining(this);
         final BlockPos pos = this.getBlockPos().relative(this.getBlockState().getValue(MergingGlueBlock.FACING).getOpposite());
-        SimAssemblyHelper.disassembleSubLevel(this.level, subLevel, pos, this.partnerPosition, rotation, false);
+        SimAssemblyHelper.disassembleSubLevel(this.level, subLevel, pos, this.partnerPosition, rotation, false, this::breakGlue);
     }
 
     private void breakGlue() {
@@ -184,8 +182,8 @@ public class MergingGlueBlockEntity extends SmartBlockEntity implements BlockEnt
     }
 
     @Override
-    protected void write(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(tag, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput tag, final boolean clientPacket) {
+        super.write(tag, clientPacket);
 
         tag.putBoolean("Controller", this.isController);
 
@@ -195,13 +193,13 @@ public class MergingGlueBlockEntity extends SmartBlockEntity implements BlockEnt
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(tag, registries, clientPacket);
+    protected void read(final net.minecraft.world.level.storage.ValueInput tag, final boolean clientPacket) {
+        super.read(tag, clientPacket);
 
-        this.isController = tag.getBoolean("Controller");
+        this.isController = tag.getBooleanOr("Controller", false);
 
-        if (tag.contains("PartnerPosition")) {
-            this.partnerPosition = BlockPos.of(tag.getLong("PartnerPosition"));
+        if (tag.getLong("PartnerPosition").isPresent()) {
+            this.partnerPosition = BlockPos.of(tag.getLongOr("PartnerPosition", 0L));
         }
     }
 
@@ -264,8 +262,8 @@ public class MergingGlueBlockEntity extends SmartBlockEntity implements BlockEnt
             this.endPartnerOrientation.rotateY(turns * ninety);
             this.endRotation = SimAssemblyHelper.rotationFrom90DegRots(-turns);
         } else {
-            final Vec3i normal = direction.getNormal();
-            final Vec3i partnerNormal = partnerDirection.getNormal();
+            final Vec3i normal = direction.getUnitVec3i();
+            final Vec3i partnerNormal = partnerDirection.getUnitVec3i();
 
             double angle = Math.atan2(partnerNormal.getX(), partnerNormal.getZ()) - Math.atan2(normal.getX(), normal.getZ());
             if (direction.getAxis() == partnerDirection.getAxis()) {

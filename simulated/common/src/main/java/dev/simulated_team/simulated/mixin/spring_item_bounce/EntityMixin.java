@@ -1,6 +1,7 @@
 package dev.simulated_team.simulated.mixin.spring_item_bounce;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import dev.simulated_team.simulated.data.advancements.SimAdvancements;
 import dev.simulated_team.simulated.index.SimDataComponents;
@@ -29,18 +30,17 @@ public abstract class EntityMixin {
 
     @Shadow public abstract Vec3 getPosition(float partialTicks);
 
-    @WrapOperation(method = "move", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/block/Block;updateEntityAfterFallOn(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/world/entity/Entity;)V"))
-    private void simulated$bouncyItemVelocity(final Block instance, final BlockGetter level, final Entity entity,
-                                              final Operation<Void> original) {
-        if (entity instanceof final ItemEntity item) {
-            final Float bounce = item.getItem().get(SimDataComponents.BOUNCINESS);
-            if (bounce != null && bounce > 0) {
-                entity.setDeltaMovement(entity.getDeltaMovement().multiply(1, -bounce, 1));
-                return;
-            }
+    @WrapMethod(method="restituteMovementAfterCollisions")
+    private void simulated$bouncyItemVelocity(BlockState ground,boolean hitX,boolean hitZ,Vec3 requestedMovement,Operation<Void> original) {
+        final var entity=(Entity)(Object)this;
+        final double previousY=entity.getDeltaMovement().y;
+        final Float restitution=entity instanceof ItemEntity item?item.getItem().get(SimDataComponents.BOUNCINESS):null;
+        original.call(ground,hitX,hitZ,requestedMovement);
+        if(restitution!=null&&restitution>0&&entity.verticalCollisionBelow&&previousY<0) {
+            // The native owner performs actual collision/restoration; preserve the source item's vertical coefficient.
+            final var result=entity.getDeltaMovement();
+            entity.setDeltaMovement(result.x,-previousY*restitution,result.z);
         }
-
-        original.call(instance, level, entity);
     }
 
     @Inject(method = "checkFallDamage", at = @At(value = "HEAD"))

@@ -40,7 +40,7 @@ public class AirflowAABBInstruction extends TickingInstruction {
     @Override
     protected final void firstTick(final PonderScene scene) {
         super.firstTick(scene);
-        this.hash = scene.getWorld().random.nextInt();
+        this.hash = scene.getWorld().getRandom().nextInt();
     }
 
     @Override
@@ -51,7 +51,7 @@ public class AirflowAABBInstruction extends TickingInstruction {
         final float offset = this.speed * age;
         final float totalOffset = this.totalTicks * this.speed;
 
-        double length = Vec3.atLowerCornerOf(this.direction.getNormal()).dot(new Vec3(this.bb.getXsize(), this.bb.getYsize(), this.bb.getZsize()));
+        double length = Vec3.atLowerCornerOf(this.direction.getUnitVec3i()).dot(new Vec3(this.bb.getXsize(), this.bb.getYsize(), this.bb.getZsize()));
         length = Math.abs(length);
         final AABB commonBB = this.bb.contract(this.direction.getStepX() * length, this.direction.getStepY() * length, this.direction.getStepZ() * length);
 
@@ -60,7 +60,7 @@ public class AirflowAABBInstruction extends TickingInstruction {
 
         for (int i = startIndex; i <= endIndex; i++) {
             final double position = offset - i * this.spacing;
-            final AABB currentBB = commonBB.move(Vec3.atLowerCornerOf(this.direction.getNormal()).scale(position));
+            final AABB currentBB = commonBB.move(Vec3.atLowerCornerOf(this.direction.getUnitVec3i()).scale(position));
             scene.getOutliner()
                     .chaseAABB(this.hash + i, currentBB)
                     .lineWidth(1 / 32f)

@@ -1,12 +1,12 @@
 package dev.simulated_team.simulated.util.placement_helpers;
 
-import net.createmod.catnip.placement.IPlacementHelper;
+import dev.simulated_team.simulated.api.AssistedPlacement.Helper;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.function.Predicate;
 
-public abstract class SimplePlacementHelper implements IPlacementHelper {
+public abstract class SimplePlacementHelper implements Helper {
 
     Predicate<ItemStack> itemPredicate;
 

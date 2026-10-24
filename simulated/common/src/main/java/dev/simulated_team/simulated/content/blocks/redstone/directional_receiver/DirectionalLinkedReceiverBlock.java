@@ -2,8 +2,8 @@ package dev.simulated_team.simulated.content.blocks.redstone.directional_receive
 
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.api.contraption.BlockMovementChecks;
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import com.simibubi.create.foundation.block.WrenchableDirectionalBlock;
 import com.simibubi.create.impl.contraption.BlockMovementChecksImpl;
 import dev.simulated_team.simulated.content.blocks.redstone.modulating_receiver.ModulatingLinkedReceiverBlock;
@@ -27,8 +27,8 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 
-public class DirectionalLinkedReceiverBlock extends WrenchableDirectionalBlock implements IBE<DirectionalLinkedReceiverBlockEntity>, IWrenchable, CommonRedstoneBlock {
-    public static final MapCodec<ModulatingLinkedReceiverBlock> CODEC = simpleCodec(ModulatingLinkedReceiverBlock::new);
+public class DirectionalLinkedReceiverBlock extends WrenchableDirectionalBlock implements NativeEntityBlock<DirectionalLinkedReceiverBlockEntity>, NativeWrenchable, CommonRedstoneBlock {
+
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
     static {
@@ -51,11 +51,6 @@ public class DirectionalLinkedReceiverBlock extends WrenchableDirectionalBlock i
     }
 
     @Override
-    protected MapCodec<? extends DirectionalBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(final StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(POWERED);
         super.createBlockStateDefinition(builder);
@@ -69,7 +64,7 @@ public class DirectionalLinkedReceiverBlock extends WrenchableDirectionalBlock i
 
     @Override
     public BlockEntityType<? extends DirectionalLinkedReceiverBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.DIRECTIONAL_LINKED_RECEIVER.get();
+        return SimBlockEntityTypes.DIRECTIONAL_LINKED_RECEIVER;
     }
 
     @Override
@@ -104,13 +99,13 @@ public class DirectionalLinkedReceiverBlock extends WrenchableDirectionalBlock i
     }
 
     @Override
-    public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block blockIn, final BlockPos fromPos,
+    public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block blockIn,final net.minecraft.world.level.redstone.Orientation orientation,
                                 final boolean isMoving) {
-        if (level.isClientSide)
+        if (level.isClientSide())
             return;
 
         final Direction blockFacing = state.getValue(FACING);
-        if (fromPos.equals(pos.relative(blockFacing.getOpposite()))) {
+        if (!this.canSurvive(state, level, pos)) {
             if (!this.canSurvive(state, level, pos)) {
                 level.destroyBlock(pos, true);
             }
@@ -128,5 +123,17 @@ public class DirectionalLinkedReceiverBlock extends WrenchableDirectionalBlock i
     @Override
     public boolean commonConnectRedstone(final BlockState state, final BlockGetter world, final BlockPos pos, final Direction side) {
         return side != null;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

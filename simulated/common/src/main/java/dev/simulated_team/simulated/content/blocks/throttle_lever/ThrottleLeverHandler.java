@@ -1,16 +1,13 @@
 package dev.simulated_team.simulated.content.blocks.throttle_lever;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 import dev.simulated_team.simulated.network.packets.ThrottleLeverSignalPacket;
 import dev.simulated_team.simulated.util.SimColors;
 import dev.simulated_team.simulated.util.hold_interaction.BlockHoldInteraction;
 import foundry.veil.api.network.VeilPacketManager;
 import net.createmod.catnip.animation.AnimationTickHolder;
-import net.createmod.catnip.gui.UIRenderHelper;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
@@ -27,9 +24,9 @@ public class ThrottleLeverHandler extends BlockHoldInteraction {
     @Override
     public void startHold(final Level level, final Player player, final BlockPos pos) {
         if (level.getBlockEntity(pos) instanceof final ThrottleLeverBlockEntity be) {
-            this.lastSignal = be.state;
             this.inverted = be.getBlockState().getValue(ThrottleLeverBlock.INVERTED);
             this.signal = this.inverted ? 15 - be.state : be.state;
+            this.lastSignal = this.signal;
             this.value = this.signal / 15f;
             this.animatedValue = this.lastAnimatedValue = this.value;
         }
@@ -39,7 +36,7 @@ public class ThrottleLeverHandler extends BlockHoldInteraction {
     @Override
     public boolean activeTick(final Level level, final LocalPlayer player) {
         if (level.getBlockEntity(this.getInteractionPos()) instanceof ThrottleLeverBlockEntity &&
-                BlockHoldInteraction.inInteractionRange(player, this.getInteractionPos().getCenter(), 4)) {
+                BlockHoldInteraction.inInteractionRange(player, net.minecraft.world.phys.Vec3.atCenterOf(this.getInteractionPos()), 4)) {
             final float speed = 0.85f;
             this.lastAnimatedValue = this.animatedValue;
             this.animatedValue = this.animatedValue * (1 - speed) + this.signal / 15f * speed;
@@ -49,7 +46,7 @@ public class ThrottleLeverHandler extends BlockHoldInteraction {
     }
 
     @Override
-    public void renderOverlay(final GuiGraphics graphics, final int width, final int height, final boolean hideGui) {
+    public void renderOverlay(final GuiGraphicsExtractor graphics, final int width, final int height, final boolean hideGui) {
         if (hideGui)
             return;
 
@@ -59,38 +56,35 @@ public class ThrottleLeverHandler extends BlockHoldInteraction {
         final int y;
         x = width / 2 - w / 2 + 16;
         y = height / 2 - h / 2;
-        final PoseStack ps = graphics.pose();
+        final var ps = graphics.pose();
 
-        ps.pushPose();
+        ps.pushMatrix();
 
-        ps.translate(x + w / 2, y + h / 2, 0);
-        ps.mulPose(Axis.ZP.rotationDegrees(90.0f));
-        ps.translate(-x - w / 2, -y - h / 2, 0);
+        ps.translate(x+w/2,y+h/2);
+        ps.rotate((float)Math.PI/2);
+        ps.translate(-x-w/2,-y-h/2);
 
         AllGuiTextures.BRASS_FRAME_TL.render(graphics, x, y);
         AllGuiTextures.BRASS_FRAME_TR.render(graphics, x + w - 4, y);
         AllGuiTextures.BRASS_FRAME_BL.render(graphics, x, y + h - 4);
         AllGuiTextures.BRASS_FRAME_BR.render(graphics, x + w - 4, y + h - 4);
-        final int zLevel = 2;
 
-        UIRenderHelper.drawStretched(graphics, x, y + 4, 3, h - 8, zLevel, AllGuiTextures.BRASS_FRAME_LEFT);
-        UIRenderHelper.drawStretched(graphics, x + w - 3, y + 4, 3, h - 8, zLevel, AllGuiTextures.BRASS_FRAME_RIGHT);
-        UIRenderHelper.drawCropped(graphics, x + 4, y, w - 8, 3, zLevel, AllGuiTextures.BRASS_FRAME_TOP);
-        UIRenderHelper.drawCropped(graphics, x + 4, y + h - 3, w - 8, 3, zLevel, AllGuiTextures.BRASS_FRAME_BOTTOM);
+        AllGuiTextures.BRASS_FRAME_LEFT.stretched(graphics,x,y+4,3,h-8,-1);
+        AllGuiTextures.BRASS_FRAME_RIGHT.stretched(graphics,x+w-3,y+4,3,h-8,-1);
+        AllGuiTextures.BRASS_FRAME_TOP.cropped(graphics,x+4,y,w-8,3);
+        AllGuiTextures.BRASS_FRAME_BOTTOM.cropped(graphics,x+4,y+h-3,w-8,3);
 
         final int valueBarX = x + 3;
         final int valueBarWidth = w - 6;
 
         for (int w1 = 0; w1 < valueBarWidth; w1 += AllGuiTextures.VALUE_SETTINGS_BAR.getWidth() - 1)
-            UIRenderHelper.drawCropped(graphics, valueBarX + w1, y + 3,
-                    Math.min(AllGuiTextures.VALUE_SETTINGS_BAR.getWidth() - 1, valueBarWidth - w1), 8,
-                    zLevel, AllGuiTextures.VALUE_SETTINGS_BAR);
+            AllGuiTextures.VALUE_SETTINGS_BAR.cropped(graphics,valueBarX+w1,y+3,Math.min(AllGuiTextures.VALUE_SETTINGS_BAR.getWidth()-1,valueBarWidth-w1),8);
 
-        ps.popPose();
+        ps.popMatrix();
 
 
-        ps.pushPose();
-        ps.translate(0.0, 0.0, 4.0);
+        ps.pushMatrix();
+        graphics.nextStratum();
         final float partialTick = AnimationTickHolder.getPartialTicks();
         final float currentValue = this.lastAnimatedValue * (1 - partialTick) + this.animatedValue * partialTick;
 
@@ -98,20 +92,20 @@ public class ThrottleLeverHandler extends BlockHoldInteraction {
         final int cx = x + w / 2 - 7;
         final float cy = y + h / 2 - 9 + cursorY;
         final int cursorWidth = 14;
-        ps.pushPose();
-        ps.translate(0, cy, 0);
+        ps.pushMatrix();
+        ps.translate(0,cy);
 
         AllGuiTextures.VALUE_SETTINGS_CURSOR_LEFT.render(graphics, cx - 3, 0);
-        UIRenderHelper.drawCropped(graphics, cx, 0, cursorWidth, 14, zLevel, AllGuiTextures.VALUE_SETTINGS_CURSOR);
+        AllGuiTextures.VALUE_SETTINGS_CURSOR.cropped(graphics,cx,0,cursorWidth,14);
         AllGuiTextures.VALUE_SETTINGS_CURSOR_RIGHT.render(graphics, cx + cursorWidth, 0);
 
-        ps.translate(0.0, 0.0, 4.0);
+        graphics.nextStratum();
 
-        graphics.drawString(Minecraft.getInstance().font, String.valueOf(this.inverted ? 15 - this.signal : this.signal), cx + 1, 3, SimColors.THROTTLE_VALUE_BROWN, false);
+        graphics.text(Minecraft.getInstance().font, String.valueOf(this.inverted ? 15 - this.signal : this.signal), cx + 1, 3, SimColors.THROTTLE_VALUE_BROWN, false);
 
-        ps.popPose();
+        ps.popMatrix();
 
-        ps.popPose();
+        ps.popMatrix();
     }
 
     @Override

@@ -1,7 +1,7 @@
 package dev.simulated_team.simulated.content.physics_staff;
 
 import io.netty.buffer.ByteBuf;
-import net.createmod.catnip.codecs.stream.CatnipStreamCodecBuilders;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 
 /**
@@ -12,5 +12,8 @@ public enum PhysicsStaffAction {
     LOCK,
     START_DRAG;
 
-    public static final StreamCodec<ByteBuf, PhysicsStaffAction> STREAM_CODEC = CatnipStreamCodecBuilders.ofEnum(PhysicsStaffAction.class);
+    public static final StreamCodec<ByteBuf, PhysicsStaffAction> STREAM_CODEC = ByteBufCodecs.VAR_INT.map(id -> {
+        if (id < 0 || id >= values().length) throw new io.netty.handler.codec.DecoderException("Unknown physics staff action: " + id);
+        return values()[id];
+    }, PhysicsStaffAction::ordinal);
 }

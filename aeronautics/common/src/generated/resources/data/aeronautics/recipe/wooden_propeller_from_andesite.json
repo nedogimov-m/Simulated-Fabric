@@ -3,9 +3,7 @@
   "category": "misc",
   "group": "aeronautics:propeller_style",
   "ingredients": [
-    {
-      "item": "aeronautics:andesite_propeller"
-    }
+    "aeronautics:andesite_propeller"
   ],
   "result": {
     "count": 1,

@@ -1,8 +1,6 @@
 package dev.simulated_team.simulated.ponder.elements.rope;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.simibubi.create.AllBlocks;
 import dev.ryanhcode.sable.api.math.OrientedBoundingBox3d;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.RopeStrandRenderer;
@@ -10,17 +8,12 @@ import dev.simulated_team.simulated.index.SimPartialModels;
 import dev.simulated_team.simulated.ponder.instructions.ModifyRopeInstruction;
 import dev.simulated_team.simulated.util.SimMathUtils;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.createmod.catnip.render.CachedBuffers;
-import net.createmod.catnip.render.SuperByteBuffer;
 import net.createmod.ponder.api.element.AnimatedSceneElement;
-import net.createmod.ponder.api.level.PonderLevel;
+import net.createmod.ponder.api.element.PonderSceneElement;
+import dev.simulated_team.simulated.fabric.registry.NativePartsRenderer;
+import dev.simulated_team.simulated.fabric.registry.NativePartTransforms;
 import net.createmod.ponder.foundation.PonderScene;
 import net.createmod.ponder.foundation.element.AnimatedSceneElementBase;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -31,7 +24,7 @@ import org.joml.Vector3dc;
 
 import java.util.List;
 
-public class RopeStrandElement extends AnimatedSceneElementBase implements AnimatedSceneElement {
+public class RopeStrandElement extends AnimatedSceneElementBase implements AnimatedSceneElement, PonderSceneElement {
 
     public final PonderRopePose pose;
     public final PonderRopePose lastPose;
@@ -75,77 +68,56 @@ public class RopeStrandElement extends AnimatedSceneElementBase implements Anima
     }
 
     @Override
-    protected void renderLast(final PonderLevel world, final MultiBufferSource buffer, final GuiGraphics graphics, final float fade, final float pt) {
-        final SuperByteBuffer middle = CachedBuffers.partialFacing(SimPartialModels.ROPE, AllBlocks.ROPE.getDefaultState(), Direction.NORTH);
-        final SuperByteBuffer knot = CachedBuffers.partialFacing(SimPartialModels.ROPE_KNOT, AllBlocks.ROPE.getDefaultState(), Direction.NORTH);
-        final VertexConsumer vb = buffer.getBuffer(RenderType.solid());
-        final PoseStack ps = graphics.pose();
-
-        final PonderRopePose currentPose = new PonderRopePose();
-        currentPose.set(this.lastPose);
-        currentPose.lerp(this.pose, pt);
-
+    public PonderSceneElement.RenderState extractSceneRenderState(final PonderScene scene, final float partial) {
+        final var current = new PonderRopePose();
+        current.set(this.lastPose);
+        current.lerp(this.pose, partial);
         final List<Vector3d> points = new ObjectArrayList<>();
-
-        final Vector3d currentPos = new Vector3d();
-        final int knots = (int) Math.ceil(currentPose.length) + 1;
-        final double extra = currentPose.length - knots;
+        final var position = new Vector3d();
+        final int knots = (int) Math.ceil(current.length) + 1;
+        final double extra = current.length - knots;
         for (int i = 0; i < knots; i++) {
-            final double t = (1.0d - (double) i / (knots + extra));
-
-            final Vector3d pos = currentPose.start.lerp(currentPose.end, Math.max(0, t), currentPos);
-
+            final double t = 1 - (double) i / (knots + extra);
+            current.start.lerp(current.end, Math.max(0, t), position);
             final double y = Math.pow(t - .5, 2) * 4;
-            pos.sub(0, Mth.clamp(1.0 - y, 0, 1) * currentPose.sog, 0);
-
-             pos.set(pos.x, Math.max(pos.y, currentPose.floorHeight), pos.z);
-
-            points.add(new Vector3d(pos));
+            position.sub(0, Mth.clamp(1 - y, 0, 1) * current.sog, 0);
+            position.y = Math.max(position.y, current.floorHeight);
+            points.add(new Vector3d(position));
         }
-
-
-        final ObjectArrayList<RopeStrandRenderer.RopeRenderPoint> renderPoints = buildRenderPoints(pt, points);
-
-        ps.pushPose();
-        this.applyFade(ps, pt);
-        ps.translate(currentPose.start.x, currentPose.start.y, currentPose.start.z);
+        final var renderPoints = buildRenderPoints(partial, points);
+        final var parts = new NativePartsRenderer.Parts(0xf0); // Original FULL_BLOCK packed light.
+        final var pose = new PoseStack();
+        this.applyFade(pose, partial);
+        pose.translate(current.start.x, current.start.y, current.start.z);
         for (int i = 1; i < renderPoints.size(); i++) {
-            final RopeStrandRenderer.RopeRenderPoint renderPoint0 = renderPoints.get(i - 1);
-            final RopeStrandRenderer.RopeRenderPoint renderPoint1 = renderPoints.get(i);
-            final Vector3d globalRenderPos = new Vector3d(renderPoint0.position());
-            final Vector3d renderPos = renderPoint0.position();
-            final Quaternionf orientation = renderPoint0.orientation();
-
-            final double length = renderPoint1.position().distance(renderPoint0.position());
-
-            ps.pushPose();
-            ps.translate(renderPos.x - currentPose.start.x, renderPos.y - currentPose.start.y, renderPos.z - currentPose.start.z);
-            ps.mulPose(orientation);
-            ps.translate(-0.5, -0.5, -0.5);
-            final BlockPos pos = BlockPos.containing(globalRenderPos.x, globalRenderPos.y, globalRenderPos.z);
-            final int worldLight = LightTexture.FULL_BLOCK;
-
-            knot.light(worldLight)
-                    .renderInto(ps, vb);
-
-            ps.pushPose();
-            ps.translate(0.0, 0.5, 0.0);
-            ps.scale(1.0f, (float) length, 1.0f);
-
-            middle.light(worldLight)
-                    .renderInto(ps, vb);
-            ps.popPose();
-
-            if(renderPoint1 == renderPoints.getLast()) {
-                ps.translate(0, length, 0);
-                knot.light(worldLight)
-                        .renderInto(ps, vb);
+            final var first = renderPoints.get(i - 1);
+            final var second = renderPoints.get(i);
+            final double length = second.position().distance(first.position());
+            pose.pushPose();
+            pose.translate(first.position().x - current.start.x, first.position().y - current.start.y, first.position().z - current.start.z);
+            pose.rotate(first.orientation());
+            pose.translate(-.5, -.5, -.5);
+            pose.pushPose();
+            NativePartTransforms.partialFacing(pose, Direction.NORTH);
+            parts.add(SimPartialModels.ROPE_KNOT, pose);
+            pose.popPose();
+            pose.pushPose();
+            pose.translate(0, .5, 0);
+            pose.scale(1, (float) length, 1);
+            NativePartTransforms.partialFacing(pose, Direction.NORTH);
+            parts.add(SimPartialModels.ROPE, pose);
+            pose.popPose();
+            if (i == renderPoints.size() - 1) {
+                pose.translate(0, length, 0);
+                NativePartTransforms.partialFacing(pose, Direction.NORTH);
+                parts.add(SimPartialModels.ROPE_KNOT, pose);
             }
-
-            ps.popPose();
+            pose.popPose();
         }
-        ps.popPose();
-
+        final var captured = NativePartsRenderer.State.from(parts);
+        return (phase, callerPose, collector, camera) -> {
+            if (phase == PonderSceneElement.Phase.AFTER_WORLD) NativePartsRenderer.submitParts(captured, callerPose, collector);
+        };
     }
 
     private static @NotNull ObjectArrayList<RopeStrandRenderer.RopeRenderPoint> buildRenderPoints(final float partialTick, final List<Vector3d> inputPoints) {

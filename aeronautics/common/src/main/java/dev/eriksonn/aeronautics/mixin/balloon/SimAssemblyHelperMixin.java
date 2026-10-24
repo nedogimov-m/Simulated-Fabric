@@ -12,7 +12,7 @@ import net.minecraft.world.level.block.Rotation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * TODO: event hook please (or some system to register things)
@@ -20,14 +20,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(SimAssemblyHelper.class)
 public class SimAssemblyHelperMixin {
 
-    @Inject(method = "disassembleSubLevel", at = @At(value = "INVOKE", target = "Ldev/ryanhcode/sable/sublevel/SubLevel;getPlot()Ldev/ryanhcode/sable/sublevel/plot/LevelPlot;", ordinal = 1))
+    @Inject(method = "disassembleSubLevel(Lnet/minecraft/world/level/Level;Ldev/ryanhcode/sable/sublevel/SubLevel;Lnet/minecraft/core/BlockPos;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/Rotation;ZLjava/lang/Runnable;)Z", at = @At(value = "INVOKE", target = "Ldev/ryanhcode/sable/sublevel/SubLevel;getPlot()Ldev/ryanhcode/sable/sublevel/plot/LevelPlot;", ordinal = 1))
     private static void aeronautics$needsBitSet(final Level level,
                                                 final SubLevel toDisassemble,
                                                 final BlockPos subLevelAnchor,
                                                 final BlockPos disassemblyGoal,
                                                 final Rotation rotation,
                                                 final boolean playSound,
-                                                final CallbackInfo ci,
+                                                final Runnable beforeMove,
+                                                final CallbackInfoReturnable<Boolean> cir,
                                                 @Local final SubLevelAssemblyHelper.AssemblyTransform transform) {
         final BalloonMap balloonMap = BalloonMap.MAP.get(level);
 

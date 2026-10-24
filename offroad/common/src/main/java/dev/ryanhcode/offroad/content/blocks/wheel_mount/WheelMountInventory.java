@@ -1,6 +1,5 @@
 package dev.ryanhcode.offroad.content.blocks.wheel_mount;
 
-import com.simibubi.create.foundation.virtualWorld.VirtualRenderWorld;
 import dev.simulated_team.simulated.multiloader.inventory.ItemInfoWrapper;
 import dev.simulated_team.simulated.multiloader.inventory.SingleSlotContainer;
 import dev.ryanhcode.offroad.content.components.TireLike;

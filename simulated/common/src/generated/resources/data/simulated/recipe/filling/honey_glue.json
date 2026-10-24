@@ -1,13 +1,10 @@
 {
   "type": "create:filling",
   "ingredients": [
+    "#c:plates/iron",
     {
-      "tag": "c:plates/iron"
-    },
-    {
-      "type": "neoforge:tag",
-      "amount": 500,
-      "tag": "c:honey"
+      "fluid_tag": "c:honey",
+      "amount": 40500
     }
   ],
   "results": [

@@ -70,11 +70,11 @@ public class DockingConnectorBlockEntity extends SmartBlockEntity implements Sim
 
     public DockingConnectorBlockEntity(final BlockEntityType<?> type, final BlockPos pos, final BlockState state) {
         super(type, pos, state);
-        this.inventory = new DockingConnectorSoloInventory();
+        this.inventory = new DockingConnectorSoloInventory(this::notifyUpdate);
         this.tank = new DockingConnectorTank(this);
         this.battery = new DockingConnectorBattery(
                 SimConfigService.INSTANCE.server().blocks.dockingConnectorFECapacity.get(),
-                SimConfigService.INSTANCE.server().blocks.dockingConnectorFEThroughput.get()
+                SimConfigService.INSTANCE.server().blocks.dockingConnectorFEThroughput.get(), this::notifyUpdate
         );
         this.ccWiredElement = DockingConnectorWiredElement.create(this);
     }
@@ -85,6 +85,29 @@ public class DockingConnectorBlockEntity extends SmartBlockEntity implements Sim
             return null;
 
         return this.level.getBlockEntity(this.otherConnectorPosition) instanceof final DockingConnectorBlockEntity be ? be : null;
+    }
+
+    @Override
+    public void setBlockState(final BlockState state) {
+        final BlockState previous = this.getBlockState();
+        super.setBlockState(state);
+        if (this.level != null && !this.level.isClientSide() && previous.is(state.getBlock())
+                && previous.getValue(DockingConnectorBlock.POWERED)
+                && previous.getValue(DockingConnectorBlock.FACING) != state.getValue(DockingConnectorBlock.FACING)) {
+            final BlockPos paired = this.getBlockPos().relative(previous.getValue(DockingConnectorBlock.FACING));
+            if (this.level.getBlockState(paired).is(dev.simulated_team.simulated.index.SimBlocks.PAIRED_DOCKING_CONNECTOR)) this.level.removeBlock(paired, false);
+        }
+    }
+
+    @Override
+    public void preRemoveSideEffects(final BlockPos pos, final BlockState state) {
+        if (this.level != null && !this.level.isClientSide()) {
+            final BlockPos paired = pos.relative(state.getValue(DockingConnectorBlock.FACING));
+            if (this.level.getBlockState(paired).is(dev.simulated_team.simulated.index.SimBlocks.PAIRED_DOCKING_CONNECTOR)) this.level.removeBlock(paired, false);
+            net.minecraft.world.Containers.dropContents(this.level, pos, this.inventory);
+            this.inventory.clearContent();
+        }
+        super.preRemoveSideEffects(pos, state);
     }
 
     @Override
@@ -125,18 +148,18 @@ public class DockingConnectorBlockEntity extends SmartBlockEntity implements Sim
         final BlockState frontState = this.level.getBlockState(frontPos);
 
         this.powered = state.getValue(BlockStateProperties.POWERED);
-        if (!frontState.isAir() && (!frontState.is(SimBlocks.PAIRED_DOCKING_CONNECTOR.get()) || frontState.getValue(BlockStateProperties.FACING).getOpposite() != direction)) {
+        if (!frontState.isAir() && (!frontState.is(SimBlocks.PAIRED_DOCKING_CONNECTOR) || frontState.getValue(BlockStateProperties.FACING).getOpposite() != direction)) {
             this.powered = false;
         }
         if (!this.level.isClientSide() && this.isExtended()) {
             this.searchForPairs();
 
-            if (!frontState.is(SimBlocks.PAIRED_DOCKING_CONNECTOR.get())) {
-                this.level.setBlock(frontPos, SimBlocks.PAIRED_DOCKING_CONNECTOR.get().defaultBlockState().setValue(BlockStateProperties.FACING, direction.getOpposite()), 3);
+            if (!frontState.is(SimBlocks.PAIRED_DOCKING_CONNECTOR)) {
+                this.level.setBlock(frontPos, SimBlocks.PAIRED_DOCKING_CONNECTOR.defaultBlockState().setValue(BlockStateProperties.FACING, direction.getOpposite()), 3);
             }
         }
 
-        if (this.otherConnectorPosition != null && !this.level.isClientSide) {
+        if (this.otherConnectorPosition != null && !this.level.isClientSide()) {
             if (!(this.level.getBlockEntity(this.otherConnectorPosition) instanceof final DockingConnectorBlockEntity be && Objects.equals(be.otherConnectorPosition, this.getBlockPos()))) {
                 this.unDock();
                 this.state = DockingConnectorState.EXTENDED;
@@ -158,7 +181,7 @@ public class DockingConnectorBlockEntity extends SmartBlockEntity implements Sim
                         1.0f,
                         false);
             } else {
-                if (!this.powered && frontState.is(SimBlocks.PAIRED_DOCKING_CONNECTOR.get())) {
+                if (!this.powered && frontState.is(SimBlocks.PAIRED_DOCKING_CONNECTOR)) {
                     this.level.setBlock(frontPos, Blocks.AIR.defaultBlockState(), 3);
                 }
             }
@@ -258,7 +281,7 @@ public class DockingConnectorBlockEntity extends SmartBlockEntity implements Sim
 
         final SubLevel subLevel = Sable.HELPER.getContaining(this);
 
-        final SimMovementContext context = SimMovementContext.getMovementContext(this.level, this.getBlockPos().getCenter());
+        final SimMovementContext context = SimMovementContext.getMovementContext(this.level, net.minecraft.world.phys.Vec3.atCenterOf(this.getBlockPos()));
         final List<SimMovementContext> contexts = controller.findNearby(context);
 
         for (final SimMovementContext movementContext : contexts) {
@@ -273,7 +296,7 @@ public class DockingConnectorBlockEntity extends SmartBlockEntity implements Sim
         }
 
         // connection in the same block grid
-        final BlockPos sameGridConnection = this.getBlockPos().offset(direction.getNormal().multiply(3));
+        final BlockPos sameGridConnection = this.getBlockPos().offset(direction.getUnitVec3i().multiply(3));
 
         if (this.isExtended() && this.level.getBlockEntity(sameGridConnection) instanceof final DockingConnectorBlockEntity other) {
             if (other.getBlockState().getValue(BlockStateProperties.FACING).getOpposite() == direction && other.isExtended()) {
@@ -436,51 +459,43 @@ public class DockingConnectorBlockEntity extends SmartBlockEntity implements Sim
     }
 
     @Override
-    protected void write(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
+    protected void write(final net.minecraft.world.level.storage.ValueOutput tag, final boolean clientPacket) {
         tag.putBoolean("IsPowered", this.powered);
         tag.putFloat("Extension", this.extension.getValue());
         tag.putFloat("Target", this.extension.getChaseTarget());
         tag.putFloat("Feet", this.feet.getValue());
 
         if (this.otherConnectorPosition != null) {
-            tag.put("OtherConnector", NbtUtils.writeBlockPos(this.otherConnectorPosition));
+            tag.store("OtherConnector", dev.simulated_team.simulated.api.SimBlockEntityCodecs.BLOCK_POS, this.otherConnectorPosition);
         }
 
         if (this.otherConnectorSubLevelId != null) {
-            tag.putUUID("OtherConnectorSubLevelId", this.otherConnectorSubLevelId);
+            tag.store("OtherConnectorSubLevelId", net.minecraft.core.UUIDUtil.CODEC, this.otherConnectorSubLevelId);
         }
 
-        tag.put("Inventory", this.inventory.write(registries));
-        tag.put("Tank", this.tank.write());
-        tag.put("Battery", this.battery.write());
-        super.write(tag, registries, clientPacket);
+        this.inventory.write(tag.child("Inventory"));
+        tag.store("Tank", CompoundTag.CODEC, this.tank.write());
+        tag.store("Battery", CompoundTag.CODEC, this.battery.write());
+        super.write(tag, clientPacket);
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        this.powered = tag.getBoolean("IsPowered");
-        this.extension.setValue(tag.getFloat("Extension"));
-        this.extension.updateChaseTarget(tag.getFloat("Target"));
-        this.feet.setValue(tag.getFloat("Feet"));
+    protected void read(final net.minecraft.world.level.storage.ValueInput tag, final boolean clientPacket) {
+        this.powered = tag.getBooleanOr("IsPowered", false);
+        this.extension.setValue(tag.getFloatOr("Extension", 0f));
+        this.extension.updateChaseTarget(tag.getFloatOr("Target", 0f));
+        this.feet.setValue(tag.getFloatOr("Feet", 0f));
 
         // ensure current = old value for visual lerping
         this.extension.setValue(this.extension.getValue());
         this.feet.setValue(this.feet.getValue());
 
-        if (tag.contains("OtherConnector")) {
-            this.otherConnectorPosition = NbtUtils.readBlockPos(tag, "OtherConnector").orElse(null);
-        } else {
-            this.otherConnectorPosition = null;
-        }
-
-        if (tag.contains("OtherConnectorSubLevelId")) {
-            this.otherConnectorSubLevelId = tag.getUUID("OtherConnectorSubLevelId");
-        }
-
-        this.inventory.read(registries, tag.getCompound("Inventory"));
-        this.tank.read(tag.getCompound("Tank"));
-        this.battery.read(tag.getCompound("Battery"));
-        super.read(tag, registries, clientPacket);
+        this.otherConnectorPosition = tag.read("OtherConnector", dev.simulated_team.simulated.api.SimBlockEntityCodecs.BLOCK_POS).orElse(null);
+        this.otherConnectorSubLevelId = tag.read("OtherConnectorSubLevelId", net.minecraft.core.UUIDUtil.CODEC).orElse(null);
+        this.inventory.read(tag.childOrEmpty("Inventory"));
+        this.tank.read(tag.read("Tank", CompoundTag.CODEC).orElseGet(CompoundTag::new));
+        this.battery.read(tag.read("Battery", CompoundTag.CODEC).orElseGet(CompoundTag::new));
+        super.read(tag, clientPacket);
     }
 
     @Override
@@ -497,7 +512,7 @@ public class DockingConnectorBlockEntity extends SmartBlockEntity implements Sim
     public void remove() {
         super.remove();
         this.removeConstraint();
-        if (this.level == null || !this.level.isClientSide) {
+        if (this.level == null || !this.level.isClientSide()) {
             this.ccWiredElement.remove();
         }
     }
@@ -514,18 +529,18 @@ public class DockingConnectorBlockEntity extends SmartBlockEntity implements Sim
 
     @Override
     public Vector3d setMagneticMoment(final Vector3d v) {
-        v.set(JOMLConversion.toJOML(Vec3.atLowerCornerOf(this.getBlockState().getValue(DockingConnectorBlock.FACING).getNormal())));
+        v.set(JOMLConversion.toJOML(Vec3.atLowerCornerOf(this.getBlockState().getValue(DockingConnectorBlock.FACING).getUnitVec3i())));
         v.mul(Math.sqrt(SimConfigService.INSTANCE.server().physics.dockingConnectorStrength.get()));
         return v;
     }
 
     @Override
     public Vec3 getMagnetPosition() {
-        return Vec3.atCenterOf(this.getBlockPos()).add(Vec3.atLowerCornerOf(this.getBlockState().getValue(RedstoneMagnetBlock.FACING).getNormal()).scale(1.4));
+        return Vec3.atCenterOf(this.getBlockPos()).add(Vec3.atLowerCornerOf(this.getBlockState().getValue(RedstoneMagnetBlock.FACING).getUnitVec3i()).scale(1.4));
     }
 
     public Vec3 getTipPosition() {
-        return Vec3.atCenterOf(this.getBlockPos()).add(Vec3.atLowerCornerOf(this.getBlockState().getValue(RedstoneMagnetBlock.FACING).getNormal()).scale(1.5));
+        return Vec3.atCenterOf(this.getBlockPos()).add(Vec3.atLowerCornerOf(this.getBlockState().getValue(RedstoneMagnetBlock.FACING).getUnitVec3i()).scale(1.5));
     }
 
     @Override
@@ -534,7 +549,7 @@ public class DockingConnectorBlockEntity extends SmartBlockEntity implements Sim
     }
 
     public AABB getBoundingBox(final BlockState state) {
-        return Shulker.getProgressAabb(1, state.getValue(ShulkerBoxBlock.FACING), this.getExtensionDistance(1.0F));
+        return Shulker.getProgressAabb(1, state.getValue(ShulkerBoxBlock.FACING), this.getExtensionDistance(1.0F), Vec3.ZERO);
     }
 
     @Override

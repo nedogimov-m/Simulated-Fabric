@@ -1,4 +1,5 @@
 package dev.simulated_team.simulated.content.blocks.directional_gearshift;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
 
 import com.simibubi.create.content.kinetics.RotationPropagator;
 import com.simibubi.create.content.kinetics.base.DirectionalAxisKineticBlock;
@@ -6,7 +7,7 @@ import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.base.RotatedPillarKineticBlock;
 import com.simibubi.create.content.kinetics.transmission.SplitShaftBlockEntity;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -25,7 +26,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.ticks.TickPriority;
 import org.jetbrains.annotations.Nullable;
 
-public class DirectionalGearshiftBlock extends DirectionalAxisKineticBlock implements IBE<SplitShaftBlockEntity>, IRotate {
+public class DirectionalGearshiftBlock extends DirectionalAxisKineticBlock implements NativeEntityBlock<SplitShaftBlockEntity>, IRotate , NativeWrenchable {
     // facing: direction of "forwards" darker powerable side
     // axis along first: which axis the shaft is on
     public static final BooleanProperty LEFT_POWERED = BooleanProperty.create("left_powered");
@@ -39,7 +40,7 @@ public class DirectionalGearshiftBlock extends DirectionalAxisKineticBlock imple
 
     @Override
     public BlockState updateAfterWrenched(final BlockState newState, final UseOnContext context) {
-        return super.updateAfterWrenched(this.getPoweredState(context.getLevel(), newState, context.getClickedPos()), context);
+        return NativeWrenchable.super.updateAfterWrenched(this.getPoweredState(context.getLevel(), newState, context.getClickedPos()), context);
     }
 
     @Override
@@ -90,8 +91,8 @@ public class DirectionalGearshiftBlock extends DirectionalAxisKineticBlock imple
     }
 
     @Override
-    public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block blockIn, final BlockPos fromPos, final boolean isMoving) {
-        if (level.isClientSide)
+    public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block blockIn,final net.minecraft.world.level.redstone.Orientation orientation, final boolean isMoving) {
+        if (level.isClientSide())
             return;
 
         final boolean previouslyLeftPowered = state.getValue(LEFT_POWERED);
@@ -109,8 +110,8 @@ public class DirectionalGearshiftBlock extends DirectionalAxisKineticBlock imple
         final Direction leftDirection = this.getLeftDirection(state);
         final Direction rightDirection = this.getRightDirection(state);
 
-        final int leftSignal = level.getSignal(pos.offset(leftDirection.getNormal()), leftDirection);
-        final int rightSignal = level.getSignal(pos.offset(rightDirection.getNormal()), rightDirection);
+        final int leftSignal = level.getSignal(pos.offset(leftDirection.getUnitVec3i()), leftDirection);
+        final int rightSignal = level.getSignal(pos.offset(rightDirection.getUnitVec3i()), rightDirection);
 
         final boolean previouslyLeftPowered = state.getValue(LEFT_POWERED);
         if (previouslyLeftPowered != (leftSignal > 0)) {
@@ -151,7 +152,7 @@ public class DirectionalGearshiftBlock extends DirectionalAxisKineticBlock imple
 
     @Override
     public BlockEntityType<? extends SplitShaftBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.DIRECTIONAL_GEARSHIFT.get();
+        return SimBlockEntityTypes.DIRECTIONAL_GEARSHIFT;
     }
 
     @Override
@@ -164,11 +165,23 @@ public class DirectionalGearshiftBlock extends DirectionalAxisKineticBlock imple
 
 	@Override
 	public InteractionResult onWrenched(final BlockState state, final UseOnContext context) {
-		final InteractionResult interactionResult = super.onWrenched(state, context);
-		if (interactionResult.consumesAction() && !context.getLevel().isClientSide) { //make sure we detach when we rotate no matter what
+		final InteractionResult interactionResult = NativeWrenchable.super.onWrenched(state, context);
+		if (interactionResult.consumesAction() && !context.getLevel().isClientSide()) { //make sure we detach when we rotate no matter what
 			this.detachKinetics(context.getLevel(), context.getClickedPos(), true);
 		}
 
 		return interactionResult;
 	}
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
+    }
 }

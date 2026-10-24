@@ -4,9 +4,8 @@ import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.infrastructure.ponder.AllCreatePonderTags;
 import dev.simulated_team.simulated.Simulated;
-import net.createmod.catnip.registry.RegisteredObjectsHelper;
 import net.createmod.ponder.api.registration.PonderTagRegistrationHelper;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ItemLike;
@@ -14,15 +13,15 @@ import net.minecraft.world.level.block.Blocks;
 
 public class SimPonderTags {
 
-    public static final ResourceLocation
+    public static final Identifier
             NAVIGATION_ITEMS = Simulated.path("navigation_items"),
             PHYSICS_BEHAVIOR = Simulated.path("physics_behavior"),
             THRUST_PRODUCING_BLOCKS = Simulated.path("thrust_blocks"),
             PHYSICS_SENSORS = Simulated.path("physics_sensors");
 
-    public static void register(final PonderTagRegistrationHelper<ResourceLocation> helper) {
+    public static void register(final PonderTagRegistrationHelper<Identifier> helper) {
         final PonderTagRegistrationHelper<ItemLike> itemHelper = helper.withKeyFunction(
-                RegisteredObjectsHelper::getKeyOrThrow);
+                item->net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item.asItem()));
 
         // Sim Tags
 

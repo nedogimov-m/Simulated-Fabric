@@ -3,20 +3,18 @@ package dev.simulated_team.simulated.index;
 import com.mojang.serialization.Codec;
 import dev.simulated_team.simulated.Simulated;
 import dev.simulated_team.simulated.content.blocks.nav_table.navigation_target.NavigationTarget;
-import foundry.veil.platform.registry.RegistrationProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
+import net.minecraft.core.Registry;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.component.DataComponentType;
-import net.minecraft.core.registries.Registries;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.codec.ByteBufCodecs;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
 
 public class SimDataComponents {
-    private static final RegistrationProvider<DataComponentType<?>> REGISTRY = RegistrationProvider.get(Registries.DATA_COMPONENT_TYPE, Simulated.MOD_ID);
-
     public static final DataComponentType<BlockPos> ROPE_FIRST_CONNECTION = register(
             "rope_first_connection",
             builder -> builder.persistent(BlockPos.CODEC).networkSynchronized(BlockPos.STREAM_CODEC)
@@ -32,8 +30,8 @@ public class SimDataComponents {
 
     public static final DataComponentType<NavigationTarget> TARGET = register("target", builder -> builder
             .persistent(SimRegistries.NAVIGATION_TARGET.byNameCodec())
-            .networkSynchronized(ResourceLocation.STREAM_CODEC
-                    .map(SimRegistries.NAVIGATION_TARGET::get, SimRegistries.NAVIGATION_TARGET::getKey))
+            .networkSynchronized(Identifier.STREAM_CODEC
+                    .map(SimRegistries.NAVIGATION_TARGET::getValue, SimRegistries.NAVIGATION_TARGET::getKey))
     );
 
     public static final DataComponentType<Float> BOUNCINESS = register("bounciness", builder -> builder
@@ -43,8 +41,7 @@ public class SimDataComponents {
 
     private static <T> DataComponentType<T> register(final String name, final UnaryOperator<DataComponentType.Builder<T>> builder) {
         final DataComponentType<T> type = builder.apply(DataComponentType.builder()).build();
-        REGISTRY.register(name, () -> type);
-        return type;
+        return Registry.register(BuiltInRegistries.DATA_COMPONENT_TYPE, Simulated.path(name), type);
     }
 
     public static void register() {}

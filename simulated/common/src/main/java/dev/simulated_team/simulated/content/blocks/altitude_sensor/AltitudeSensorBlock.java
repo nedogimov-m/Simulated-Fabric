@@ -2,8 +2,8 @@ package dev.simulated_team.simulated.content.blocks.altitude_sensor;
 
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.AllItems;
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.index.SimBlockShapes;
 import dev.simulated_team.simulated.multiloader.CommonRedstoneBlock;
@@ -12,7 +12,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -37,17 +36,12 @@ import java.util.Locale;
 
 import static net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING;
 
-public class AltitudeSensorBlock extends FaceAttachedHorizontalDirectionalBlock implements IBE<AltitudeSensorBlockEntity>, IWrenchable, CommonRedstoneBlock {
+public class AltitudeSensorBlock extends FaceAttachedHorizontalDirectionalBlock implements NativeEntityBlock<AltitudeSensorBlockEntity>, NativeWrenchable, CommonRedstoneBlock {
     public static final EnumProperty<FaceType> DIAL = EnumProperty.create("dial", FaceType.class);
-    public static final MapCodec<AltitudeSensorBlock> CODEC = simpleCodec(AltitudeSensorBlock::new);
+
 
     public AltitudeSensorBlock(final Properties pProperties) {
         super(pProperties);
-    }
-
-    @Override
-    protected @NotNull MapCodec<? extends FaceAttachedHorizontalDirectionalBlock> codec() {
-        return CODEC;
     }
 
     @Nullable
@@ -95,7 +89,7 @@ public class AltitudeSensorBlock extends FaceAttachedHorizontalDirectionalBlock 
 
     @Override
     public BlockEntityType<? extends AltitudeSensorBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.ALTITUDE_SENSOR.get();
+        return SimBlockEntityTypes.ALTITUDE_SENSOR;
     }
 
     @Override
@@ -134,7 +128,7 @@ public class AltitudeSensorBlock extends FaceAttachedHorizontalDirectionalBlock 
     @Override
     public InteractionResult onWrenched(final BlockState state, final UseOnContext context) {
         if (context.getClickedFace() == state.getValue(HORIZONTAL_FACING)) {
-            IWrenchable.playRotateSound(context.getLevel(), context.getClickedPos());
+            NativeWrenchable.playRotateSound(context.getLevel(), context.getClickedPos());
 
             // swap face type
             FaceType faceType = state.getValue(DIAL);
@@ -149,24 +143,24 @@ public class AltitudeSensorBlock extends FaceAttachedHorizontalDirectionalBlock 
 
             return InteractionResult.SUCCESS;
         }
-        return IWrenchable.super.onWrenched(state, context);
+        return NativeWrenchable.super.onWrenched(state, context);
     }
 
     @Override
-    protected @NotNull ItemInteractionResult useItemOn(final @NotNull ItemStack stack,
+    protected @NotNull InteractionResult useItemOn(final @NotNull ItemStack stack,
                                                        final @NotNull BlockState state,
                                                        final @NotNull Level level,
                                                        final @NotNull BlockPos pos,
                                                        final @NotNull Player player,
                                                        final @NotNull InteractionHand hand,
                                                        final @NotNull BlockHitResult hitResult) {
-        return AllItems.WRENCH.isIn(stack) ? ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION : this.onBlockEntityUseItemOn(level, pos, (be) -> {
+        return stack.is(AllItems.WRENCH) ? InteractionResult.TRY_WITH_EMPTY_HAND : this.onBlockEntityUseItemOn(level, pos, (be) -> {
 
-            if (level.isClientSide) {
+            if (level.isClientSide()) {
                 this.withBlockEntityDo(level, pos, AltitudeSensorScreen::open);
             }
 
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         });
     }
 
@@ -181,4 +175,16 @@ public class AltitudeSensorBlock extends FaceAttachedHorizontalDirectionalBlock 
     }
 
 
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
+    }
 }

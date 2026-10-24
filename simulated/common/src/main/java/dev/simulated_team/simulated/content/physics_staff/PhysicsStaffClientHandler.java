@@ -1,5 +1,6 @@
 package dev.simulated_team.simulated.content.physics_staff;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.CreateClient;
@@ -23,8 +24,8 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.data.Pair;
 import net.createmod.catnip.outliner.LineOutline;
-import net.createmod.catnip.render.DefaultSuperRenderTypeBuffer;
-import net.createmod.catnip.render.SuperRenderTypeBuffer;
+import net.createmod.catnip.outliner.OutlineRenderer;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.Camera;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -45,7 +46,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import org.joml.*;
-import org.lwjgl.glfw.GLFW;
+
 
 import java.lang.Math;
 import java.util.List;
@@ -82,11 +83,10 @@ public class PhysicsStaffClientHandler {
 
     public static Vec3 getStaffFocusPos(final Player player, final boolean mainHand, final float pt) {
         final Minecraft minecraft = Minecraft.getInstance();
-        final Camera camera = minecraft.gameRenderer.getMainCamera();
+        final Camera camera = minecraft.gameRenderer.mainCamera();
 
         if (player.isLocalPlayer() && !camera.isDetached()) {
-            final Vec3 savedPos = PhysicsStaffItemRenderer.getFirstPersonFocusPos(pt)
-                    .add(player.getPosition(pt)).add(0, Mth.lerp(pt, camera.eyeHeightOld, camera.eyeHeight), 0);
+            final Vec3 savedPos = PhysicsStaffItemRenderer.getFirstPersonFocusPos(pt).add(camera.position());
 
             return savedPos;
         }
@@ -354,11 +354,8 @@ public class PhysicsStaffClientHandler {
         }
     }
 
-    public void onRender(final PoseStack ms) {
-        final SuperRenderTypeBuffer buffer = DefaultSuperRenderTypeBuffer.getInstance();
-        final float pt = AnimationTickHolder.getPartialTicks();
+    public void onRender(final PoseStack ms, final SubmitNodeCollector nodes, final Vec3 camera, final float pt) {
         final Minecraft client = Minecraft.getInstance();
-        final Vec3 camera = client.gameRenderer.getMainCamera().getPosition();
 
         this.beams.forEach((uuid, beam) -> {
             final Player player = client.level.getPlayerByUUID(uuid);
@@ -381,12 +378,10 @@ public class PhysicsStaffClientHandler {
 
                 interpolatedBeamEnd = subLevel.renderPose(pt).transformPosition(interpolatedBeamEnd);
 
-                beam.render(focusPos, interpolatedBeamEnd, ms, buffer, camera, pt);
+                beam.render(focusPos, interpolatedBeamEnd, ms, nodes, camera, pt);
             }
         });
 
-        buffer.draw();
-        RenderSystem.enableCull();
     }
 
     public void updateBeam(final Level level, final UUID uuid, final Vec3 start, final Vec3 end) {
@@ -405,7 +400,7 @@ public class PhysicsStaffClientHandler {
     }
 
     protected List<UUID> getLocks(final Level level) {
-        return this.locks.get(level.dimension());
+        return this.locks.getOrDefault(level.dimension(), List.of());
     }
 
     public ClientDragSession getDragSession() {
@@ -500,7 +495,7 @@ public class PhysicsStaffClientHandler {
             this.cubeScale = this.extension;
         }
 
-        private void render(final Vec3 start, final Vec3 end, final PoseStack ms, final SuperRenderTypeBuffer buffer, final Vec3 camera, final float pt) {
+        private void render(final Vec3 start, final Vec3 end, final PoseStack ms, final SubmitNodeCollector collector, final Vec3 camera, final float pt) {
             final Vec3 relative = end.subtract(start);
             this.length = relative.length();
 
@@ -509,7 +504,8 @@ public class PhysicsStaffClientHandler {
             for (int i = 1; i < this.nodes.size(); i++) {
                 final Vec3 offset = this.nodes.get(i).previousPosition.lerp(this.nodes.get(i).position, pt);
                 final Vec3 currentPos = start.add(relative.scale(i / (float) this.nodes.size()).add(offset.scale(this.currentNodeRadius)));
-                this.line.set(lastPos, currentPos).render(ms, buffer, camera, pt);
+                this.line.set(lastPos.subtract(camera), currentPos.subtract(camera));
+                OutlineRenderer.submit(ms, collector, this.line.extract(Vec3.ZERO, pt));
                 lastPos = currentPos;
             }
         }
@@ -519,7 +515,7 @@ public class PhysicsStaffClientHandler {
             Vec3 previousPosition = new Vec3(0, 0, 0);
 
             void update() {
-                final RandomSource random = Minecraft.getInstance().level.random;
+                final RandomSource random = Minecraft.getInstance().level.getRandom();
                 this.previousPosition = this.position;
                 this.position = this.position.offsetRandom(random, 3).scale(0.5);
             }
@@ -530,7 +526,7 @@ public class PhysicsStaffClientHandler {
 
         @Override
         public Result onAttack(final int modifiers, final int action, final KeyMapping leftKey) {
-            if (SimulatedClient.PHYSICS_STAFF_CLIENT_HANDLER.holdingStaff && action == GLFW.GLFW_PRESS) {
+            if (SimulatedClient.PHYSICS_STAFF_CLIENT_HANDLER.holdingStaff && action == InputConstants.PRESS) {
                 SimulatedClient.PHYSICS_STAFF_CLIENT_HANDLER.onItemPunched();
                 return new Result(true);
             }
@@ -540,7 +536,7 @@ public class PhysicsStaffClientHandler {
 
         @Override
         public Result onUse(final int modifiers, final int action, final KeyMapping rightKey) {
-            if (SimulatedClient.PHYSICS_STAFF_CLIENT_HANDLER.holdingStaff && action == GLFW.GLFW_PRESS) {
+            if (SimulatedClient.PHYSICS_STAFF_CLIENT_HANDLER.holdingStaff && action == InputConstants.PRESS) {
                 SimulatedClient.PHYSICS_STAFF_CLIENT_HANDLER.onItemUsed(PhysicsStaffAction.START_DRAG);
                 return new Result(true);
             }

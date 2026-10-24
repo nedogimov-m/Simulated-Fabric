@@ -1,6 +1,7 @@
 package dev.eriksonn.aeronautics.content.blocks.propeller.small.andesite;
 
-import dev.engine_room.flywheel.lib.model.baked.PartialModel;
+import net.fabricmc.fabric.api.client.model.loading.v1.ExtraModelKey;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import dev.eriksonn.aeronautics.content.blocks.propeller.small.SimplePropellerRenderer;
 import dev.eriksonn.aeronautics.index.AeroPartialModels;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -15,12 +16,12 @@ public class AndesitePropellerRenderer extends SimplePropellerRenderer<AndesiteP
     }
 
     @Override
-    public PartialModel getCurrentModel(final AndesitePropellerBlockEntity be) {
+    public ExtraModelKey<BlockStateModel> getCurrentModel(final AndesitePropellerBlockEntity be) {
         return be.getBlockState().getValue(REVERSED) ? AeroPartialModels.ANDESITE_PROPELLER_REVERSED : AeroPartialModels.ANDESITE_PROPELLER;
     }
 
     @Override
     public float getAngle(final float partialTicks, final Direction dir, final AndesitePropellerBlockEntity be) {
-        return super.getAngle(partialTicks, dir, be) + getRotationOffsetForPosition(be, be.getBlockPos(), dir.getAxis());
+        return super.getAngle(partialTicks, dir, be) + (float) Math.toRadians(rotationOffset(be, dir.getAxis()));
     }
 }

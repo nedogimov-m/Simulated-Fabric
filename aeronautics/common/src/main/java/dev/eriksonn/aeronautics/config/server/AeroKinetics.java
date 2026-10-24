@@ -1,8 +1,8 @@
 package dev.eriksonn.aeronautics.config.server;
 
-import net.createmod.catnip.config.ConfigBase;
+import com.simibubi.create.infrastructure.config.NativeConfigBase;
 
-public class AeroKinetics extends ConfigBase {
+public class AeroKinetics extends NativeConfigBase {
 
 	public final AeroStress stressValues = this.nested(1, AeroStress::new, Comments.stress);
 

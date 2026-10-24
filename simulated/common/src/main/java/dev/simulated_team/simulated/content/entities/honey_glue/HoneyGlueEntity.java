@@ -17,6 +17,8 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -32,8 +34,12 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Vector3f;
+import org.joml.Vector3fc;
 
 public class HoneyGlueEntity extends Entity implements SpecialEntityItemRequirement {
+    private static final EntityDataAccessor<Vector3fc> BOUNDS_FROM = SynchedEntityData.defineId(HoneyGlueEntity.class, EntityDataSerializers.VECTOR3);
+    private static final EntityDataAccessor<Vector3fc> BOUNDS_TO = SynchedEntityData.defineId(HoneyGlueEntity.class, EntityDataSerializers.VECTOR3);
     public BlockPos blockMin = null;
     public BlockPos blockMax = null;
 
@@ -48,11 +54,32 @@ public class HoneyGlueEntity extends Entity implements SpecialEntityItemRequirem
 
     @Override
     protected void defineSynchedData(final SynchedEntityData.Builder builder) {
+        builder.define(BOUNDS_FROM, new Vector3f());
+        builder.define(BOUNDS_TO, new Vector3f());
+    }
 
+    @Override
+    public void onSyncedDataUpdated(final java.util.List<SynchedEntityData.DataValue<?>> values) {
+        super.onSyncedDataUpdated(values);
+        this.applyTrackedBounds();
+    }
+
+    @Override
+    protected void reapplyPosition() {
+        if (this.entityData == null) super.reapplyPosition(); else this.applyTrackedBounds();
+    }
+
+    private void applyTrackedBounds() {
+        final var from = this.entityData.get(BOUNDS_FROM);
+        final var to = this.entityData.get(BOUNDS_TO);
+        final AABB bounds = new AABB(from.x(), from.y(), from.z(), to.x(), to.y(), to.z()).move(this.position());
+        this.setBoundingBox(bounds);
+        this.blockMin = BlockPos.containing(bounds.getMinPosition());
+        this.blockMax = BlockPos.containing(bounds.getMaxPosition());
     }
 
     public HoneyGlueEntity(final Level world, final AABB boundingBox) {
-        this(SimEntityTypes.HONEY_GLUE.get(), world);
+        this(SimEntityTypes.HONEY_GLUE, world);
         this.setBoundingBox(boundingBox);
         this.resetPositionToBounds();
         this.setBoundsAndSync(boundingBox);
@@ -62,12 +89,11 @@ public class HoneyGlueEntity extends Entity implements SpecialEntityItemRequirem
     public void tick() {
         this.xRotO = this.getXRot();
         this.yRotO = this.getYRot();
-        this.walkDistO = this.walkDist;
         this.xo = this.getX();
         this.yo = this.getY();
         this.zo = this.getZ();
 
-        if (this.level().isClientSide) {
+        if (this.level().isClientSide()) {
             this.updateClientBounds();
         } else {
             if (this.getBoundingBox().getXsize() <0.9f || this.getBoundingBox().getYsize() <0.9f || this.getBoundingBox().getZsize() < 0.9f) {
@@ -101,21 +127,21 @@ public class HoneyGlueEntity extends Entity implements SpecialEntityItemRequirem
             final Direction.AxisDirection positive = Direction.AxisDirection.POSITIVE;
             final double max = axis.choose(extents.x, extents.y, extents.z);
             final Vec3 normal = Vec3.atLowerCornerOf(Direction.fromAxisAndDirection(axis, positive)
-                    .getNormal());
+                    .getUnitVec3i());
             for (final Direction.Axis axis2 : Iterate.axes) {
                 if (axis2 == axis) {
                     continue;
                 }
                 final double max2 = axis2.choose(extents.x, extents.y, extents.z);
                 final Vec3 normal2 = Vec3.atLowerCornerOf(Direction.fromAxisAndDirection(axis2, positive)
-                        .getNormal());
+                        .getUnitVec3i());
                 for (final Direction.Axis axis3 : Iterate.axes) {
                     if (axis3 == axis2 || axis3 == axis) {
                         continue;
                     }
                     final double max3 = axis3.choose(extents.x, extents.y, extents.z);
                     final Vec3 normal3 = Vec3.atLowerCornerOf(Direction.fromAxisAndDirection(axis3, positive)
-                            .getNormal());
+                            .getUnitVec3i());
 
                     for (int i = 0; i <= max * 2; i++) {
                         for (final int o1 : Iterate.zeroAndOne) {
@@ -125,7 +151,7 @@ public class HoneyGlueEntity extends Entity implements SpecialEntityItemRequirem
                                         .add(normal3.scale(max3 * o2));
 
                                 serverLevel.sendParticles(
-                                        new ItemParticleOption(ParticleTypes.ITEM, new ItemStack(Blocks.HONEY_BLOCK)), v.x,
+                                        new ItemParticleOption(ParticleTypes.ITEM,Blocks.HONEY_BLOCK.asItem()), v.x,
                                         v.y, v.z, 1, 0, 0, 0, 0);
 
                             }
@@ -163,33 +189,14 @@ public class HoneyGlueEntity extends Entity implements SpecialEntityItemRequirem
     }
 
     @Override
-    public void addAdditionalSaveData(final CompoundTag compound) {
-        final Vec3 position = this.position();
-        final AABB savedBounds = this.getBoundingBox().move(position.scale(-1));
-
-        compound.put("From", VecHelper.writeNBT(new Vec3(savedBounds.minX, savedBounds.minY, savedBounds.minZ)));
-        compound.put("To", VecHelper.writeNBT(new Vec3(savedBounds.maxX, savedBounds.maxY, savedBounds.maxZ)));
-
-        if (!compound.contains("Pos")) {
-            compound.put("Pos", VecHelper.writeNBT(position));
-        }
+    public void addAdditionalSaveData(final net.minecraft.world.level.storage.ValueOutput output) {
+        dev.simulated_team.simulated.fabric.registry.NativeHoneyGlueBounds.write(output,this.getBoundingBox(),this.position());
     }
 
     @Override
-    public void readAdditionalSaveData(final @NotNull CompoundTag compound) {
-        final Vec3 pos = VecHelper.readNBT(compound.getList("Pos", Tag.TAG_DOUBLE)); // we need to grab this from the NBT due to schematics
-
-        final Vec3 from = VecHelper.readNBT(compound.getList("From", Tag.TAG_DOUBLE));
-        final Vec3 to = VecHelper.readNBT(compound.getList("To", Tag.TAG_DOUBLE));
-        final AABB bb = new AABB(from, to).move(pos);
-
-        final Level level = this.level();
-
-        if (level.isClientSide) {
-            this.setBounds(bb);
-        } else {
-            this.setBoundsAndSync(bb);
-        }
+    public void readAdditionalSaveData(final net.minecraft.world.level.storage.ValueInput input) {
+        final var bounds=dev.simulated_team.simulated.fabric.registry.NativeHoneyGlueBounds.read(input);
+        if(this.level().isClientSide())this.setBounds(bounds);else this.setBoundsAndSync(bounds);
     }
 
     @Override
@@ -204,7 +211,7 @@ public class HoneyGlueEntity extends Entity implements SpecialEntityItemRequirem
     public void setBoundsAndSync(final AABB bounds) {
         final Level level = this.level();
 
-        if (level.isClientSide) {
+        if (level.isClientSide()) {
             return;
         }
 
@@ -215,7 +222,7 @@ public class HoneyGlueEntity extends Entity implements SpecialEntityItemRequirem
     public void setBoundsAndSync(final AABB bounds, @Nullable final Player player) {
         final Level level = this.level();
 
-        if (level.isClientSide) {
+        if (level.isClientSide()) {
             return;
         }
 
@@ -233,17 +240,22 @@ public class HoneyGlueEntity extends Entity implements SpecialEntityItemRequirem
 
         this.blockMin = BlockPos.containing(bounds.getMinPosition());
         this.blockMax = BlockPos.containing(bounds.getMaxPosition());
+        if (!this.level().isClientSide()) {
+            final var relative = bounds.move(this.position().scale(-1));
+            this.entityData.set(BOUNDS_FROM, new Vector3f((float) relative.minX, (float) relative.minY, (float) relative.minZ));
+            this.entityData.set(BOUNDS_TO, new Vector3f((float) relative.maxX, (float) relative.maxY, (float) relative.maxZ));
+        }
     }
 
     @Override
     public void move(final MoverType typeIn, final Vec3 pos) {
-        if (!this.level().isClientSide && this.isAlive() && pos.lengthSqr() > 0.0D) {
+        if (!this.level().isClientSide() && this.isAlive() && pos.lengthSqr() > 0.0D) {
             this.discard();
         }
     }
 
     @Override
-    public InteractionResult interact(final Player player, final InteractionHand hand) {
+    public InteractionResult interact(final Player player, final InteractionHand hand,final Vec3 hit) {
         return InteractionResult.PASS;
     }
 
@@ -252,13 +264,15 @@ public class HoneyGlueEntity extends Entity implements SpecialEntityItemRequirem
     }
 
     @Override
-    public boolean hurt(final DamageSource source, final float amount) {
+    public boolean hurtServer(final ServerLevel level,final DamageSource source,final float amount) {
         return false;
     }
 
+    @Override public boolean hurtClient(final DamageSource source){return false;}
+
     @Override
     public ItemRequirement getRequiredItems() {
-        return new ItemRequirement(ItemRequirement.ItemUseType.DAMAGE, SimItems.HONEY_GLUE.get());
+        return new ItemRequirement(ItemRequirement.ItemUseType.DAMAGE, SimItems.HONEY_GLUE);
     }
 
     @Override
@@ -272,7 +286,7 @@ public class HoneyGlueEntity extends Entity implements SpecialEntityItemRequirem
 
     @Override
     public PushReaction getPistonPushReaction() {
-        return PushReaction.IGNORE;
+        return PushReaction.IGNORE_ENTITY;
     }
 
     @Override

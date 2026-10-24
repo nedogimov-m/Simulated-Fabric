@@ -69,7 +69,7 @@ public record HoneyGlueSpawnPacket(BlockPos from, BlockPos to) implements Custom
             final ItemStack honeyGlueItem = player.getItemInHand(hand);
             honeyGlueItem.hurtAndBreak(1, level, player, (item) -> {});
 
-            final HoneyGlueEntity entity = SimEntityTypes.HONEY_GLUE.create(level);
+            final HoneyGlueEntity entity = SimEntityTypes.HONEY_GLUE.create(level, net.minecraft.world.entity.EntitySpawnReason.TRIGGERED);
             assert entity != null;
 
             entity.setBounds(newBounds);

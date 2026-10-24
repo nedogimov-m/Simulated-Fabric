@@ -1,8 +1,8 @@
 package dev.ryanhcode.offroad.config.server;
 
-import net.createmod.catnip.config.ConfigBase;
+import com.simibubi.create.infrastructure.config.NativeConfigBase;
 
-public class OffroadKinetics extends ConfigBase {
+public class OffroadKinetics extends NativeConfigBase {
 
 	public final OffroadStress stressValues = this.nested(1, OffroadStress::new, Comments.stress);
 

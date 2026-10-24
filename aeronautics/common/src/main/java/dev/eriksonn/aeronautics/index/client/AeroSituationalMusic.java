@@ -45,7 +45,7 @@ public class AeroSituationalMusic {
 
     private static RegistryObject<CustomSituationalMusic> create(final String id, final SimSoundEntry soundEntry, final int minDelayMinutes, final int maxDelayMinutes, final boolean replaceCurrent, final CustomSituationalMusic.Condition condition) {
         return AeroClientRegistries.CUSTOM_SITUATIONAL_MUSIC
-                .register(Aeronautics.path(id), () -> new CustomSituationalMusic(new Music(soundEntry.registryObject().asHolder(), minDelayMinutes * 60000, maxDelayMinutes * 60000, replaceCurrent), condition));
+                .register(Aeronautics.path(id), () -> new CustomSituationalMusic(new Music(soundEntry.holder(), minDelayMinutes * 60000, maxDelayMinutes * 60000, replaceCurrent), condition));
     }
 
     public static void init() {

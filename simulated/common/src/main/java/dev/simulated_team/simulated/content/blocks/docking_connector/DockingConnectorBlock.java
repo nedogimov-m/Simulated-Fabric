@@ -1,12 +1,12 @@
 package dev.simulated_team.simulated.content.blocks.docking_connector;
 
 import com.google.common.collect.Maps;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import com.simibubi.create.foundation.block.WrenchableDirectionalBlock;
 import dev.ryanhcode.sable.api.block.BlockSubLevelAssemblyListener;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.index.SimBlocks;
-import net.minecraft.Util;
+import net.minecraft.util.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -29,7 +29,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 
-public class DockingConnectorBlock extends WrenchableDirectionalBlock implements IBE<DockingConnectorBlockEntity>, BlockSubLevelAssemblyListener {
+public class DockingConnectorBlock extends WrenchableDirectionalBlock implements NativeEntityBlock<DockingConnectorBlockEntity>, BlockSubLevelAssemblyListener {
 
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
     public static final BooleanProperty EXTENDED = BlockStateProperties.EXTENDED;
@@ -72,25 +72,7 @@ public class DockingConnectorBlock extends WrenchableDirectionalBlock implements
     }
 
     @Override
-    public void onRemove(final @NotNull BlockState state, final @NotNull Level level, final @NotNull BlockPos pos, final @NotNull BlockState newState, final boolean isMoving) {
-        final boolean blockChanged = !state.is(newState.getBlock());
-
-        // Remove the paired connector even if the block doesn't change
-        if (state.getValue(POWERED) && (blockChanged || state.getValue(FACING) != newState.getValue(FACING))) {
-            final BlockPos pairedConnectorPos = pos.relative(state.getValue(FACING));
-            if (level.getBlockState(pairedConnectorPos).is(SimBlocks.PAIRED_DOCKING_CONNECTOR)) {
-                level.removeBlock(pairedConnectorPos, isMoving);
-            }
-        }
-
-        if (blockChanged) {
-            level.getBlockEntity(pos, SimBlockEntityTypes.DOCKING_CONNECTOR.get()).ifPresent(connector -> Containers.dropContents(level, pos, connector.inventory));
-            super.onRemove(state, level, pos, newState, isMoving);
-        }
-    }
-
-    @Override
-    public void neighborChanged(final @NotNull BlockState state, final Level level, final @NotNull BlockPos pos, final @NotNull Block block, final @NotNull BlockPos fromPos, final boolean isMoving) {
+    public void neighborChanged(final @NotNull BlockState state, final Level level, final @NotNull BlockPos pos, final @NotNull Block block,final net.minecraft.world.level.redstone.Orientation orientation, final boolean isMoving) {
         if (level.isClientSide()) {
             return;
         }
@@ -119,7 +101,7 @@ public class DockingConnectorBlock extends WrenchableDirectionalBlock implements
 
     @Override
     public BlockEntityType<? extends DockingConnectorBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.DOCKING_CONNECTOR.get();
+        return SimBlockEntityTypes.DOCKING_CONNECTOR;
     }
 
     @Override
@@ -135,7 +117,7 @@ public class DockingConnectorBlock extends WrenchableDirectionalBlock implements
     }
 
     @Override
-    public int getAnalogOutputSignal(final BlockState pState, final Level pLevel, final BlockPos pPos) {
+    public int getAnalogOutputSignal(final BlockState pState, final Level pLevel, final BlockPos pPos, final Direction direction) {
         final DockingConnectorBlockEntity be = this.getBlockEntity(pLevel, pPos);
 
         if (!be.isExtended())
@@ -162,5 +144,17 @@ public class DockingConnectorBlock extends WrenchableDirectionalBlock implements
             // Don't update sound state on the client
             resultingLevel.blockEvent(newPos, this, 1, 0);
         }
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

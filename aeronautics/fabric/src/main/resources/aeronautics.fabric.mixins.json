@@ -1,0 +1,8 @@
+{
+  "required": true,
+  "package": "dev.eriksonn.aeronautics.fabric.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": ["LevititeEntityMixin", "LevititeLivingEntityMixin", "LevititeLiquidBlockMixin"],
+  "client": ["LevititeFluidModelsMixin", "LevititeFogMixin"],
+  "injectors": {"defaultRequire": 1}
+}

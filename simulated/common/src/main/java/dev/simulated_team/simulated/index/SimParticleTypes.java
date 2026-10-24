@@ -1,61 +1,26 @@
 package dev.simulated_team.simulated.index;
 
-
-import com.simibubi.create.foundation.particle.ICustomParticleData;
 import dev.simulated_team.simulated.content.particle.AugerIndicatorParticleData;
 import dev.simulated_team.simulated.content.particle.MagnetFieldParticleData;
 import dev.simulated_team.simulated.content.particle.MagnetFieldParticleData2;
-import net.minecraft.core.particles.ParticleOptions;
+import net.fabricmc.fabric.api.particle.v1.FabricParticleTypes;
+import net.minecraft.core.Registry;
 import net.minecraft.core.particles.ParticleType;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+/** Common particle payloads; providers are bound separately on the client. */
+public final class SimParticleTypes {
+    public static final ParticleType<MagnetFieldParticleData> MAGNET_FIELD = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, Identifier.parse("simulated:magnet_field"),
+            FabricParticleTypes.complex(MagnetFieldParticleData.CODEC, MagnetFieldParticleData.STREAM_CODEC));
+    public static final ParticleType<MagnetFieldParticleData2> MAGNET_FIELD2 = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, Identifier.parse("simulated:magnet_field2"),
+            FabricParticleTypes.complex(MagnetFieldParticleData2.CODEC, MagnetFieldParticleData2.STREAM_CODEC));
+    public static final ParticleType<AugerIndicatorParticleData> AUGER_INDICATOR = Registry.register(
+            BuiltInRegistries.PARTICLE_TYPE, Identifier.parse("simulated:auger_indicator"),
+            FabricParticleTypes.complex(AugerIndicatorParticleData.CODEC, AugerIndicatorParticleData.STREAM_CODEC));
 
-public enum SimParticleTypes {
-
-    MAGNET_FIELD(MagnetFieldParticleData::new),
-    MAGNET_FIELD2(MagnetFieldParticleData2::new),
-    AUGER_INDICATOR(AugerIndicatorParticleData::new)
-    ;
-
-
-    public final ParticleEntry<?> entry;
-
-    <D extends ParticleOptions> SimParticleTypes(final Supplier<? extends ICustomParticleData<D>> typeFactory) {
-        this.entry = new ParticleEntry<>(typeFactory);
-    }
-
-    public static void register() {
-
-    }
-
-    public static void registerClientParticles(final Consumer<ParticleEntry<?>> consume) {
-        for (final SimParticleTypes value : values()) {
-            consume.accept(value.entry);
-        }
-    }
-
-    public ParticleType<?> get() {
-        return this.entry.object;
-    }
-
-    public static class ParticleEntry<D extends ParticleOptions> {
-        private final Supplier<? extends ICustomParticleData<D>> typeFactory;
-        private final ParticleType<D> object;
-
-        public ParticleEntry(final Supplier<? extends ICustomParticleData<D>> typeFactory) {
-            this.typeFactory = typeFactory;
-
-            this.object = this.typeFactory.get().createType();
-        }
-
-        public Supplier<? extends ICustomParticleData<D>> getTypeFactory() {
-            return this.typeFactory;
-        }
-
-        public ParticleType<D> getObject() {
-            return this.object;
-        }
-
-    }
+    public static void register() {}
+    private SimParticleTypes() {}
 }

@@ -1,19 +1,24 @@
 package dev.simulated_team.simulated.mixin.linked_controller_binding;
 
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.simibubi.create.content.redstone.link.controller.LinkedControllerItem;
-import com.tterrag.registrate.util.entry.BlockEntry;
 import dev.simulated_team.simulated.index.SimBlocks;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.*;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(LinkedControllerItem.class)
 public abstract class LinkedControllerItemMixin {
-	@WrapOperation(method = "onItemUseFirst", at = @At(value = "INVOKE", target = "Lcom/tterrag/registrate/util/entry/BlockEntry;has(Lnet/minecraft/world/level/block/state/BlockState;)Z", ordinal = 1))
-	private <T extends Block> boolean simulated$onItemUseFirst(final BlockEntry<T> instance, final BlockState state, final Operation<Boolean> original) {
-		return original.call(instance, state) || SimBlocks.MODULATING_LINKED_RECEIVER.has(state) || SimBlocks.DIRECTIONAL_LINKED_RECEIVER.has(state);
-	}
+    @Inject(method="useBlockFirst",at=@At("HEAD"),cancellable=true,remap=false)
+    private void simulated$bindReceiver(Player player,Level level,InteractionHand hand,BlockHitResult hit,CallbackInfoReturnable<InteractionResult> callback){
+        var state=level.getBlockState(hit.getBlockPos());
+        if(player.isShiftKeyDown()||(!state.is(SimBlocks.MODULATING_LINKED_RECEIVER)&&!state.is(SimBlocks.DIRECTIONAL_LINKED_RECEIVER)))return;
+        if(level.isClientSide())LinkedControllerItem.CLIENT_ACTION.accept(LinkedControllerItem.ClientAction.BIND,hit.getBlockPos().immutable());
+        player.getCooldowns().addCooldown(player.getItemInHand(hand),2);
+        callback.setReturnValue(InteractionResult.SUCCESS);
+    }
 }

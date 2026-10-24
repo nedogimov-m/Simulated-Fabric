@@ -5,6 +5,14 @@ import dev.simulated_team.simulated.data.SimLang;
 import dev.simulated_team.simulated.service.SimConfigService;
 
 public class SimAssemblyException {
+    public interface Provider { AssemblyException getLastAssemblyException(); }
+
+    public static void write(final net.minecraft.world.level.storage.ValueOutput output, final AssemblyException exception) {
+        dev.simulated_team.simulated.api.SimBlockEntityCodecs.writeAssemblyException(output, exception);
+    }
+    public static AssemblyException read(final net.minecraft.world.level.storage.ValueInput input) {
+        return dev.simulated_team.simulated.api.SimBlockEntityCodecs.readAssemblyException(input);
+    }
 
     public static AssemblyException structureTooLarge() {
         return new AssemblyException("structureTooLarge", SimConfigService.INSTANCE.server().assembly.maxBlocksMoved.get());

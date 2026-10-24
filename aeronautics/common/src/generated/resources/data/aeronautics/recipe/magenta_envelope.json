@@ -3,12 +3,8 @@
   "category": "misc",
   "group": "aeronautics:envelope",
   "key": {
-    "S": {
-      "item": "minecraft:stick"
-    },
-    "W": {
-      "item": "minecraft:magenta_wool"
-    }
+    "S": "minecraft:stick",
+    "W": "minecraft:magenta_wool"
   },
   "pattern": [
     "WS",

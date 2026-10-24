@@ -1,8 +1,7 @@
 package dev.simulated_team.simulated.mixin_interface;
 
-import net.minecraft.client.renderer.texture.SpriteContents;
-
+/** Borrowed native atlas animation state; replaced by its atlas owner on reload. */
 public interface SpriteContentsExtension {
-    SpriteContents.Ticker simulated$getTicker();
-    void simulated$setTicker(SpriteContents.Ticker ticker);
+    TickerExtension simulated$getTicker();
+    void simulated$setTicker(TickerExtension state);
 }

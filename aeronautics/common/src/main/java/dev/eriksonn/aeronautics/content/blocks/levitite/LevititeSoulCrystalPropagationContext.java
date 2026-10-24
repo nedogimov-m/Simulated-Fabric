@@ -30,7 +30,7 @@ public class LevititeSoulCrystalPropagationContext implements CrystalPropagation
     public void onCrystallize(final Level level, final BlockPos pos) {
         this.onDefaultCrystallize(level, pos);
 
-        if (!level.isClientSide) {
+        if (!level.isClientSide()) {
             AeroSoundEvents.LEVITITE_BLEND_CRYSTALLIZE.play(level, null, pos, 1.0f, 1.0f);
             LevititeBlendHelper.spawnParticles(level, pos, ParticleTypes.SOUL_FIRE_FLAME, 30);
             AeroAdvancements.NOW_AVAILABLE_IN_PINK.awardToNearby(pos, level);
@@ -44,7 +44,7 @@ public class LevititeSoulCrystalPropagationContext implements CrystalPropagation
 
     @Override
     public BlockState getCrystalBlockState(final Level level, final BlockPos pos) {
-        return AeroBlocks.PEARLESCENT_LEVITITE.getDefaultState();
+        return AeroBlocks.PEARLESCENT_LEVITITE.defaultBlockState();
     }
 
     public boolean canSpreadTo(final FluidState state) {

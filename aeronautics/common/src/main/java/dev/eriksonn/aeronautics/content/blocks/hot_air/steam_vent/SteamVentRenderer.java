@@ -1,63 +1,25 @@
 package dev.eriksonn.aeronautics.content.blocks.hot_air.steam_vent;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.simibubi.create.foundation.blockEntity.renderer.SmartBlockEntityRenderer;
-import dev.simulated_team.simulated.util.SimColors;
-import dev.eriksonn.aeronautics.content.blocks.hot_air.GasEmitterRenderHandler;
 import dev.eriksonn.aeronautics.index.AeroPartialModels;
-import net.createmod.catnip.render.CachedBuffers;
-import net.createmod.catnip.render.SuperByteBuffer;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import dev.simulated_team.simulated.fabric.registry.NativePartsRenderer;
+import dev.simulated_team.simulated.util.SimColors;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.util.LightCoordsUtil;
 
-public class SteamVentRenderer extends SmartBlockEntityRenderer<SteamVentBlockEntity> {
-
-    public SteamVentRenderer(final BlockEntityRendererProvider.Context context) {
-        super(context);
-    }
-
-    @Override
-    protected void renderSafe(final SteamVentBlockEntity blockEntity, final float partialTicks, final PoseStack ms, final MultiBufferSource buffer, final int light, final int overlay) {
-        super.renderSafe(blockEntity, partialTicks, ms, buffer, light, overlay);
-
-        final VertexConsumer cutoutConsumer = buffer.getBuffer(RenderType.cutoutMipped());
-        final float signalStrength = Math.max(0, blockEntity.signalStrength / 15F);
-
-        final BlockState state = blockEntity.getBlockState();
-        CachedBuffers
-                .partial(AeroPartialModels.STEAM_VENT_REDSTONE, state)
-                .light(light)
-                .color(SimColors.redstone(signalStrength))
-                .renderInto(ms, cutoutConsumer);
-
-        final GasEmitterRenderHandler renderHandler = blockEntity.getRenderHandler();
-        final int alpha = renderHandler.getAlpha(partialTicks);
-
-        if (alpha > 2) {
-
-            final float position = renderHandler.getPosition(partialTicks);
-            final VertexConsumer translucentConsumer = buffer.getBuffer(RenderType.translucent());
-            final SuperByteBuffer base = CachedBuffers.partial(AeroPartialModels.STEAM_VENT_BASE, state);
-            final SuperByteBuffer jet = CachedBuffers.partial(AeroPartialModels.STEAM_VENT_JET, state);
-
-            ms.pushPose();
-
-            base.disableDiffuse()
-                    .light(LightTexture.FULL_BRIGHT)
-                    .color(255, 255, 255, alpha)
-                    .renderInto(ms, translucentConsumer);
-
-            ms.translate(0.0f, (position - 1) / 3.0f, 0.0f);
-            jet.disableDiffuse()
-                    .light(LightTexture.FULL_BRIGHT)
-                    .color(255, 255, 255, alpha)
-                    .renderInto(ms, translucentConsumer);
-
-            ms.popPose();
-        }
+public class SteamVentRenderer extends NativePartsRenderer<SteamVentBlockEntity> {
+    public SteamVentRenderer(BlockEntityRendererProvider.Context context) {}
+    @Override protected void extractParts(SteamVentBlockEntity entity, float partial, Parts parts) {
+        parts.add(AeroPartialModels.STEAM_VENT_REDSTONE, new PoseStack(),
+                SimColors.redstone(Math.max(0, entity.signalStrength / 15f)), ChunkSectionLayer.CUTOUT, false, parts.light());
+        final var handler = entity.getRenderHandler();
+        final int alpha = handler.getAlpha(partial);
+        if (alpha <= 2) return;
+        final var pose = new PoseStack();
+        final int color = alpha << 24 | 0xFFFFFF;
+        parts.add(AeroPartialModels.STEAM_VENT_BASE, pose, color, ChunkSectionLayer.TRANSLUCENT, true, LightCoordsUtil.FULL_BRIGHT);
+        pose.translate(0, (handler.getPosition(partial) - 1) / 3f, 0);
+        parts.add(AeroPartialModels.STEAM_VENT_JET, pose, color, ChunkSectionLayer.TRANSLUCENT, true, LightCoordsUtil.FULL_BRIGHT);
     }
 }

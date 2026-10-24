@@ -1,8 +1,8 @@
 package dev.simulated_team.simulated.content.blocks.absorber;
 
 import com.mojang.serialization.MapCodec;
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.index.SimBlockShapes;
 import dev.simulated_team.simulated.index.SimSoundEvents;
 import net.minecraft.core.BlockPos;
@@ -13,7 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -27,17 +27,17 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class AbsorberBlock extends HorizontalDirectionalBlock implements IBE<AbsorberBlockEntity>, IWrenchable {
+public class AbsorberBlock extends HorizontalDirectionalBlock implements NativeEntityBlock<AbsorberBlockEntity>, NativeWrenchable {
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
     public static final BooleanProperty WET = BooleanProperty.create("wet");
-    public static final DirectionProperty HORIZONTAL_FACING = BlockStateProperties.HORIZONTAL_FACING;
-    public static final MapCodec<AbsorberBlock> CODEC = simpleCodec(AbsorberBlock::new);
+    public static final EnumProperty<Direction> HORIZONTAL_FACING = BlockStateProperties.HORIZONTAL_FACING;
+
 
     public AbsorberBlock(final Properties properties) {
         super(properties);
@@ -45,13 +45,8 @@ public class AbsorberBlock extends HorizontalDirectionalBlock implements IBE<Abs
     }
 
     @Override
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block block, final BlockPos fromPos, final boolean isMoving) {
-        if (!level.isClientSide) {
+    protected void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block block,final net.minecraft.world.level.redstone.Orientation orientation, final boolean isMoving) {
+        if (!level.isClientSide()) {
             final boolean flag = state.getValue(POWERED);
             if (flag != level.hasNeighborSignal(pos)) {
                 level.setBlock(pos, state.cycle(POWERED), 2);
@@ -71,18 +66,18 @@ public class AbsorberBlock extends HorizontalDirectionalBlock implements IBE<Abs
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
+    protected InteractionResult useItemOn(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
         if (stack.is(Items.CARROT) && state.getValue(POWERED)) {
-            level.playLocalSound(pos, SoundEvents.GENERIC_EAT, SoundSource.BLOCKS, 0.8f, 0.9f + 0.2f * level.random.nextFloat(), false);
-            level.playLocalSound(pos, SimSoundEvents.ABSORBER_EATS.event(), SoundSource.BLOCKS, 0.33f, 0.8f + 0.2f * level.random.nextFloat(), false);
+            level.playLocalSound(pos, SoundEvents.GENERIC_EAT.value(), SoundSource.BLOCKS, 0.8f, 0.9f + 0.2f * level.getRandom().nextFloat(), false);
+            level.playLocalSound(pos, SimSoundEvents.ABSORBER_EATS.event(), SoundSource.BLOCKS, 0.33f, 0.8f + 0.2f * level.getRandom().nextFloat(), false);
 
             if (level instanceof final ServerLevel serverLevel) {
-                final Vec3 mouthPos = pos.getCenter().add(Vec3.atLowerCornerOf(state.getValue(FACING).getNormal()).scale(0.5));
-                serverLevel.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, stack), mouthPos.x, mouthPos.y, mouthPos.z, 5, 0, 0.1, 0, 0.01);
+                final Vec3 mouthPos = Vec3.atCenterOf(pos).add(Vec3.atLowerCornerOf(state.getValue(FACING).getUnitVec3i()).scale(0.5));
+                serverLevel.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, net.minecraft.world.item.ItemStackTemplate.fromNonEmptyStack(stack)), mouthPos.x, mouthPos.y, mouthPos.z, 5, 0, 0.1, 0, 0.01);
             }
 
             stack.consume(1, player);
-            return ItemInteractionResult.CONSUME;
+            return InteractionResult.CONSUME;
         }
         return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
     }
@@ -102,8 +97,20 @@ public class AbsorberBlock extends HorizontalDirectionalBlock implements IBE<Abs
 
     @Override
     public BlockEntityType<? extends AbsorberBlockEntity> getBlockEntityType() {
-        //return SimBlockEntityTypes.ABSORBER.get();
+        //return SimBlockEntityTypes.ABSORBER;
         return null;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }
 

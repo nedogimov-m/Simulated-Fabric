@@ -1,7 +1,6 @@
 package dev.simulated_team.simulated.content.blocks.steering_wheel;
 
 import com.google.common.collect.ImmutableList;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
@@ -14,7 +13,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.ValueSettingsBoard;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueSettingsFormatter;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
 import com.simibubi.create.foundation.utility.CreateLang;
-import dev.engine_room.flywheel.lib.transform.TransformStack;
 import dev.simulated_team.simulated.content.blocks.behaviour.HoldTipBehaviour;
 import dev.simulated_team.simulated.data.SimLang;
 import dev.simulated_team.simulated.index.SimBlocks;
@@ -31,7 +29,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
@@ -49,6 +47,8 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 public class SteeringWheelBlockEntity extends GeneratingKineticBlockEntity {
+    private final dev.simulated_team.simulated.content.blocks.behaviour.SimKineticEffectHandler effects;
+
     public static final int RPM = 16;
 
     public boolean held = false;
@@ -160,7 +160,7 @@ public class SteeringWheelBlockEntity extends GeneratingKineticBlockEntity {
     public void tick() {
         super.tick();
 
-        if (this.level.isClientSide) {
+        if (this.level.isClientSide()) {
             this.oldClientAngle = this.clientAngle;
             if (SimClickInteractions.STEERING_WHEEL_MANAGER.isBlockActive(this.getBlockPos())) {
                 this.clientAngle = this.targetAngleToUpdate;
@@ -176,12 +176,12 @@ public class SteeringWheelBlockEntity extends GeneratingKineticBlockEntity {
         if (this.inUse > 0) {
             this.inUse--;
 
-            if (this.inUse == 0 && !this.level.isClientSide) {
+            if (this.inUse == 0 && !this.level.isClientSide()) {
                 this.sequenceContext = null;
                 this.generatedSpeed = 0;
                 this.updateGeneratedRotation();
             }
-        } else if(!this.level.isClientSide) {
+        } else if(!this.level.isClientSide()) {
             this.updateTargetAngle(this.targetAngleToUpdate);
         }
     }
@@ -223,8 +223,8 @@ public class SteeringWheelBlockEntity extends GeneratingKineticBlockEntity {
     }
 
     @Override
-    protected void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(compound, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput compound, final boolean clientPacket) {
+        super.write(compound, clientPacket);
 
         compound.putFloat("Angle", this.angle);
         compound.putFloat("TargetAngle", this.targetAngle);
@@ -236,7 +236,7 @@ public class SteeringWheelBlockEntity extends GeneratingKineticBlockEntity {
             compound.putBoolean("Held", this.held);
         }
 
-        compound.put("Material", NbtUtils.writeBlockState(this.material));
+        compound.store("Material", BlockState.CODEC, this.material);
     }
 
     @Override
@@ -246,30 +246,29 @@ public class SteeringWheelBlockEntity extends GeneratingKineticBlockEntity {
     }
 
     @Override
-    protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(compound, registries, clientPacket);
+    protected void read(final net.minecraft.world.level.storage.ValueInput compound, final boolean clientPacket) {
+        super.read(compound, clientPacket);
         // todo pr create to validate this for all scroll value behaviours
         this.angleInput.value = Mth.clamp(this.angleInput.value, 1, 360);
 
-        this.angle = Math.clamp(compound.getFloat("Angle"), -360, 360);
+        this.angle = Math.clamp(compound.getFloatOr("Angle", 0f), -360, 360);
         if (clientPacket) {
-            this.held = compound.getBoolean("Held");
+            this.held = compound.getBooleanOr("Held", false);
         }
 
         if (!clientPacket || !SimClickInteractions.STEERING_WHEEL_MANAGER.isBlockActive(this.getBlockPos())) {
-            this.updateTargetAngle(Math.clamp(compound.getFloat("TargetAngle"), -360, 360));
-            if (compound.contains("TargetAngleToUpdate")) {
-                this.targetAngleToUpdate = Math.clamp(compound.getFloat("TargetAngleToUpdate"), -360, 360);
+            this.updateTargetAngle(Math.clamp(compound.getFloatOr("TargetAngle", 0f), -360, 360));
+            if (!Float.isNaN(compound.getFloatOr("TargetAngleToUpdate", Float.NaN))) {
+                this.targetAngleToUpdate = Math.clamp(compound.getFloatOr("TargetAngleToUpdate", 0f), -360, 360);
             } else {
                 this.targetAngleToUpdate = this.targetAngle;
             }
         }
 
         final BlockState prevMaterial = this.material;
-        if (!compound.contains("Material"))
-            return;
-
-        this.material = NbtUtils.readBlockState(this.blockHolderGetter(), compound.getCompound("Material"));
+        final var storedMaterial = compound.read("Material", BlockState.CODEC);
+        if (storedMaterial.isEmpty()) return;
+        this.material = storedMaterial.get();
         if (this.material.isAir())
             this.material = Blocks.SPRUCE_PLANKS.defaultBlockState();
 
@@ -283,7 +282,7 @@ public class SteeringWheelBlockEntity extends GeneratingKineticBlockEntity {
 
     @Override
     protected Block getStressConfigKey() {
-        return SimBlocks.STEERING_WHEEL.get();
+        return SimBlocks.STEERING_WHEEL;
     }
 
     public float getRenderAngle(final float partialTicks) {
@@ -331,15 +330,15 @@ public class SteeringWheelBlockEntity extends GeneratingKineticBlockEntity {
             if (spokeCrossed != Math.signum(this.lastPlayedIncrement - playingIncrement) * 4) {
                 switch (spokeCrossed) {
                     case -4, 4 -> {
-                        AllSoundEvents.CRANKING.playAt(this.level, this.worldPosition, 1.25f, 0.85f, true);
+                        this.level.playLocalSound(this.worldPosition, AllSoundEvents.CRANKING, net.minecraft.sounds.SoundSource.BLOCKS, 1.25f, 0.85f, true);
                     }
 
                     case 0 -> {
-                        AllSoundEvents.CRANKING.playAt(this.level, this.worldPosition, 1.25f, 0.5f, true);
+                        this.level.playLocalSound(this.worldPosition, AllSoundEvents.CRANKING, net.minecraft.sounds.SoundSource.BLOCKS, 1.25f, 0.5f, true);
                     }
 
                     default -> {
-                        AllSoundEvents.CRANKING.playAt(this.level, this.worldPosition, 0.5f, 1.25f, true);
+                        this.level.playLocalSound(this.worldPosition, AllSoundEvents.CRANKING, net.minecraft.sounds.SoundSource.BLOCKS, 0.5f, 1.25f, true);
                     }
                 }
             }
@@ -349,7 +348,7 @@ public class SteeringWheelBlockEntity extends GeneratingKineticBlockEntity {
 
     private void redraw() {
         if (!this.isVirtual())
-            this.requestModelDataUpdate();
+            this.invalidateRenderBoundingBox();
         if (this.hasLevel()) {
             this.level.sendBlockUpdated(this.getBlockPos(), this.getBlockState(), this.getBlockState(), 16);
             this.level.getChunkSource()
@@ -368,16 +367,16 @@ public class SteeringWheelBlockEntity extends GeneratingKineticBlockEntity {
         return material.is(BlockTags.PLANKS);
     }
 
-    public ItemInteractionResult applyMaterialIfValid(final ItemStack stack) {
+    public InteractionResult applyMaterialIfValid(final ItemStack stack) {
         if (this.isMaterialValid(stack) && (stack.getItem()instanceof final BlockItem blockItem)) {
             if (this.level.isClientSide() && !this.isVirtual())
-                return ItemInteractionResult.SUCCESS;
+                return InteractionResult.SUCCESS;
             this.material = blockItem.getBlock().defaultBlockState();;
             this.notifyUpdate();
             this.level.levelEvent(LevelEvent.PARTICLES_DESTROY_BLOCK, this.worldPosition, Block.getId(material));
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     private static class SteeringWheelValueBoxTransform extends ValueBoxTransform.Sided {
@@ -393,12 +392,12 @@ public class SteeringWheelBlockEntity extends GeneratingKineticBlockEntity {
         }
 
         @Override
-        public void rotate(final LevelAccessor level, final BlockPos pos, final BlockState state, final PoseStack ms) {
+        public void rotate(final LevelAccessor level, final BlockPos pos, final BlockState state, final org.joml.Matrix4f ms) {
             super.rotate(level, pos, state, ms);
             final Direction facing = state.getValue(HorizontalDirectionalBlock.FACING);
 
-            TransformStack.of(ms)
-                    .rotateZDegrees(-AngleHelper.horizontalAngle(facing) + 180);
+            ms
+                    .rotateZ((float) Math.toRadians(-AngleHelper.horizontalAngle(facing) + 180));
         }
     }
 

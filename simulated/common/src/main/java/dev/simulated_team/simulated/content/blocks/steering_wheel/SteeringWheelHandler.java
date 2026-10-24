@@ -9,10 +9,10 @@ import dev.simulated_team.simulated.util.hold_interaction.BlockHoldInteraction;
 import dev.simulated_team.simulated.util.hold_interaction.HoldInteractionManager;
 import foundry.veil.api.network.VeilPacketManager;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -30,8 +30,8 @@ public class SteeringWheelHandler extends BlockHoldInteraction {
     @Override
     public void startHold(final Level level, final Player player, final BlockPos blockPos) {
         super.startHold(level, player, blockPos);
-        blockEntity = level.getBlockEntity(blockPos, SimBlockEntityTypes.STEERING_WHEEL.get()).orElseThrow();
-        rawAngle = blockEntity.getInteractionAngle(Minecraft.getInstance().getTimer().getGameTimeDeltaTicks());
+        blockEntity = level.getBlockEntity(blockPos, SimBlockEntityTypes.STEERING_WHEEL).orElseThrow();
+        rawAngle = blockEntity.getInteractionAngle(Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaTicks());
         angleSgn = (int) blockEntity.directionConvert(1);
         updated = true;
         angleLimit = blockEntity.angleInput.getValue();
@@ -39,7 +39,7 @@ public class SteeringWheelHandler extends BlockHoldInteraction {
 
 
     @Override
-    public void renderOverlay(final GuiGraphics guiGraphics, final int width1, final int height1, final boolean hideGui) {
+    public void renderOverlay(final GuiGraphicsExtractor guiGraphics, final int width1, final int height1, final boolean hideGui) {
         final Minecraft mc = Minecraft.getInstance();
         if (hideGui) {
             return;
@@ -49,7 +49,7 @@ public class SteeringWheelHandler extends BlockHoldInteraction {
             return;
         }
 
-        final ResourceLocation tex = Simulated.path("textures/gui/steering_wheel.png");
+        final Identifier tex = Simulated.path("textures/gui/steering_wheel.png");
         final float magicOffset = 0.56f;
 
         final int x = ((width1 - 223) / 2) + SimConfigService.INSTANCE.client().blockConfig.steeringWheelXOffset.get();
@@ -115,11 +115,11 @@ public class SteeringWheelHandler extends BlockHoldInteraction {
             for (int yoff = -1; yoff < 2; yoff++) {
                 if (xoff == 0 && yoff == 0) continue;
 
-                guiGraphics.drawString(mc.font, text, centeredX + xoff, y + yoff, (int) Long.parseLong("2b2117", 16), false);
+                guiGraphics.text(mc.font, text, centeredX + xoff, y + yoff, (int) Long.parseLong("2b2117", 16), false);
             }
         }
 
-        guiGraphics.drawString(mc.font, text, centeredX, y, (int) Long.parseLong("886539", 16), false);
+        guiGraphics.text(mc.font, text, centeredX, y, (int) Long.parseLong("886539", 16), false);
     }
 
     //custom wrap because mc is a jerk (we need else if here otherwise it'll pass both if statements
@@ -175,7 +175,7 @@ public class SteeringWheelHandler extends BlockHoldInteraction {
         }
 
         this.setTargetAngle(effectiveAngle);
-        return !BlockHoldInteraction.inInteractionRange(player, this.getInteractionPos().getCenter(), 4);
+        return !BlockHoldInteraction.inInteractionRange(player, net.minecraft.world.phys.Vec3.atCenterOf(this.getInteractionPos()), 4);
     }
 
     @Override

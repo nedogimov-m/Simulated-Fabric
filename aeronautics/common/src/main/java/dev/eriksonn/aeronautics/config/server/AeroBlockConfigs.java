@@ -1,8 +1,8 @@
 package dev.eriksonn.aeronautics.config.server;
 
-import net.createmod.catnip.config.ConfigBase;
+import com.simibubi.create.infrastructure.config.NativeConfigBase;
 
-public class AeroBlockConfigs extends ConfigBase {
+public class AeroBlockConfigs extends NativeConfigBase {
 	public final ConfigBool breakBlocksOnCrystallize = this.b(true, "break_blocks_on_levitite_crystallize", Comments.levititeBreaksBlocks);
 	public final ConfigInt hotAirBurnerMaxHotAir = this.i(500, "hot_air_burner_max", Comments.hotAirBurnerHotAirAmount);
 	public final ConfigInt hotAirBurnerMaxRange = this.i(80, "hot_air_burner_max_range", Comments.hotAirBurnerRange);

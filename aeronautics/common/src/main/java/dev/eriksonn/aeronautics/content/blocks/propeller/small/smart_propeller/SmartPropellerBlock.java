@@ -1,8 +1,8 @@
 package dev.eriksonn.aeronautics.content.blocks.propeller.small.smart_propeller;
 
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
 import com.simibubi.create.content.kinetics.base.HorizontalAxisKineticBlock;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.eriksonn.aeronautics.content.blocks.propeller.small.BasePropellerBlock;
 import dev.eriksonn.aeronautics.index.AeroBlockEntityTypes;
 import dev.eriksonn.aeronautics.index.AeroBlockShapes;
@@ -21,7 +21,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class SmartPropellerBlock extends HorizontalAxisKineticBlock implements IBE<SmartPropellerBlockEntity> {
+public class SmartPropellerBlock extends HorizontalAxisKineticBlock implements NativeWrenchable, NativeEntityBlock<SmartPropellerBlockEntity> {
     public static final BooleanProperty REVERSED = BasePropellerBlock.REVERSED;
     public static final BooleanProperty CEILING = BooleanProperty.create("ceiling");
 
@@ -61,11 +61,11 @@ public class SmartPropellerBlock extends HorizontalAxisKineticBlock implements I
         if (context.getClickedFace() == (state.getValue(SmartPropellerBlock.CEILING) ? Direction.DOWN : Direction.UP)) {
             state = state.cycle(REVERSED);
             context.getLevel().setBlock(context.getClickedPos(), state, 3);
-            IWrenchable.playRotateSound(context.getLevel(), context.getClickedPos());
+            NativeWrenchable.playRotateSound(context.getLevel(), context.getClickedPos());
             return InteractionResult.SUCCESS;
         }
 
-        return super.onWrenched(state, context);
+        return NativeWrenchable.super.onWrenched(state, context);
     }
 
     @Override
@@ -84,6 +84,18 @@ public class SmartPropellerBlock extends HorizontalAxisKineticBlock implements I
 
     @Override
     public BlockEntityType<? extends SmartPropellerBlockEntity> getBlockEntityType() {
-        return AeroBlockEntityTypes.SMART_PROPELLER.get();
+        return AeroBlockEntityTypes.SMART_PROPELLER;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

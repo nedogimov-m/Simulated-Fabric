@@ -1,6 +1,5 @@
 package dev.simulated_team.simulated.content.blocks.redstone.redstone_inductor;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.content.equipment.clipboard.ClipboardCloneable;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
@@ -8,7 +7,6 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
 import com.simibubi.create.foundation.utility.CreateLang;
-import dev.engine_room.flywheel.lib.transform.TransformStack;
 import net.createmod.catnip.animation.LerpedFloat;
 import net.createmod.catnip.math.AngleHelper;
 import net.minecraft.core.BlockPos;
@@ -80,7 +78,7 @@ public class RedstoneInductorBlockEntity extends SmartBlockEntity implements IHa
 
         final boolean powered = this.getBlockState().getValue(RedstoneInductorBlock.POWERED);
 
-        if (!this.level.isClientSide) {
+        if (!this.level.isClientSide()) {
             if (tempPower == 0 && !powered) {
                 this.delayTicks = 0;
                 // setDischarge(false, level);
@@ -107,7 +105,7 @@ public class RedstoneInductorBlockEntity extends SmartBlockEntity implements IHa
             }
         }
 
-        if(this.level.isClientSide) this.lerpedState.tickChaser();
+        if(this.level.isClientSide()) this.lerpedState.tickChaser();
     }
 
     private void updateFacingBlock(final RedstoneInductorBlock block, final Level levelIn) {
@@ -130,18 +128,18 @@ public class RedstoneInductorBlockEntity extends SmartBlockEntity implements IHa
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        this.outputSignal = tag.getInt("OutputSignal");
-        this.delayTicks = tag.getInt("DelayTicks");
+    protected void read(final net.minecraft.world.level.storage.ValueInput tag, final boolean clientPacket) {
+        this.outputSignal = tag.getIntOr("OutputSignal", 0);
+        this.delayTicks = tag.getIntOr("DelayTicks", 0);
         this.lerpedState.chase(this.outputSignal, 0.4, LerpedFloat.Chaser.EXP);
-        super.read(tag, registries, clientPacket);
+        super.read(tag, clientPacket);
     }
 
     @Override
-    protected void write(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
+    protected void write(final net.minecraft.world.level.storage.ValueOutput tag, final boolean clientPacket) {
         tag.putInt("OutputSignal", this.outputSignal);
         tag.putInt("DelayTicks", this.delayTicks);
-        super.write(tag, registries, clientPacket);
+        super.write(tag, clientPacket);
     }
 
     @Override
@@ -157,7 +155,7 @@ public class RedstoneInductorBlockEntity extends SmartBlockEntity implements IHa
             return true;
         } else {
             final BlockState blockState = this.getBlockState();
-            if (blockState.getValue(RedstoneInductorBlock.INVERTED) != tag.getBoolean("Inverted")) {
+            if (blockState.getValue(RedstoneInductorBlock.INVERTED) != tag.getBooleanOr("Inverted", false)) {
                 this.level.setBlockAndUpdate(this.worldPosition, blockState.cycle(RedstoneInductorBlock.INVERTED));
             }
 
@@ -179,11 +177,11 @@ public class RedstoneInductorBlockEntity extends SmartBlockEntity implements IHa
         }
 
         @Override
-        public void rotate(final LevelAccessor levelAccessor, final BlockPos blockPos, final BlockState blockState, final PoseStack poseStack) {
+        public void rotate(final LevelAccessor levelAccessor, final BlockPos blockPos, final BlockState blockState, final org.joml.Matrix4f poseStack) {
             final float yRot = AngleHelper.horizontalAngle(blockState.getValue(BlockStateProperties.HORIZONTAL_FACING)) + 180;
-            TransformStack.of(poseStack)
-                    .rotateYDegrees(yRot)
-                    .rotateXDegrees(90);
+            poseStack
+                    .rotateY((float) Math.toRadians(yRot))
+                    .rotateX((float) Math.toRadians(90));
         }
 
         @Override

@@ -4,18 +4,18 @@ import dev.ryanhcode.sable.api.particle.ParticleSubLevelKickable;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.*;
 
-public class AirPoofParticle extends TextureSheetParticle implements ParticleSubLevelKickable {
-    protected AirPoofParticle(final ClientLevel level, final double x, final double y, final double z, final double xSpeed, final double ySpeed, final double zSpeed) {
-        super(level, x, y, z, xSpeed, ySpeed, zSpeed);
-        this.alpha = level.random.nextFloat() * 0.2f + 0.3f;
+public class AirPoofParticle extends SingleQuadParticle implements ParticleSubLevelKickable {
+    protected AirPoofParticle(final ClientLevel level, final double x, final double y, final double z, final double xSpeed, final double ySpeed, final double zSpeed, final net.minecraft.client.renderer.texture.TextureAtlasSprite sprite) {
+        super(level, x, y, z, xSpeed, ySpeed, zSpeed, sprite);
+        this.alpha = level.getRandom().nextFloat() * 0.2f + 0.3f;
         this.xd = xSpeed;
         this.yd = ySpeed;
         this.zd = zSpeed;
     }
 
     @Override
-    public ParticleRenderType getRenderType() {
-        return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT;
+    public Layer getLayer() {
+        return Layer.TRANSLUCENT;
     }
 
     @Override
@@ -30,9 +30,8 @@ public class AirPoofParticle extends TextureSheetParticle implements ParticleSub
 
     public record Factory(SpriteSet spriteSet) implements ParticleProvider<AirPoofParticleData> {
         public Particle createParticle(final AirPoofParticleData data, final ClientLevel worldIn, final double x, final double y, final double z,
-                                       final double xSpeed, final double ySpeed, final double zSpeed) {
-            final AirPoofParticle particle = new AirPoofParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed);
-            particle.pickSprite(this.spriteSet);
+                                       final double xSpeed, final double ySpeed, final double zSpeed, final net.minecraft.util.RandomSource random) {
+            final AirPoofParticle particle = new AirPoofParticle(worldIn, x, y, z, xSpeed, ySpeed, zSpeed, this.spriteSet.get(random));
             return particle;
         }
     }

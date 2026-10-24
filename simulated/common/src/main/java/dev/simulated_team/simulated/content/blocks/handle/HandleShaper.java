@@ -1,15 +1,15 @@
 package dev.simulated_team.simulated.content.blocks.handle;
 
 import dev.simulated_team.simulated.index.SimBlockShapes;
-import net.createmod.catnip.math.VoxelShaper;
+import dev.simulated_team.simulated.fabric.block.NativeShapeSet;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.Arrays;
 
-public class HandleShaper extends VoxelShaper {
-    private VoxelShaper axisFalse, axisTrue;
+public class HandleShaper extends NativeShapeSet {
+    private NativeShapeSet axisFalse, axisTrue;
 
     public static HandleShaper make() {
         final HandleShaper shaper = new HandleShaper();

@@ -2,8 +2,8 @@ package dev.simulated_team.simulated.util.placement_helpers;
 
 import com.simibubi.create.content.kinetics.simpleRelays.CogWheelBlock;
 import com.simibubi.create.content.kinetics.simpleRelays.ICogWheel;
-import net.createmod.catnip.placement.IPlacementHelper;
-import net.createmod.catnip.placement.PlacementOffset;
+import dev.simulated_team.simulated.api.AssistedPlacement.Helper;
+import dev.simulated_team.simulated.api.AssistedPlacement.Offset;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
@@ -24,11 +24,14 @@ public class CogwheelPlacementExtension extends SimplePlacementHelper {
     }
 
     @Override
-    public PlacementOffset getOffset(final Player player, final Level world, final BlockState state, final BlockPos pos, final BlockHitResult ray) {
-        ItemStack heldItem = player.getItemInHand(InteractionHand.MAIN_HAND);
-        if (heldItem.isEmpty()) {
-            heldItem = player.getItemInHand(InteractionHand.OFF_HAND);
-        }
+    public Offset getOffset(final Player player, final Level world, final BlockState state, final BlockPos pos, final BlockHitResult ray) {
+        final ItemStack main = player.getItemInHand(InteractionHand.MAIN_HAND);
+        return this.getOffset(player, world, state, pos, ray, main.isEmpty() ? player.getItemInHand(InteractionHand.OFF_HAND) : main);
+    }
+
+    @Override
+    public Offset getOffset(final Player player, final Level world, final BlockState state, final BlockPos pos,
+                            final BlockHitResult ray, final ItemStack heldItem) {
 
         final Direction.Axis facingAxis;
         if (state.hasProperty(BlockStateProperties.AXIS)) {
@@ -36,12 +39,12 @@ public class CogwheelPlacementExtension extends SimplePlacementHelper {
         } else if (state.hasProperty(BlockStateProperties.FACING)) {
             facingAxis = state.getValue(BlockStateProperties.FACING).getAxis();
         } else {
-            return PlacementOffset.fail();
+            return Offset.fail();
         }
 
         //small cog
         if (ICogWheel.isSmallCogItem(heldItem)) {
-            final List<Direction> validDirections = IPlacementHelper.orderedByDistanceExceptAxis(pos, ray.getLocation(), facingAxis);
+            final List<Direction> validDirections = Helper.orderedByDistanceExceptAxis(pos, ray.getLocation(), facingAxis);
             for (final Direction dir : validDirections) {
                 final BlockPos newPos = pos.relative(dir);
 
@@ -52,14 +55,14 @@ public class CogwheelPlacementExtension extends SimplePlacementHelper {
                         .canBeReplaced())
                     continue;
 
-                return PlacementOffset.success(newPos, s -> s.setValue(CogWheelBlock.AXIS, facingAxis));
+                return Offset.success(newPos, s -> s.setValue(CogWheelBlock.AXIS, facingAxis));
             }
 
         } else {
             //large cog
-            final Direction closest = IPlacementHelper.orderedByDistanceExceptAxis(pos, ray.getLocation(), facingAxis)
+            final Direction closest = Helper.orderedByDistanceExceptAxis(pos, ray.getLocation(), facingAxis)
                     .get(0);
-            final List<Direction> directions = IPlacementHelper.orderedByDistanceExceptAxis(pos, ray.getLocation(), facingAxis,
+            final List<Direction> directions = Helper.orderedByDistanceExceptAxis(pos, ray.getLocation(), facingAxis,
                     d -> d.getAxis() != closest.getAxis());
 
             for (final Direction dir : directions) {
@@ -72,10 +75,10 @@ public class CogwheelPlacementExtension extends SimplePlacementHelper {
                 if (!CogWheelBlock.isValidCogwheelPosition(ICogWheel.isLargeCog(state), world, newPos, facingAxis))
                     continue;
 
-                return PlacementOffset.success(newPos, s -> s.setValue(CogWheelBlock.AXIS, facingAxis));
+                return Offset.success(newPos, s -> s.setValue(CogWheelBlock.AXIS, facingAxis));
             }
         }
 
-        return PlacementOffset.fail();
+        return Offset.fail();
     }
 }

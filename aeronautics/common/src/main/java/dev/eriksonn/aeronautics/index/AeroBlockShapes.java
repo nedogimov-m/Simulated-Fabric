@@ -1,6 +1,6 @@
 package dev.eriksonn.aeronautics.index;
 
-import net.createmod.catnip.math.VoxelShaper;
+import dev.simulated_team.simulated.fabric.block.NativeShapeSet;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.shapes.BooleanOp;
@@ -13,7 +13,7 @@ import static net.minecraft.core.Direction.NORTH;
 
 public class AeroBlockShapes {
 
-	public static final VoxelShaper
+	public static final NativeShapeSet
 			STEAM_VENT = shape(1, 0, 1, 15, 3, 15)
 					.add(3, 2, 3, 13, 16, 13)
 					.forAxis(),
@@ -99,31 +99,31 @@ public class AeroBlockShapes {
 			return this.shape;
 		}
 
-		public VoxelShaper build(final BiFunction<VoxelShape, Direction, VoxelShaper> factory, final Direction direction) {
+		public NativeShapeSet build(final BiFunction<VoxelShape, Direction, NativeShapeSet> factory, final Direction direction) {
 			return factory.apply(this.shape, direction);
 		}
 
-		public VoxelShaper build(final BiFunction<VoxelShape, Direction.Axis, VoxelShaper> factory, final Direction.Axis axis) {
+		public NativeShapeSet build(final BiFunction<VoxelShape, Direction.Axis, NativeShapeSet> factory, final Direction.Axis axis) {
 			return factory.apply(this.shape, axis);
 		}
 
-		public VoxelShaper forAxis() {
-			return this.build(VoxelShaper::forAxis, Direction.Axis.Y);
+		public NativeShapeSet forAxis() {
+			return this.build(NativeShapeSet::forAxis, Direction.Axis.Y);
 		}
 
-		public VoxelShaper forHorizontalAxis() {
-			return this.build(VoxelShaper::forHorizontalAxis, Direction.Axis.Z);
+		public NativeShapeSet forHorizontalAxis() {
+			return this.build(NativeShapeSet::forHorizontalAxis, Direction.Axis.Z);
 		}
 
-		public VoxelShaper forHorizontal(final Direction direction) {
-			return this.build(VoxelShaper::forHorizontal, direction);
+		public NativeShapeSet forHorizontal(final Direction direction) {
+			return this.build(NativeShapeSet::forHorizontal, direction);
 		}
 
-		public VoxelShaper forDirectional(final Direction direction) {
-			return this.build(VoxelShaper::forDirectional, direction);
+		public NativeShapeSet forDirectional(final Direction direction) {
+			return this.build(NativeShapeSet::forDirectional, direction);
 		}
 
-		public VoxelShaper forDirectional() {
+		public NativeShapeSet forDirectional() {
 			return this.forDirectional(Direction.UP);
 		}
 	}

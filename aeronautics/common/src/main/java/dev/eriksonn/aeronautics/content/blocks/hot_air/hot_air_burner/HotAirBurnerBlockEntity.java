@@ -20,9 +20,10 @@ import dev.eriksonn.aeronautics.util.AeroSoundDistUtil;
 import net.createmod.catnip.animation.LerpedFloat;
 import net.createmod.catnip.math.AngleHelper;
 import net.createmod.catnip.math.VecHelper;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -103,10 +104,10 @@ public class HotAirBurnerBlockEntity extends SmartBlockEntity
         if (newSignalStrength != this.signalStrength) {
             if (this.signalStrength == 0 && newSignalStrength != 0) {
                 this.level.playSound(null, this.worldPosition, SoundEvents.FIRECHARGE_USE, SoundSource.BLOCKS,
-                        .125f + this.level.random.nextFloat() * .125f, .75f - this.level.random.nextFloat() * .25f);
+                        .125f + this.level.getRandom().nextFloat() * .125f, .75f - this.level.getRandom().nextFloat() * .25f);
             } else if (newSignalStrength == 0) {
                 this.level.playSound(null, this.worldPosition, SoundEvents.FIRE_EXTINGUISH, SoundSource.BLOCKS,
-                        .125f + this.level.random.nextFloat() * .125f, 1.1f - this.level.random.nextFloat() * .2f);
+                        .125f + this.level.getRandom().nextFloat() * .125f, 1.1f - this.level.getRandom().nextFloat() * .2f);
             }
             this.signalStrength = newSignalStrength;
             this.powered = shouldPower;
@@ -125,7 +126,7 @@ public class HotAirBurnerBlockEntity extends SmartBlockEntity
             this.tickBalloonLogic();
         }
 
-        if (!this.level.isClientSide) {
+        if (!this.level.isClientSide()) {
             if (!this.isVirtual()) {
                 this.notifyUpdate();
             }
@@ -141,7 +142,7 @@ public class HotAirBurnerBlockEntity extends SmartBlockEntity
         super.tick();
 
         this.ticksSinceSync++;
-        if (!this.level.isClientSide) {
+        if (!this.level.isClientSide()) {
             return;
         }
 
@@ -206,7 +207,7 @@ public class HotAirBurnerBlockEntity extends SmartBlockEntity
     public void invalidate() {
         super.invalidate();
 
-        if (this.level.isClientSide) {
+        if (this.level.isClientSide()) {
             AeroSoundDistUtil.removePosHotAirBurnerSound(this.getBlockPos());
         } else {
             this.removeFromBalloon();
@@ -214,7 +215,7 @@ public class HotAirBurnerBlockEntity extends SmartBlockEntity
     }
 
     @Override
-    public void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
+    public void write(final ValueOutput compound, final boolean clientPacket) {
         compound.putBoolean("IsPowered", this.powered);
         compound.putInt("SignalStrength", this.signalStrength);
 
@@ -222,20 +223,20 @@ public class HotAirBurnerBlockEntity extends SmartBlockEntity
             ClientBalloonInfo.writeToNBT(compound, (ServerBalloon) this.getBalloon());
         }
 
-        super.write(compound, registries, clientPacket);
+        super.write(compound, clientPacket);
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        this.powered = tag.getBoolean("IsPowered");
-        this.signalStrength = tag.getInt("SignalStrength");
+    protected void read(final ValueInput tag, final boolean clientPacket) {
+        this.powered = tag.getBooleanOr("IsPowered", false);
+        this.signalStrength = tag.getIntOr("SignalStrength", 0);
 
         if (clientPacket) {
             this.ticksSinceSync = 0;
             this.clientBalloonInfo = ClientBalloonInfo.readFromNBT(tag);
         }
 
-        super.read(tag, registries, clientPacket);
+        super.read(tag, clientPacket);
     }
 
     @Override
@@ -272,7 +273,7 @@ public class HotAirBurnerBlockEntity extends SmartBlockEntity
 
     @Override
     public LiftingGasType getLiftingGasType() {
-        return AeroLiftingGasTypes.DEFAULT_GAS.get();
+        return AeroLiftingGasTypes.DEFAULT_GAS;
     }
 
     @Override

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${version}",
+  "name": "${mod_name}",
+  "description": "${description}",
+  "authors": [
+    "${mod_author}"
+  ],
+  "license": "${license}",
+  "environment": "*",
+  "depends": {
+    "minecraft": "${minecraft_version}",
+    "fabricloader": ">=${fabric_loader_version}",
+    "fabric-api": ">=${fabric_version}",
+    "java": ">=${java_version}",
+    "create": ">=6.0.10-port.2",
+    "sablecompanion": ">=1.6.0-port.1+mc26.3",
+    "veil": ">=4.3.2-port.1+mc26.3",
+    "sable": ">=2.0.6-port.1+mc26.3",
+    "simulated": "${version}"
+  },
+  "custom": {
+    "simulated:portStatus": "native-runtime-wiring-in-progress"
+  },
+  "entrypoints": {
+    "main": [
+      "dev.eriksonn.aeronautics.Aeronautics::init"
+    ],
+    "client": [
+      "dev.eriksonn.aeronautics.AeronauticsClient::init"
+    ]
+  },
+  "mixins": [
+    "aeronautics.mixins.json",
+    "aeronautics.fabric.mixins.json"
+  ],
+  "accessWidener": "aeronautics.native.accesswidener"
+}

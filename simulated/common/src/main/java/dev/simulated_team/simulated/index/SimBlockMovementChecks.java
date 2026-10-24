@@ -164,33 +164,6 @@ public class SimBlockMovementChecks {
                 }
             }
 
-            case final PistonExtensionPoleBlock ignored -> {
-                for (final Direction d : Iterate.directionsInAxis(state.getValue(PistonExtensionPoleBlock.FACING)
-                        .getAxis())) {
-                    final BlockPos offset = pos.relative(d);
-                    if (!visited.contains(offset)) {
-                        final BlockState blockState = level.getBlockState(offset);
-                        if (isExtensionPole(blockState) && blockState.getValue(PistonExtensionPoleBlock.FACING)
-                                .getAxis() == d.getAxis()) {
-                            TEMP_DEFAULT_POSITIONS.add(offset);
-                        }
-
-                        if (isPistonHead(blockState) && blockState.getValue(MechanicalPistonHeadBlock.FACING)
-                                .getAxis() == d.getAxis()) {
-                            TEMP_DEFAULT_POSITIONS.add(offset);
-                        }
-
-                        if (blockState.getBlock() instanceof MechanicalPistonBlock) {
-                            final Direction pistonFacing = blockState.getValue(MechanicalPistonBlock.FACING);
-                            if (pistonFacing == d || pistonFacing == d.getOpposite()
-                                    && blockState.getValue(MechanicalPistonBlock.STATE) == MechanicalPistonBlock.PistonState.EXTENDED) {
-                                TEMP_DEFAULT_POSITIONS.add(offset);
-                            }
-                        }
-                    }
-                }
-            }
-
             case final MechanicalPistonHeadBlock ignore -> {
                 final Direction direction = state.getValue(MechanicalPistonHeadBlock.FACING);
                 final BlockPos offset = pos.relative(direction.getOpposite());
@@ -218,6 +191,33 @@ public class SimBlockMovementChecks {
                 }
             }
 
+            case final PistonExtensionPoleBlock ignored -> {
+                for (final Direction d : Iterate.directionsInAxis(state.getValue(PistonExtensionPoleBlock.FACING)
+                        .getAxis())) {
+                    final BlockPos offset = pos.relative(d);
+                    if (!visited.contains(offset)) {
+                        final BlockState blockState = level.getBlockState(offset);
+                        if (isExtensionPole(blockState) && blockState.getValue(PistonExtensionPoleBlock.FACING)
+                                .getAxis() == d.getAxis()) {
+                            TEMP_DEFAULT_POSITIONS.add(offset);
+                        }
+
+                        if (isPistonHead(blockState) && blockState.getValue(MechanicalPistonHeadBlock.FACING)
+                                .getAxis() == d.getAxis()) {
+                            TEMP_DEFAULT_POSITIONS.add(offset);
+                        }
+
+                        if (blockState.getBlock() instanceof MechanicalPistonBlock) {
+                            final Direction pistonFacing = blockState.getValue(MechanicalPistonBlock.FACING);
+                            if (pistonFacing == d || pistonFacing == d.getOpposite()
+                                    && blockState.getValue(MechanicalPistonBlock.STATE) == MechanicalPistonBlock.PistonState.EXTENDED) {
+                                TEMP_DEFAULT_POSITIONS.add(offset);
+                            }
+                        }
+                    }
+                }
+            }
+
             case final GantryCarriageBlock ignored -> {
                 BlockPos offset = pos.relative(state.getValue(GantryCarriageBlock.FACING));
                 if (!visited.contains(offset)) {
@@ -228,7 +228,7 @@ public class SimBlockMovementChecks {
                 for (final Direction d : Iterate.directionsInAxis(rotationAxis)) {
                     offset = pos.relative(d);
                     final BlockState offsetState = level.getBlockState(offset);
-                    if (AllBlocks.GANTRY_SHAFT.has(offsetState) && offsetState.getValue(GantryShaftBlock.FACING).getAxis() == d.getAxis()) {
+                    if (offsetState.is(AllBlocks.GANTRY_SHAFT) && offsetState.getValue(GantryShaftBlock.FACING).getAxis() == d.getAxis()) {
                         if (!visited.contains(offset)) {
                             TEMP_DEFAULT_POSITIONS.add(offset);
                         }
@@ -242,9 +242,9 @@ public class SimBlockMovementChecks {
                     if (!visited.contains(offset)) {
                         final BlockState offsetState = level.getBlockState(offset);
                         final Direction facing = state.getValue(GantryShaftBlock.FACING);
-                        if (d.getAxis() == facing.getAxis() && AllBlocks.GANTRY_SHAFT.has(offsetState) && offsetState.getValue(GantryShaftBlock.FACING) == facing) {
+                        if (d.getAxis() == facing.getAxis() && offsetState.is(AllBlocks.GANTRY_SHAFT) && offsetState.getValue(GantryShaftBlock.FACING) == facing) {
                             TEMP_DEFAULT_POSITIONS.add(offset);
-                        } else if (AllBlocks.GANTRY_CARRIAGE.has(offsetState) && offsetState.getValue(GantryCarriageBlock.FACING) == d) {
+                        } else if (offsetState.is(AllBlocks.GANTRY_CARRIAGE) && offsetState.getValue(GantryCarriageBlock.FACING) == d) {
                             TEMP_DEFAULT_POSITIONS.add(offset);
                         }
                     }

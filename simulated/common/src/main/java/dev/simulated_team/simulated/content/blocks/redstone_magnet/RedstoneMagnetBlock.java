@@ -1,6 +1,6 @@
 package dev.simulated_team.simulated.content.blocks.redstone_magnet;
 
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import com.simibubi.create.foundation.block.WrenchableDirectionalBlock;
 import dev.simulated_team.simulated.data.advancements.SimAdvancements;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
@@ -15,7 +15,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 
-public class RedstoneMagnetBlock extends WrenchableDirectionalBlock implements IBE<RedstoneMagnetBlockEntity> {
+public class RedstoneMagnetBlock extends WrenchableDirectionalBlock implements NativeEntityBlock<RedstoneMagnetBlockEntity> {
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
     public RedstoneMagnetBlock(final Properties properties) {
@@ -40,9 +40,9 @@ public class RedstoneMagnetBlock extends WrenchableDirectionalBlock implements I
     }
 
     @Override
-    public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block blockIn, final BlockPos fromPos,
+    public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block blockIn,final net.minecraft.world.level.redstone.Orientation orientation,
                                 final boolean isMoving) {
-        if (level.isClientSide)
+        if (level.isClientSide())
             return;
         this.withBlockEntityDo(level, pos, RedstoneMagnetBlockEntity::updateSignal);
         final boolean previouslyPowered = state.getValue(POWERED);
@@ -60,6 +60,18 @@ public class RedstoneMagnetBlock extends WrenchableDirectionalBlock implements I
 
     @Override
     public BlockEntityType<? extends RedstoneMagnetBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.REDSTONE_MAGNET.get();
+        return SimBlockEntityTypes.REDSTONE_MAGNET;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

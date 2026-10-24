@@ -1,76 +1,29 @@
 package dev.simulated_team.simulated.content.blocks.redstone.linked_typewriter.screen;
 
-import com.simibubi.create.foundation.gui.menu.GhostItemMenu;
 import dev.simulated_team.simulated.content.blocks.redstone.linked_typewriter.LinkedTypewriterBlockEntity;
+import dev.simulated_team.simulated.fabric.menu.NativeGhostMenu;
+import dev.simulated_team.simulated.fabric.menu.TypewriterOpeningData;
 import dev.simulated_team.simulated.index.SimMenuTypes;
-import dev.simulated_team.simulated.service.SimMenuService;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.MenuType;
-import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.level.block.entity.BlockEntity;
 
-public abstract class LinkedTypewriterMenuCommon extends GhostItemMenu<LinkedTypewriterBlockEntity> {
-
-    public boolean slotsActive = false;
-
-    public LinkedTypewriterMenuCommon(final MenuType<?> type, final int id, final Inventory inv, final RegistryFriendlyByteBuf extraData) {
-        super(type, id, inv, extraData);
+public final class LinkedTypewriterMenuCommon extends NativeGhostMenu<LinkedTypewriterBlockEntity> {
+    public LinkedTypewriterMenuCommon(MenuType<?> type, int id, Inventory inventory, LinkedTypewriterBlockEntity be) {
+        super(type, id, inventory, be, player -> !be.isRemoved() && be.getLevel() == player.level()
+                && player.level().getBlockEntity(be.getBlockPos()) == be
+                && LinkedTypewriterBlockEntity.playerInRange(player, player.level(), be.getBlockPos()),
+                2, false, 38, 59, 105, 1);
     }
 
-    public LinkedTypewriterMenuCommon(final MenuType<?> type, final int id, final Inventory inv, final LinkedTypewriterBlockEntity be) {
-        super(type, id, inv, be);
+    public static LinkedTypewriterMenuCommon create(int id, Inventory inventory, LinkedTypewriterBlockEntity be) {
+        return new LinkedTypewriterMenuCommon(SimMenuTypes.LINKED_TYPEWRITER, id, inventory, be);
     }
 
-    public static LinkedTypewriterMenuCommon create(final int id, final Inventory inv, final LinkedTypewriterBlockEntity be) {
-        return SimMenuService.INSTANCE.getLoaderLinkedTypewriter(SimMenuTypes.LINKED_TYPEWRITER.get(), id, inv, be);
-    }
-
-    @Override
-    protected LinkedTypewriterBlockEntity createOnClient(final RegistryFriendlyByteBuf extraData) {
-        final ClientLevel world = Minecraft.getInstance().level;
-
-        final BlockEntity blockEntity = world.getBlockEntity(extraData.readBlockPos());
-        if (blockEntity instanceof final LinkedTypewriterBlockEntity linkedTypewriter) {
-            linkedTypewriter.readClient(extraData.readNbt(), extraData.registryAccess());
-            return linkedTypewriter;
+    public static LinkedTypewriterMenuCommon fromOpening(int id, Inventory inventory, TypewriterOpeningData data) {
+        if (!(inventory.player.level().getBlockEntity(data.pos()) instanceof LinkedTypewriterBlockEntity be)) {
+            throw new IllegalStateException("Missing linked typewriter at " + data.pos());
         }
-
-        return null;
-    }
-
-    @Override
-    protected void addPlayerSlots(final int x, final int y) {
-        for (int hotbarSlot = 0; hotbarSlot < 9; ++hotbarSlot) {
-            this.addSlot(new PlayerSlot(this.playerInventory, hotbarSlot, x + hotbarSlot * 18, y + 58));
-        }
-
-        for (int row = 0; row < 3; ++row) {
-            for (int col = 0; col < 9; ++col) {
-                this.addSlot(new PlayerSlot(this.playerInventory, col + row * 9 + 9, x + col * 18, y + row * 18));
-            }
-        }
-    }
-
-    @Override
-    protected void saveData(final LinkedTypewriterBlockEntity be) {}
-
-    @Override
-    protected boolean allowRepeats() {
-        return false;
-    }
-
-    private class PlayerSlot extends Slot {
-        public PlayerSlot(final Container pContainer, final int pIndex, final int pX, final int pY) {
-            super(pContainer, pIndex, pX, pY);
-        }
-
-        @Override
-        public boolean isActive() {
-            return LinkedTypewriterMenuCommon.this.slotsActive;
-        }
+        be.readClient(data.tag(), inventory.player.registryAccess());
+        return create(id, inventory, be);
     }
 }

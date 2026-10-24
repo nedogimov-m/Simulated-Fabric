@@ -63,11 +63,11 @@ public class AltitudeSensorBlockEntity extends SmartBlockEntity implements IHave
 	}
 
 	public float toWorldHeight(final float normalHeight) {
-		return Mth.map(normalHeight, 0.0f, 1.0f, this.getLevel().getMinBuildHeight(), this.getLevel().getMaxBuildHeight());
+		return Mth.map(normalHeight, 0.0f, 1.0f, this.getLevel().getMinY(), this.getLevel().getMaxY() + 1);
 	}
 
 	public float toNormalHeight(final float worldHeight) {
-		return Mth.map(worldHeight, this.getLevel().getMinBuildHeight(), this.getLevel().getMaxBuildHeight(), 0.0f, 1.0f);
+		return Mth.map(worldHeight, this.getLevel().getMinY(), this.getLevel().getMaxY() + 1, 0.0f, 1.0f);
 	}
 
 	public double getAirPressure() {
@@ -123,15 +123,15 @@ public class AltitudeSensorBlockEntity extends SmartBlockEntity implements IHave
 	}
 
 	@Override
-	protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-		super.read(tag, registries, clientPacket);
-		this.highSignal = tag.getFloat("high_signal");
-		this.lowSignal = tag.getFloat("low_signal");
+	protected void read(final net.minecraft.world.level.storage.ValueInput tag, final boolean clientPacket) {
+		super.read(tag, clientPacket);
+		this.highSignal = tag.getFloatOr("high_signal", 0f);
+		this.lowSignal = tag.getFloatOr("low_signal", 0f);
 	}
 
 	@Override
-	protected void write(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-		super.write(tag, registries, clientPacket);
+	protected void write(final net.minecraft.world.level.storage.ValueOutput tag, final boolean clientPacket) {
+		super.write(tag, clientPacket);
 		tag.putFloat("high_signal", this.highSignal);
 		tag.putFloat("low_signal", this.lowSignal);
 	}
@@ -181,8 +181,8 @@ public class AltitudeSensorBlockEntity extends SmartBlockEntity implements IHave
 		if(simulate) {
 			return true;
 		}
-		this.highSignal = tag.getFloat("high_signal");
-		this.lowSignal = tag.getFloat("low_signal");
+		this.highSignal = tag.getFloatOr("high_signal", 0f);
+		this.lowSignal = tag.getFloatOr("low_signal", 0f);
 		this.setChanged();
 		this.sendData();
 		return true;

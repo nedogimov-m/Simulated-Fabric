@@ -2,9 +2,10 @@ package dev.simulated_team.simulated.content.blocks.steering_wheel;
 
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.content.kinetics.base.IRotate;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import com.simibubi.create.foundation.block.IHaveBigOutline;
-import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
+import net.minecraft.world.level.block.SimpleWaterloggedBlock;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.companion.math.Pose3dc;
 import dev.ryanhcode.sable.sublevel.ClientSubLevel;
@@ -20,7 +21,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -46,19 +46,16 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Arrays;
 
 public class SteeringWheelBlock extends HorizontalDirectionalBlock
-        implements IBE<SteeringWheelBlockEntity>, ProperWaterloggedBlock, IRotate, IHaveBigOutline, QuietUse, IDirectionalAnalogOutput {
+        implements NativeEntityBlock<SteeringWheelBlockEntity>, SimpleWaterloggedBlock, IRotate, IHaveBigOutline, QuietUse, IDirectionalAnalogOutput {
 
     public static final BooleanProperty ON_FLOOR = BooleanProperty.create("on_floor");
-    public static final MapCodec<SteeringWheelBlock> CODEC = simpleCodec(SteeringWheelBlock::new);
+
+
+    public static final net.minecraft.world.level.block.state.properties.BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
 
     public SteeringWheelBlock(final Properties properties) {
         super(properties);
         this.registerDefaultState(this.defaultBlockState().setValue(WATERLOGGED, false).setValue(ON_FLOOR, true));
-    }
-
-    @Override
-    protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -71,7 +68,7 @@ public class SteeringWheelBlock extends HorizontalDirectionalBlock
                 player.isLocalPlayer()) {
             final VoxelShape wheel = (onFloor ? SimBlockShapes.STEERING_WHEEL_FLOOR : SimBlockShapes.STEERING_WHEEL_CEILING).get(facing);
             final VoxelShape mount = SimBlockShapes.STEERING_WHEEL_MOUNT.get(facing);
-            return lookingAtWheel(player, pos, Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true), wheel, mount) ? wheel : mount;
+            return lookingAtWheel(player, pos, Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true), wheel, mount) ? wheel : mount;
         }
 
         if (state.getValue(ON_FLOOR)) {
@@ -142,7 +139,7 @@ public class SteeringWheelBlock extends HorizontalDirectionalBlock
 
     @Override
     public @Nullable InteractionResult quietUse(final Player player, final InteractionHand hand, final BlockPos pos, final BlockState state) {
-        if (lookingAtWheel(player, pos, Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(true), state)) {
+        if (lookingAtWheel(player, pos, Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true), state)) {
             return this.getBlockEntityOptional(player.level(), pos).map( be -> {
                 if (!be.held &&
                         !be.isMaterialValid(player.getItemInHand(hand)) &&
@@ -162,16 +159,16 @@ public class SteeringWheelBlock extends HorizontalDirectionalBlock
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
+    protected InteractionResult useItemOn(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
         if (player.isShiftKeyDown()) {
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
         return this.onBlockEntityUseItemOn(level, pos, be -> be.applyMaterialIfValid(stack));
     }
 
     @Override
     public BlockState getStateForPlacement(final BlockPlaceContext context) {
-        final BlockState defaultState = this.withWater(this.defaultBlockState(), context);
+        final BlockState defaultState = this.defaultBlockState().setValue(WATERLOGGED, context.getLevel().getFluidState(context.getClickedPos()).getType() == net.minecraft.world.level.material.Fluids.WATER);
         final boolean floor = switch (context.getClickedFace()) {
             case UP -> true;
             case DOWN -> false;
@@ -188,9 +185,8 @@ public class SteeringWheelBlock extends HorizontalDirectionalBlock
     }
 
     @Override
-    public BlockState updateShape(final BlockState pState, final Direction pDirection, final BlockState pNeighborState,
-                                  final LevelAccessor pLevel, final BlockPos pCurrentPos, final BlockPos pNeighborPos) {
-        this.updateWater(pLevel, pState, pCurrentPos);
+    public BlockState updateShape(final BlockState pState, final net.minecraft.world.level.LevelReader pLevel, final net.minecraft.world.level.ScheduledTickAccess tickAccess, final BlockPos pCurrentPos, final Direction pDirection, final BlockPos pNeighborPos, final BlockState pNeighborState, final net.minecraft.util.RandomSource random) {
+        if (pState.getValue(WATERLOGGED)) tickAccess.scheduleTick(pCurrentPos, net.minecraft.world.level.material.Fluids.WATER, net.minecraft.world.level.material.Fluids.WATER.getTickDelay(pLevel));
         return pState;
     }
 
@@ -226,7 +222,7 @@ public class SteeringWheelBlock extends HorizontalDirectionalBlock
 
     @Override
     public FluidState getFluidState(final BlockState pState) {
-        return this.fluidState(pState);
+        return pState.getValue(WATERLOGGED) ? net.minecraft.world.level.material.Fluids.WATER.getSource(false) : super.getFluidState(pState);
     }
 
     @Override
@@ -246,6 +242,18 @@ public class SteeringWheelBlock extends HorizontalDirectionalBlock
 
     @Override
     public BlockEntityType<? extends SteeringWheelBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.STEERING_WHEEL.get();
+        return SimBlockEntityTypes.STEERING_WHEEL;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

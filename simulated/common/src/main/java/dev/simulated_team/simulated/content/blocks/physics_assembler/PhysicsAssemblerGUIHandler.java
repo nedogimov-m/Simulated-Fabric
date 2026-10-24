@@ -13,7 +13,7 @@ import dev.simulated_team.simulated.util.hold_interaction.BlockHoldInteraction;
 import foundry.veil.api.network.VeilPacketManager;
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
@@ -70,7 +70,7 @@ public class PhysicsAssemblerGUIHandler extends BlockHoldInteraction {
         }
 
         if (level.getBlockEntity(this.getInteractionPos()) instanceof final PhysicsAssemblerBlockEntity be) {
-            if (BlockHoldInteraction.inInteractionRange(player, this.getInteractionPos().getCenter(), 2)) {
+            if (BlockHoldInteraction.inInteractionRange(player, net.minecraft.world.phys.Vec3.atCenterOf(this.getInteractionPos()), 2)) {
                 lastAnimatedValue = animatedValue;
                 animatedValue += animatedVelocity;
                 animatedVelocity *= 0.8f;
@@ -122,34 +122,34 @@ public class PhysicsAssemblerGUIHandler extends BlockHoldInteraction {
     }
 
     @Override
-    public void renderOverlay(final GuiGraphics graphics, final int width1, final int height1, final boolean hideGui) {
+    public void renderOverlay(final GuiGraphicsExtractor graphics, final int width1, final int height1, final boolean hideGui) {
         if (hideGui)
             return;
-        final PoseStack ps = graphics.pose();
+        final org.joml.Matrix3x2fStack ps = graphics.pose();
 
-        ps.pushPose();
+        ps.pushMatrix();
 
-        ps.translate(graphics.guiWidth() / 2, graphics.guiHeight() / 2, 0);
+        ps.translate(graphics.guiWidth() / 2, graphics.guiHeight() / 2);
 
         final int height = 6 + 10 * 6 + 6;
 
-        ps.translate(10, -height / 2, 0);
+        ps.translate(10, -height / 2);
 
-        graphics.blit(SimGUITextures.ASSEMBLER_TRACK_START.location, 0, 0, 0, 0, 14, 6, 32, 32);
-        ps.translate(0, 6, 0);
+        graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, SimGUITextures.ASSEMBLER_TRACK_START.location, 0, 0, 0, 0, 14, 6, 32, 32);
+        ps.translate(0, 6);
 
         for (int c = 0; c < 6; c++) {
-            graphics.blit(SimGUITextures.ASSEMBLER_TRACK_MIDDLE.location, 0, 0, 0, 7, 14, 10, 32, 32);
-            ps.translate(0, 10, 0);
+            graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, SimGUITextures.ASSEMBLER_TRACK_MIDDLE.location, 0, 0, 0, 7, 14, 10, 32, 32);
+            ps.translate(0, 10);
         }
 
-        graphics.blit(SimGUITextures.ASSEMBLER_TRACK_END.location, 0, 0, 0, 18, 14, 6, 32, 32);
+        graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, SimGUITextures.ASSEMBLER_TRACK_END.location, 0, 0, 0, 18, 14, 6, 32, 32);
 
         final float value = Mth.lerp(AnimationTickHolder.getPartialTicks(), lastAnimatedValue, animatedValue);
-        ps.translate(-2, -12 - (51 * value), 0);
-        graphics.blit(SimGUITextures.ASSEMBLER_TRACK_MIDDLE.location, 0, 0, 14, 0, 18, 14, 32, 32);
+        ps.translate(-2, -12 - (51 * value));
+        graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, SimGUITextures.ASSEMBLER_TRACK_MIDDLE.location, 0, 0, 14, 0, 18, 14, 32, 32);
 
-        ps.popPose();
+        ps.popMatrix();
     }
 
     public ClientSubLevel getSubLevelHolding() {

@@ -1,19 +1,19 @@
 package dev.simulated_team.simulated.content.blocks.redstone.linked_typewriter.screen.widgets;
 
-import com.simibubi.create.foundation.gui.widget.IconButton;
-import net.createmod.catnip.gui.element.ScreenElement;
+import dev.simulated_team.simulated.fabric.client.gui.NativeIconButton;
+import com.simibubi.create.foundation.gui.AllIcons;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.MutableComponent;
 
 import java.util.List;
 
-public class ConfirmationWidgetBase extends IconButton {
+public class ConfirmationWidgetBase extends NativeIconButton {
 
     public boolean confirmation;
     public MutableComponent message;
 
-    public ConfirmationWidgetBase(final int x, final int y, final ScreenElement icon) {
+    public ConfirmationWidgetBase(final int x, final int y, final AllIcons icon) {
         super(x, y, icon);
     }
 
@@ -23,7 +23,7 @@ public class ConfirmationWidgetBase extends IconButton {
     }
 
     @Override
-    public void doRender(final GuiGraphics graphics, final int mouseX, final int mouseY, final float partialTicks) {
+    public void doRender(final GuiGraphicsExtractor graphics, final int mouseX, final int mouseY, final float partialTicks) {
         super.doRender(graphics, mouseX, mouseY, partialTicks);
 
         if (this.isHovered && this.visible && this.active && this.confirmation) {
@@ -31,8 +31,8 @@ public class ConfirmationWidgetBase extends IconButton {
         }
     }
 
-    public void renderHoveredText(final GuiGraphics graphics, final int mouseX, final int mouseY) {
-        graphics.renderComponentTooltip(Minecraft.getInstance().font, List.of(this.message.withColor(0xff0000)), mouseX, mouseY);
+    public void renderHoveredText(final GuiGraphicsExtractor graphics, final int mouseX, final int mouseY) {
+        graphics.setComponentTooltipForNextFrame(Minecraft.getInstance().font, List.of(this.message.withColor(0xff0000)), mouseX, mouseY);
     }
 
     @Override
@@ -45,7 +45,8 @@ public class ConfirmationWidgetBase extends IconButton {
     }
 
     @Override
-    public void onClick(final double mouseX, final double mouseY) {
+    public void onClick(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+        final double mouseX = event.x(), mouseY = event.y();
         if (this.confirmation) {
             this.runCallback(mouseX, mouseY);
             this.confirmation = false;

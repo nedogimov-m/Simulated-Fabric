@@ -1,60 +1,26 @@
 package dev.simulated_team.simulated.content.blocks.directional_gearshift;
 
-import com.tterrag.registrate.providers.DataGenContext;
-import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
-import dev.simulated_team.simulated.Simulated;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.client.model.generators.ModelFile;
-import net.neoforged.neoforge.client.model.generators.MultiPartBlockStateBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import dev.simulated_team.simulated.fabric.data.NativeBlockStateJson;
 
-public class DirectionalGearshiftGenerator {
-    public static <P extends DirectionalGearshiftBlock> void generate(final DataGenContext<Block, P> context, final RegistrateBlockstateProvider provider) {
-        final MultiPartBlockStateBuilder builder = provider.getMultipartBuilder(context.get());
-
-        for (final BlockState state : context.get().getStateDefinition().getPossibleStates()) {
-            final boolean alongFirst = state.getValue(DirectionalGearshiftBlock.AXIS_ALONG_FIRST_COORDINATE);
-            final Direction direction = state.getValue(DirectionalGearshiftBlock.FACING);
-            final boolean leftOn = state.getValue(DirectionalGearshiftBlock.LEFT_POWERED);
-            final boolean rightOn = state.getValue(DirectionalGearshiftBlock.RIGHT_POWERED);
-
-            final boolean vertical = direction.getAxis()
-                    .isHorizontal() && (direction.getAxis() == Direction.Axis.X) == alongFirst;
-            final int xRot = direction == Direction.DOWN ? 270 : direction == Direction.UP ? 90 : 0;
-            final int yRot = direction.getAxis()
-                    .isVertical() ? alongFirst ? 0 : 90 : (int) direction.toYRot();
-
-            builder.part()
-                    .modelFile(model(provider, "middle", false, vertical))
-                    .rotationY(yRot)
-                    .rotationX(xRot)
-                    .addModel()
-                    .condition(DirectionalGearshiftBlock.FACING, direction)
-                    .condition(DirectionalGearshiftBlock.AXIS_ALONG_FIRST_COORDINATE, alongFirst)
-                    .end().part()
-
-                    .modelFile(model(provider, "left", leftOn, vertical))
-                    .rotationY(yRot)
-                    .rotationX(xRot)
-                    .addModel()
-                    .condition(DirectionalGearshiftBlock.LEFT_POWERED, leftOn)
-                    .condition(DirectionalGearshiftBlock.FACING, direction)
-                    .condition(DirectionalGearshiftBlock.AXIS_ALONG_FIRST_COORDINATE, alongFirst)
-                    .end().part()
-
-                    .modelFile(model(provider, "right", rightOn, vertical))
-                    .rotationY(yRot)
-                    .rotationX(xRot)
-                    .addModel()
-                    .condition(DirectionalGearshiftBlock.RIGHT_POWERED, rightOn)
-                    .condition(DirectionalGearshiftBlock.FACING, direction)
-                    .condition(DirectionalGearshiftBlock.AXIS_ALONG_FIRST_COORDINATE, alongFirst)
-                    .end().part();
-        }
+/** Original144 multipart entries, including all original condition multiplicities. */
+public final class DirectionalGearshiftGenerator {
+    public static JsonObject generate(){
+        var parts=new JsonArray();
+        for(String face:new String[]{"north","south","west","east","up","down"})for(boolean axis:new boolean[]{true,false})
+            for(boolean left:new boolean[]{true,false})for(boolean right:new boolean[]{true,false}){
+                boolean horizontal=!face.equals("up")&&!face.equals("down");
+                boolean xAxis=face.equals("east")||face.equals("west");
+                String orientation=horizontal&&xAxis==axis?"vertical/":"horizontal/";
+                int x=face.equals("down")?270:face.equals("up")?90:0;
+                int y=horizontal?NativeBlockStateJson.angle(face):axis?0:90;
+                String base="directional_gearshift/"+orientation;
+                parts.add(NativeBlockStateJson.part(NativeBlockStateJson.model(base+"middle",x,y),"facing",face,"axis_along_first",String.valueOf(axis)));
+                parts.add(NativeBlockStateJson.part(NativeBlockStateJson.model(base+"left"+(left?"_powered":""),x,y),"left_powered",String.valueOf(left),"facing",face,"axis_along_first",String.valueOf(axis)));
+                parts.add(NativeBlockStateJson.part(NativeBlockStateJson.model(base+"right"+(right?"_powered":""),x,y),"right_powered",String.valueOf(right),"facing",face,"axis_along_first",String.valueOf(axis)));
+            }
+        var output=new JsonObject();output.add("multipart",parts);return output;
     }
-
-    private static ModelFile model(final RegistrateBlockstateProvider p, final String part, final boolean powered, final boolean vertical) {
-        return p.models().getExistingFile(Simulated.path("block/directional_gearshift/" + (vertical ? "vertical/" : "horizontal/") + part + (powered ? "_powered" : "")));
-    }
+    private DirectionalGearshiftGenerator(){}
 }

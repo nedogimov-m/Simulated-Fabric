@@ -1,8 +1,7 @@
 package dev.simulated_team.simulated.data.advancements;
 
 import com.mojang.serialization.Codec;
-import net.minecraft.advancements.critereon.CriterionValidator;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -11,12 +10,12 @@ import java.util.List;
 import java.util.function.Supplier;
 
 public class SimpleSimulatedTrigger extends SimulatedCriterionTriggerBase<SimulatedCriterionTriggerBase.Instance> {
-    public SimpleSimulatedTrigger(final ResourceLocation id) {
+    public SimpleSimulatedTrigger(final Identifier id) {
         super(id);
     }
 
     public void trigger(final ServerPlayer player) {
-        super.trigger(player, null);
+        super.trigger(player, List.of());
     }
 
     public Instance instance() {
@@ -25,12 +24,12 @@ public class SimpleSimulatedTrigger extends SimulatedCriterionTriggerBase<Simula
 
     @Override
     public @NotNull Codec<SimulatedCriterionTriggerBase.Instance> codec() {
-        return ResourceLocation.CODEC.xmap(Instance::new, SimulatedCriterionTriggerBase.Instance::getId);
+        return Identifier.CODEC.xmap(Instance::new, SimulatedCriterionTriggerBase.Instance::getId);
     }
 
     public static class Instance extends SimulatedCriterionTriggerBase.Instance {
 
-        public Instance(final ResourceLocation id) {
+        public Instance(final Identifier id) {
             super(id);
         }
 
@@ -39,7 +38,5 @@ public class SimpleSimulatedTrigger extends SimulatedCriterionTriggerBase<Simula
             return true;
         }
 
-        @Override
-        public void validate(@NotNull final CriterionValidator criterionValidator) {}
     }
 }

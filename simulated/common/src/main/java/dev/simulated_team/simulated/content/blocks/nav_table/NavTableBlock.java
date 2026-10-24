@@ -2,9 +2,9 @@ package dev.simulated_team.simulated.content.blocks.nav_table;
 
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.api.schematic.requirement.SpecialBlockItemRequirement;
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
 import com.simibubi.create.content.schematics.requirement.ItemRequirement;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.content.blocks.nav_table.navigation_target.NavigationTarget;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.index.SimBlockShapes;
@@ -17,7 +17,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -37,16 +37,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-public class NavTableBlock extends DirectionalBlock implements IBE<NavTableBlockEntity>, IWrenchable, CommonRedstoneBlock, SpecialBlockItemRequirement {
-    public static final MapCodec<NavTableBlock> CODEC = simpleCodec(NavTableBlock::new);
+public class NavTableBlock extends DirectionalBlock implements NativeEntityBlock<NavTableBlockEntity>, NativeWrenchable, CommonRedstoneBlock, SpecialBlockItemRequirement {
+
 
     public NavTableBlock(final Properties pProperties) {
         super(pProperties);
-    }
-
-    @Override
-    protected MapCodec<? extends DirectionalBlock> codec() {
-        return CODEC;
     }
 
     @Override
@@ -61,13 +56,13 @@ public class NavTableBlock extends DirectionalBlock implements IBE<NavTableBlock
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
+    protected InteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
         if (level.isClientSide() && this.canSwitchStacks(itemStack, level, blockPos)) {
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
 
         if (this.switchStacks(level, blockPos, player, interactionHand)) {
-            return ItemInteractionResult.CONSUME;
+            return InteractionResult.CONSUME;
         }
 
         return super.useItemOn(itemStack, blockState, level, blockPos, player, interactionHand, blockHitResult);
@@ -108,14 +103,14 @@ public class NavTableBlock extends DirectionalBlock implements IBE<NavTableBlock
                     heldItem.shrink(1);
                 }
                 if (!extract.isEmpty()) {
-                    player.getInventory().placeItemBackInInventory(extract.copy());
+                    player.getInventory().placeItemBackInInventory(extract.copy(), net.minecraft.util.Prediction.SERVER_ONLY);
                 }
 
                 final ItemStack newSlotItem = slot.getStack();
                 nav.setChanged();
                 nav.sendData();
 
-                final float pitch = 0.8f + level.random.nextFloat() * 0.4f;
+                final float pitch = 0.8f + level.getRandom().nextFloat() * 0.4f;
                 final float volume = .75f;
 
                 if (extract.isEmpty() && !newSlotItem.isEmpty()) {
@@ -180,12 +175,6 @@ public class NavTableBlock extends DirectionalBlock implements IBE<NavTableBlock
     }
 
     @Override
-    public void onRemove(final BlockState state, final Level level, final BlockPos pos, final BlockState newState, final boolean movedByPiston) {
-        this.withBlockEntityDo(level, pos, NavTableBlockEntity::dropHeldItem);
-        IBE.onRemove(state, level, pos, newState);
-    }
-
-    @Override
     public VoxelShape getShape(final BlockState state, final BlockGetter level, final BlockPos pos, final CollisionContext context) {
         return SimBlockShapes.NAV_TABLE.get(state.getValue(FACING));
     }
@@ -197,12 +186,12 @@ public class NavTableBlock extends DirectionalBlock implements IBE<NavTableBlock
 
     @Override
     public BlockEntityType<? extends NavTableBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.NAVIGATION_TABLE.get();
+        return SimBlockEntityTypes.NAVIGATION_TABLE;
     }
 
     @Override
     public ItemRequirement getRequiredItems(final BlockState state, @Nullable final BlockEntity blockEntity) {
-        final ItemStack tableStack = SimBlocks.NAVIGATION_TABLE.asStack();
+        final ItemStack tableStack = new net.minecraft.world.item.ItemStack(SimBlocks.NAVIGATION_TABLE);
         if (blockEntity instanceof final NavTableBlockEntity ntbe) {
             final ItemStack heldItem = ntbe.getHeldItem();
             if (!heldItem.isEmpty()) {
@@ -213,5 +202,17 @@ public class NavTableBlock extends DirectionalBlock implements IBE<NavTableBlock
             }
         }
         return new ItemRequirement(ItemRequirement.ItemUseType.CONSUME, tableStack);
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

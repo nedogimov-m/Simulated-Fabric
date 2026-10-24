@@ -44,7 +44,7 @@ public class ClientHandleHandler extends BlockHoldInteraction {
         final Vec3 eyePosition = player.getEyePosition();
         this.desiredRange = (float) Math.min(projected.distance(eyePosition.x, eyePosition.y, eyePosition.z), Math.min(HandleBlockEntity.MAX_HANDLE_RANGE, player.getAttribute(Attributes.BLOCK_INTERACTION_RANGE).getValue()));
         this.movingSubLevel = player.isShiftKeyDown();
-        player.swing(hand);
+        player.swing(hand,net.minecraft.world.item.component.SwingAnimation.DEFAULT,false);
 
         super.startHold(level, player, blockPos);
         this.sendUpdate(false);
@@ -53,7 +53,7 @@ public class ClientHandleHandler extends BlockHoldInteraction {
     @Override
     public boolean activeTick(final Level level, final LocalPlayer player) {
         final BlockPos interactionPos = this.getInteractionPos();
-        final ChunkPos chunk = new ChunkPos(interactionPos);
+        final ChunkPos chunk = ChunkPos.containing(interactionPos);
 
         final SubLevelContainer container = SubLevelContainer.getContainer(level);
         assert container != null;
@@ -81,10 +81,10 @@ public class ClientHandleHandler extends BlockHoldInteraction {
         final Minecraft minecraft = Minecraft.getInstance();
 
         // force constant swinging for "animation" in first person
-        if (!minecraft.gameRenderer.getMainCamera().isDetached()) {
-            player.swingTime = 0;
-            player.swinging = true;
-            player.swingingArm = InteractionHand.MAIN_HAND;
+        if (!minecraft.gameRenderer.mainCamera().isDetached()) {
+            final var owner=(dev.simulated_team.simulated.fabric.mixin.client.NativeLivingSwingAccessor)player;
+            final var animation=net.minecraft.world.item.component.SwingAnimation.DEFAULT;
+            ((dev.simulated_team.simulated.fabric.mixin.client.NativeSwingStateAccessor)owner.simulated$swingState()).simulated$holdHand(InteractionHand.MAIN_HAND,animation,owner.simulated$swingDuration(animation));
         }
 
         if (player.isFallFlying()) {
@@ -93,10 +93,10 @@ public class ClientHandleHandler extends BlockHoldInteraction {
 
         final boolean crouchingOrFlying = this.movingSubLevel || player.getAbilities().flying;
         if (!crouchingOrFlying) {
-            if (player.input.up) {
+            if (player.input.keyPresses.forward()) {
                 this.deltaRange(player, -0.5f);
             }
-            if (player.input.down) {
+            if (player.input.keyPresses.backward()) {
                 this.deltaRange(player, 0.5f);
             }
 
@@ -140,7 +140,7 @@ public class ClientHandleHandler extends BlockHoldInteraction {
         if (player.isUsingItem()) {
             return;
         }
-        if (AllItems.WRENCH.isIn(player.getMainHandItem()) || AllItems.WRENCH.isIn(player.getOffhandItem())) {
+        if (player.getMainHandItem().is(AllItems.WRENCH) || player.getOffhandItem().is(AllItems.WRENCH)) {
             return;
         }
         if (!HandleBlock.canInteractWithHandle(player))
@@ -202,7 +202,7 @@ public class ClientHandleHandler extends BlockHoldInteraction {
     }
 
     public boolean isEmptyOrExtendoGrip(final ItemStack stack) {
-        return stack.isEmpty() || AllItems.EXTENDO_GRIP.is(stack.getItem());
+        return stack.isEmpty() || stack.is(AllItems.EXTENDO_GRIP);
     }
 
     private void sendUpdate(final boolean remove) {

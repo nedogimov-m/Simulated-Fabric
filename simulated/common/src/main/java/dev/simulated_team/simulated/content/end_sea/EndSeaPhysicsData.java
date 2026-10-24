@@ -1,15 +1,11 @@
 package dev.simulated_team.simulated.content.end_sea;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.JsonOps;
 import dev.simulated_team.simulated.Simulated;
 import dev.simulated_team.simulated.network.packets.end_sea.ClientboundEndSeaPacket;
 import foundry.veil.api.network.VeilPacketManager;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
@@ -60,31 +56,24 @@ public class EndSeaPhysicsData {
         }
     }
 
-    public static class ReloadListener extends SimpleJsonResourceReloadListener {
+    public static class ReloadListener extends SimpleJsonResourceReloadListener<EndSeaPhysics> {
 
-        private static final Gson GSON = new Gson();
         public static final ReloadListener INSTANCE = new ReloadListener();
 
         public static final String NAME = "end_sea";
-        public static final ResourceLocation ID = Simulated.path(NAME);
+        public static final Identifier ID = Simulated.path(NAME);
 
         public ReloadListener() {
-            super(GSON, NAME);
+            super(EndSeaPhysics.CODEC, new net.minecraft.resources.FileToIdConverter(NAME, ".json"));
         }
 
         @Override
-        protected void apply(final Map<ResourceLocation, JsonElement> map, final ResourceManager resourceManager, final ProfilerFiller profiler) {
+        protected void apply(final Map<Identifier, EndSeaPhysics> map, final ResourceManager resourceManager, final ProfilerFiller profiler) {
             END_SEA_PHYSICS_DATA.clear();
 
-            for (final Map.Entry<ResourceLocation, JsonElement> entry : map.entrySet()) {
+            for (final Map.Entry<Identifier, EndSeaPhysics> entry : map.entrySet()) {
                 try {
-                    final DataResult<EndSeaPhysics> dataResult = EndSeaPhysics.CODEC.parse(JsonOps.INSTANCE, entry.getValue());
-
-                    if (dataResult.isError()) {
-                        Simulated.LOGGER.error(String.valueOf(dataResult.error().get()));
-                    }
-
-                    final EndSeaPhysics physics = dataResult.getOrThrow();
+                    final EndSeaPhysics physics = entry.getValue();
                     final ResourceKey<Level> dimension = ResourceKey.create(Registries.DIMENSION, physics.dimension());
 
                     EndSeaPhysicsData.addKeyWithPriority(dimension, physics);

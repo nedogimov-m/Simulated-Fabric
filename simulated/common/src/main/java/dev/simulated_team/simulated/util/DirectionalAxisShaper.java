@@ -1,14 +1,14 @@
 package dev.simulated_team.simulated.util;
 
-import net.createmod.catnip.math.VoxelShaper;
+import dev.simulated_team.simulated.fabric.block.NativeShapeSet;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.Arrays;
 
-public class DirectionalAxisShaper extends VoxelShaper {
-    private VoxelShaper axisFalse, axisTrue;
+public class DirectionalAxisShaper extends NativeShapeSet {
+    private NativeShapeSet axisFalse, axisTrue;
 
     public static DirectionalAxisShaper make(final VoxelShape shape){
         final DirectionalAxisShaper shaper = new DirectionalAxisShaper();

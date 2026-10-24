@@ -3,7 +3,7 @@ package dev.simulated_team.simulated.content.blocks.auger_shaft;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
-import com.simibubi.create.content.kinetics.base.KineticEffectHandler;
+import dev.simulated_team.simulated.content.blocks.behaviour.SimKineticEffectHandler;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkBlock;
 import com.simibubi.create.content.redstone.displayLink.source.ItemThroughputDisplaySource;
 import com.simibubi.create.foundation.utility.CreateLang;
@@ -41,6 +41,8 @@ import org.jetbrains.annotations.ApiStatus;
 import java.util.List;
 
 public class AugerShaftBlockEntity extends KineticBlockEntity implements ItemReciever, Observable, Clearable {
+    private final dev.simulated_team.simulated.content.blocks.behaviour.SimKineticEffectHandler effects;
+
 
     /**
      * The Maximum amount of ticks it takes for the slot this auger shaft is transferring to move to the next auger.
@@ -128,7 +130,7 @@ public class AugerShaftBlockEntity extends KineticBlockEntity implements ItemRec
 
         this.accelerator.clearCache();
 
-        if (this.level.isClientSide) {
+        if (this.level.isClientSide()) {
             this.particleCooldown--;
             if (this.observed && this.particleCooldown < 0) {
                 this.particleCooldown = 100;
@@ -146,7 +148,7 @@ public class AugerShaftBlockEntity extends KineticBlockEntity implements ItemRec
         }
 
         if (this.inventory.isEmpty()) {
-            if (!this.level.isClientSide) {
+            if (!this.level.isClientSide()) {
                 this.extract();
             }
 
@@ -203,7 +205,7 @@ public class AugerShaftBlockEntity extends KineticBlockEntity implements ItemRec
      * Handles movement of the current held item stack across augers
      */
     private void handleItemPassed() {
-        assert this.level != null && !this.level.isClientSide;
+        assert this.level != null && !this.level.isClientSide();
 
         final BlockEntity gatheredBE = this.level.getBlockEntity(this.worldPosition.relative(this.flowDirection));
         if (gatheredBE instanceof final AugerShaftBlockEntity abe) {
@@ -235,17 +237,17 @@ public class AugerShaftBlockEntity extends KineticBlockEntity implements ItemRec
     public void lazyTick() {
         super.lazyTick();
 
-        if (!this.level.isClientSide && this.getSpeed() != 0) {
+        if (!this.level.isClientSide() && this.getSpeed() != 0) {
             this.refreshActors();
         }
 
-        if (!this.level.isClientSide) {
+        if (!this.level.isClientSide()) {
             DisplayLinkBlock.sendToGatherers(this.level, this.getBlockPos(),
                     (dlbe, a) -> a.itemReceived(dlbe, this.itemsMoved), ItemThroughputDisplaySource.class);
             this.itemsMoved = 0;
         }
 
-        if (this.level.isClientSide && this.maxSpeed && this.itemsMoved > 0) {
+        if (this.level.isClientSide() && this.maxSpeed && this.itemsMoved > 0) {
             this.sendObserved(this.getBlockPos());
         }
     }
@@ -284,7 +286,7 @@ public class AugerShaftBlockEntity extends KineticBlockEntity implements ItemRec
     public void destroy() {
         super.destroy();
 
-        if (!this.level.isClientSide && !this.beingWrenched) {
+        if (!this.level.isClientSide() && !this.beingWrenched) {
             Containers.dropContents(this.level, this.worldPosition, this.inventory);
             this.inventory.clearContent();
 
@@ -294,11 +296,11 @@ public class AugerShaftBlockEntity extends KineticBlockEntity implements ItemRec
     }
 
     @Override
-    protected void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(compound, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput compound, final boolean clientPacket) {
+        super.write(compound, clientPacket);
 
-        compound.put("Inventory", this.inventory.write(registries));
-        compound.put("ActorInventory", this.actorInventory.write(registries));
+        this.inventory.write(compound.child("Inventory"));
+        this.actorInventory.write(compound.child("ActorInventory"));
 
         if (!clientPacket) {
             compound.putFloat("Progress", this.updateTracker.getValue());
@@ -306,14 +308,14 @@ public class AugerShaftBlockEntity extends KineticBlockEntity implements ItemRec
     }
 
     @Override
-    protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(compound, registries, clientPacket);
+    protected void read(final net.minecraft.world.level.storage.ValueInput compound, final boolean clientPacket) {
+        super.read(compound, clientPacket);
 
-        this.inventory.read(registries, compound.getCompound("Inventory"));
-        this.actorInventory.read(registries, compound.getCompound("ActorInventory"));
+        this.inventory.read(compound.childOrEmpty("Inventory"));
+        this.actorInventory.read(compound.childOrEmpty("ActorInventory"));
 
         if (!clientPacket) {
-            this.updateTracker.setValue(compound.getFloat("Progress"));
+            this.updateTracker.setValue(compound.getFloatOr("Progress", 0f));
         }
     }
 
@@ -344,7 +346,7 @@ public class AugerShaftBlockEntity extends KineticBlockEntity implements ItemRec
 
         final int count = this.inventory.slot.getStack().getCount();
         if (count > 0) {
-            CreateLang.translate("tooltip.chute.contains", Component.translatable(this.inventory.slot.getStack().getDescriptionId())
+            CreateLang.translate("tooltip.chute.contains", Component.translatable(this.inventory.slot.getStack().getItem().getDescriptionId())
                             .getString(), count)
                     .style(ChatFormatting.GREEN)
                     .forGoggles(tooltip);
@@ -389,7 +391,7 @@ public class AugerShaftBlockEntity extends KineticBlockEntity implements ItemRec
         this.actorInventory.clearContent();
     }
 
-    public class AugerKineticEffectHandler extends KineticEffectHandler {
+    public class AugerKineticEffectHandler extends SimKineticEffectHandler {
         public AugerKineticEffectHandler(final KineticBlockEntity kte) {
             super(kte);
         }
@@ -405,8 +407,8 @@ public class AugerShaftBlockEntity extends KineticBlockEntity implements ItemRec
             if (!(block instanceof final KineticBlock kb))
                 return;
 
-            final float radius1 = kb.getParticleInitialRadius();
-            final float radius2 = kb.getParticleTargetRadius();
+            final float radius1 = .75f;
+            final float radius2 = 1.125f;
 
             final Direction direction = auger.flowDirection;
 

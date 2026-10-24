@@ -8,7 +8,7 @@ import dev.eriksonn.aeronautics.index.AeroSoundEvents;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -19,18 +19,18 @@ import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
 
-public record Converter(ItemStack item, int ticks, Optional<ResourceLocation> sound, Optional<ResourceLocation> particle) {
+public record Converter(ItemStack item, int ticks, Optional<Identifier> sound, Optional<Identifier> particle) {
 	public static final Codec<Converter> CODEC = RecordCodecBuilder.create(instance -> instance.group(
 			ItemStack.CODEC.fieldOf("item").forGetter(Converter::item),
 			Codec.INT.fieldOf("ticks").forGetter(Converter::ticks),
-			ResourceLocation.CODEC.optionalFieldOf("sound").forGetter(Converter::sound),
-			ResourceLocation.CODEC.optionalFieldOf("particle").forGetter(Converter::particle)
+			Identifier.CODEC.optionalFieldOf("sound").forGetter(Converter::sound),
+			Identifier.CODEC.optionalFieldOf("particle").forGetter(Converter::particle)
 	).apply(instance, Converter::new));
 
 	public static Converter cloudSkipper() {
-		return new Converter(AeroItems.MUSIC_DISC_CLOUD_SKIPPER.asStack(), 60,
+		return new Converter(new ItemStack(AeroItems.MUSIC_DISC_CLOUD_SKIPPER), 60,
 				Optional.of(AeroSoundEvents.CLOUD_SKIPPER_TRANSFORM.id()),
-				Optional.of(ResourceLocation.withDefaultNamespace("white_smoke")));
+				Optional.of(Identifier.withDefaultNamespace("white_smoke")));
 	}
 
 	public Converter(Converter converter, int ticks) {
@@ -50,15 +50,15 @@ public record Converter(ItemStack item, int ticks, Optional<ResourceLocation> so
 			newItem.setCount(count);
 
 			if(converter.sound().isPresent()) {
-				ResourceLocation soundLocation = converter.sound().get();
-				SoundEvent sound = BuiltInRegistries.SOUND_EVENT.get(soundLocation);
+				Identifier soundLocation = converter.sound().get();
+				SoundEvent sound = BuiltInRegistries.SOUND_EVENT.getValue(soundLocation);
 				if(sound != null) {
 					level.playSound(entity, entity.blockPosition(), sound, SoundSource.AMBIENT, 5.0f, 1.0f);
 				}
 			}
 
 			if(converter.particle().isPresent() && level instanceof ServerLevel serverLevel) {
-				ParticleType<?> particle = BuiltInRegistries.PARTICLE_TYPE.get(converter.particle().get());
+				ParticleType<?> particle = BuiltInRegistries.PARTICLE_TYPE.getValue(converter.particle().get());
 
 				if(particle instanceof ParticleOptions particleOptions) {
 					Vec3 pos = entity.position();

@@ -18,7 +18,8 @@ import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import joptsimple.internal.Strings;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.util.Mth;
@@ -31,7 +32,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 import java.util.Iterator;
 import java.util.List;
 
@@ -269,7 +270,7 @@ public interface BlockEntityLiftingGasProvider {
     record ClientBalloonInfo(int clientBalloonVolume, double clientBalloonFilled,
                              double clientBalloonTarget, double clientBalloonLift,
                              double clientBalloonChange, Vec3 gasCenter) {
-        public static void writeToNBT(final CompoundTag tag, final ServerBalloon balloon) {
+        public static void writeToNBT(final ValueOutput tag, final ServerBalloon balloon) {
             if (balloon != null && balloon.getCenter() != null) {
                 tag.putInt("Volume", balloon.getCapacity());
                 tag.putDouble("Filled", balloon.getTotalFilledVolume());
@@ -282,17 +283,17 @@ public interface BlockEntityLiftingGasProvider {
             }
         }
 
-        public static ClientBalloonInfo readFromNBT(final CompoundTag tag) {
+        public static ClientBalloonInfo readFromNBT(final ValueInput tag) {
             return new ClientBalloonInfo(
-                    tag.getInt("Volume"),
-                    tag.getDouble("Filled"),
-                    tag.getDouble("Target"),
-                    tag.getDouble("Lift"),
-                    tag.getDouble("Delta"),
+                    tag.getIntOr("Volume", 0),
+                    tag.getDoubleOr("Filled", 0d),
+                    tag.getDoubleOr("Target", 0d),
+                    tag.getDoubleOr("Lift", 0d),
+                    tag.getDoubleOr("Delta", 0d),
                     new Vec3(
-                            tag.getDouble("CenterX"),
-                            tag.getDouble("CenterY"),
-                            tag.getDouble("CenterZ")
+                            tag.getDoubleOr("CenterX", 0d),
+                            tag.getDoubleOr("CenterY", 0d),
+                            tag.getDoubleOr("CenterZ", 0d)
                     ));
         }
     }

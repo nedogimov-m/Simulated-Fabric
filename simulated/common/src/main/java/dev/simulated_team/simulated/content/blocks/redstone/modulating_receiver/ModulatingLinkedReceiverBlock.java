@@ -2,8 +2,8 @@ package dev.simulated_team.simulated.content.blocks.redstone.modulating_receiver
 
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.api.contraption.BlockMovementChecks;
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import com.simibubi.create.foundation.block.WrenchableDirectionalBlock;
 import com.simibubi.create.impl.contraption.BlockMovementChecksImpl;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
@@ -13,7 +13,7 @@ import dev.simulated_team.simulated.multiloader.CommonRedstoneBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -31,8 +31,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class ModulatingLinkedReceiverBlock extends WrenchableDirectionalBlock implements IBE<ModulatingLinkedReceiverBlockEntity>, IWrenchable, CommonRedstoneBlock {
-    public static final MapCodec<ModulatingLinkedReceiverBlock> CODEC = simpleCodec(ModulatingLinkedReceiverBlock::new);
+public class ModulatingLinkedReceiverBlock extends WrenchableDirectionalBlock implements NativeEntityBlock<ModulatingLinkedReceiverBlockEntity>, NativeWrenchable, CommonRedstoneBlock {
+
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
     static {
@@ -55,11 +55,6 @@ public class ModulatingLinkedReceiverBlock extends WrenchableDirectionalBlock im
     }
 
     @Override
-    protected MapCodec<? extends DirectionalBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     protected void createBlockStateDefinition(final StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(POWERED);
         super.createBlockStateDefinition(builder);
@@ -73,7 +68,7 @@ public class ModulatingLinkedReceiverBlock extends WrenchableDirectionalBlock im
 
     @Override
     public BlockEntityType<? extends ModulatingLinkedReceiverBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.MODULATING_LINKED_RECEIVER.get();
+        return SimBlockEntityTypes.MODULATING_LINKED_RECEIVER;
     }
 
     @Override
@@ -108,13 +103,13 @@ public class ModulatingLinkedReceiverBlock extends WrenchableDirectionalBlock im
     }
 
     @Override
-    public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block blockIn, final BlockPos fromPos,
+    public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block blockIn,final net.minecraft.world.level.redstone.Orientation orientation,
                                 final boolean isMoving) {
-        if (level.isClientSide)
+        if (level.isClientSide())
             return;
 
         final Direction blockFacing = state.getValue(FACING);
-        if (fromPos.equals(pos.relative(blockFacing.getOpposite()))) {
+        if (!this.canSurvive(state, level, pos)) {
             if (!this.canSurvive(state, level, pos)) {
                 level.destroyBlock(pos, true);
             }
@@ -135,15 +130,27 @@ public class ModulatingLinkedReceiverBlock extends WrenchableDirectionalBlock im
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
+    protected InteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
         if (!player.getMainHandItem().is(SimBlocks.LINKED_TYPEWRITER.asItem())) { //TODO: make this more generalized
 	        if (level.isClientSide()) {
                 this.withBlockEntityDo(level, blockPos, ModulatingLinkedReceiverScreen::open);
 	        }
 
-	        return ItemInteractionResult.SUCCESS;
+	        return InteractionResult.SUCCESS;
         }
 
-		return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+		return InteractionResult.TRY_WITH_EMPTY_HAND;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

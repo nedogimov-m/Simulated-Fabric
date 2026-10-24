@@ -5,7 +5,6 @@ import dev.simulated_team.simulated.SimulatedClient;
 import dev.simulated_team.simulated.content.items.plunger_launcher.PlungerLauncherItemRenderer;
 import foundry.veil.api.network.handler.PacketContext;
 import io.netty.buffer.ByteBuf;
-import net.createmod.catnip.codecs.stream.CatnipStreamCodecs;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -17,7 +16,7 @@ public class PlungerLauncherShootPacket implements CustomPacketPayload {
     public static Type<PlungerLauncherShootPacket> TYPE = new Type<>(Simulated.path("plunger_launcher_shoot"));
 
     public static final StreamCodec<ByteBuf, PlungerLauncherShootPacket> CODEC = StreamCodec.composite(
-            CatnipStreamCodecs.HAND, packet -> packet.hand,
+            InteractionHand.STREAM_CODEC, packet -> packet.hand,
             PlungerLauncherShootPacket::new
     );
 

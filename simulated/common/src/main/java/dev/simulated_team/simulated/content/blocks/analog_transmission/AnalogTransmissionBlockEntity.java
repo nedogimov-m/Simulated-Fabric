@@ -31,6 +31,8 @@ import static net.minecraft.ChatFormatting.GOLD;
  * The parent BlockEntity class. implements {@link ExtraKinetics ExtraKinetics} to allow multi-kinetic functionality
  */
 public class AnalogTransmissionBlockEntity extends KineticBlockEntity implements ExtraKinetics {
+    private final dev.simulated_team.simulated.content.blocks.behaviour.SimKineticEffectHandler effects = new dev.simulated_team.simulated.content.blocks.behaviour.SimKineticEffectHandler(this);
+
 
     /**
      * The ExtraKinetic BlockEntity associated with the AnalogTransmission
@@ -60,7 +62,7 @@ public class AnalogTransmissionBlockEntity extends KineticBlockEntity implements
     public void tick() {
         final int bestNeighborSignal = this.getLevel().getBestNeighborSignal(this.getBlockPos());
 
-        if (!this.getLevel().isClientSide) {
+        if (!this.getLevel().isClientSide()) {
             if (bestNeighborSignal != this.signal) {
                 //detach our own network, and our ExtraKinetic's
                 this.detachKinetics();
@@ -130,24 +132,24 @@ public class AnalogTransmissionBlockEntity extends KineticBlockEntity implements
     }
 
     @Override
-    protected void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(compound, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput compound, final boolean clientPacket) {
+        super.write(compound, clientPacket);
 
         compound.putInt("Signal", this.signal);
         compound.putBoolean("Oversaturated", this.oversaturated);
     }
 
     @Override
-    protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(compound, registries, clientPacket);
+    protected void read(final net.minecraft.world.level.storage.ValueInput compound, final boolean clientPacket) {
+        super.read(compound, clientPacket);
 
-        this.signal = compound.getInt("Signal");
-        this.oversaturated = compound.getBoolean("Oversaturated");
+        this.signal = compound.getIntOr("Signal", 0);
+        this.oversaturated = compound.getBooleanOr("Oversaturated", false);
     }
 
     @Override
     public boolean isOverStressed() {
-        if (this.level.isClientSide) {
+        if (this.level.isClientSide()) {
             return this.oversaturated || this.overStressed;
         }
 

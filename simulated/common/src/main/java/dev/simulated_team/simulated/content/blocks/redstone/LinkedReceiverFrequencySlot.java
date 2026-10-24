@@ -3,7 +3,6 @@ package dev.simulated_team.simulated.content.blocks.redstone;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.redstone.link.RedstoneLinkBlock;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
-import dev.engine_room.flywheel.lib.transform.TransformStack;
 import net.createmod.catnip.math.AngleHelper;
 import net.createmod.catnip.math.VecHelper;
 import net.minecraft.core.BlockPos;
@@ -40,14 +39,12 @@ public class LinkedReceiverFrequencySlot extends ValueBoxTransform.Dual{
     }
 
     @Override
-    public void rotate(final LevelAccessor levelAccessor, final BlockPos blockPos, final BlockState state, final PoseStack poseStack) {
+    public void rotate(final LevelAccessor levelAccessor, final BlockPos blockPos, final BlockState state, final org.joml.Matrix4f poseStack) {
         final Direction facing = state.getValue(RedstoneLinkBlock.FACING);
         final float yRot = facing.getAxis()
                 .isVertical() ? 0 : AngleHelper.horizontalAngle(facing) + 180;
         final float xRot = facing == Direction.UP ? 90 : facing == Direction.DOWN ? 270 : 0;
-        TransformStack.of(poseStack)
-                .rotateYDegrees(yRot)
-                .rotateXDegrees(xRot);
+        poseStack.rotateY((float)Math.toRadians(yRot)).rotateX((float)Math.toRadians(xRot));
     }
 
     @Override

@@ -2,14 +2,13 @@ package dev.eriksonn.aeronautics.content.blocks.hot_air.steam_vent;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
-import com.simibubi.create.content.contraptions.DirectionalExtenderScrollOptionSlot;
+import dev.eriksonn.aeronautics.util.AeroDirectionalScrollSlot;
 import com.simibubi.create.content.fluids.tank.FluidTankBlockEntity;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueBehaviour;
-import dev.engine_room.flywheel.lib.transform.TransformStack;
 import dev.eriksonn.aeronautics.config.AeroConfig;
 import dev.eriksonn.aeronautics.config.server.AeroBlockConfigs;
 import dev.eriksonn.aeronautics.content.blocks.hot_air.BlockEntityLiftingGasProvider;
@@ -27,9 +26,10 @@ import net.createmod.catnip.data.Iterate;
 import net.createmod.catnip.math.AngleHelper;
 import net.createmod.catnip.math.VecHelper;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -124,7 +124,7 @@ public class SteamVentBlockEntity extends SmartBlockEntity implements BlockEntit
         this.intensity.chase(intensityGoal, 0.1, LerpedFloat.Chaser.EXP);
         this.intensity.tickChaser();
 
-        if (this.level.isClientSide) {
+        if (this.level.isClientSide()) {
             final GasEmitterRenderHandler renderHandler = this.getRenderHandler();
 
             if (this.isVirtual()) {
@@ -156,7 +156,7 @@ public class SteamVentBlockEntity extends SmartBlockEntity implements BlockEntit
     public void invalidate() {
         super.invalidate();
 
-        if (this.level.isClientSide) {
+        if (this.level.isClientSide()) {
             AeroSoundDistUtil.removePosSteamVentSound(this.getBlockPos());
         } else {
             this.removeFromBalloon();
@@ -184,7 +184,7 @@ public class SteamVentBlockEntity extends SmartBlockEntity implements BlockEntit
         final int newStrength = this.level.getBestNeighborSignal(this.getBlockPos());
 
         if (newStrength != this.rawSignalStrength) {
-            if (!this.level.isClientSide) {
+            if (!this.level.isClientSide()) {
                 final BlockState existentState = this.level.getBlockState(this.getBlockPos()); // this.getBlockState() might not be up to date with the variant yet
                 if (newStrength > 0 && this.rawSignalStrength == 0) { //if new signal is not 0, and current signal is 0 power
                     this.level.setBlockAndUpdate(this.worldPosition, existentState.setValue(SteamVentBlock.POWERED, true));
@@ -205,10 +205,10 @@ public class SteamVentBlockEntity extends SmartBlockEntity implements BlockEntit
 
             if (this.signalStrength == 0 && signal != 0) {
                 this.level.playSound(null, this.worldPosition, AeroSoundEvents.STEAM_VENT_OPEN.event(),  SoundSource.BLOCKS,
-                        .25f, 1.1f - this.level.random.nextFloat() * .2f);
+                        .25f, 1.1f - this.level.getRandom().nextFloat() * .2f);
             } else if (signal == 0) {
                 this.level.playSound(null, this.worldPosition, AeroSoundEvents.STEAM_VENT_CLOSE.event(), SoundSource.BLOCKS,
-                        .5f, 0.7f - this.level.random.nextFloat() * .2f);
+                        .5f, 0.7f - this.level.getRandom().nextFloat() * .2f);
             }
             this.signalStrength = signal;
             this.sendData();
@@ -278,8 +278,14 @@ public class SteamVentBlockEntity extends SmartBlockEntity implements BlockEntit
     }
 
     @Override
-    protected void write(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(tag, registries, clientPacket);
+    public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+        this.rawSignalStrength=0;
+        super.preRemoveSideEffects(pos,state);
+    }
+
+    @Override
+    protected void write(final ValueOutput tag, final boolean clientPacket) {
+        super.write(tag, clientPacket);
 
         tag.putInt("SignalStrength", this.signalStrength);
         tag.putInt("RawSignalStrength", this.rawSignalStrength);
@@ -289,11 +295,11 @@ public class SteamVentBlockEntity extends SmartBlockEntity implements BlockEntit
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(tag, registries, clientPacket);
+    protected void read(final ValueInput tag, final boolean clientPacket) {
+        super.read(tag, clientPacket);
 
-        this.signalStrength = tag.getInt("SignalStrength");
-        this.rawSignalStrength = tag.getInt("RawSignalStrength");
+        this.signalStrength = tag.getIntOr("SignalStrength", 0);
+        this.rawSignalStrength = tag.getIntOr("RawSignalStrength", 0);
         if (clientPacket) {
             this.ticksSinceSync = 0;
             this.clientBalloonInfo = ClientBalloonInfo.readFromNBT(tag);
@@ -328,7 +334,7 @@ public class SteamVentBlockEntity extends SmartBlockEntity implements BlockEntit
 
     @Override
     public LiftingGasType getLiftingGasType() {
-        return AeroLiftingGasTypes.STEAM.get();
+        return AeroLiftingGasTypes.STEAM;
     }
 
     @Override
@@ -363,14 +369,14 @@ public class SteamVentBlockEntity extends SmartBlockEntity implements BlockEntit
             this.direction = direction;
 
             Level level = this.be.getLevel();
-            if (level != null && level.isClientSide && direction == Direction.UP) {
+            if (level != null && level.isClientSide() && direction == Direction.UP) {
                 final Minecraft mc = Minecraft.getInstance();
                 final HitResult target = mc.hitResult;
                 if (target instanceof BlockHitResult) {
                     final Vec3 hit = target.getLocation();
                     final Vec3 localHit = hit.subtract(Vec3.atCenterOf(this.be.getBlockPos()));
                     if (localHit.y < 0.4) {
-                        this.direction = Direction.getNearest(localHit.x, 0, localHit.z);
+                        this.direction = Direction.getApproximateNearest(localHit.x, 0, localHit.z);
                     }
                 }
             }
@@ -388,7 +394,7 @@ public class SteamVentBlockEntity extends SmartBlockEntity implements BlockEntit
         }
 
         protected ValueBoxTransform getMovementModeSlot() {
-            return new DirectionalExtenderScrollOptionSlot((state, d) -> {
+            return new AeroDirectionalScrollSlot((state, d) -> {
                 final Direction.Axis axis = d.getAxis();
 
                 final Direction.Axis shaftAxis = ((IRotate) state.getBlock()).getRotationAxis(state);
@@ -398,19 +404,17 @@ public class SteamVentBlockEntity extends SmartBlockEntity implements BlockEntit
         }
 
         @Override
-        public void rotate(final LevelAccessor level, final BlockPos pos, final BlockState state, final PoseStack ms) {
+        public void rotate(final LevelAccessor level, final BlockPos pos, final BlockState state, final org.joml.Matrix4f ms) {
             final float yRot = AngleHelper.horizontalAngle(this.getSide()) + 180;
             float xRot = this.getSide() == Direction.UP ? 90 : this.getSide() == Direction.DOWN ? 270 : 0;
             xRot += 22.5f;
-            TransformStack.of(ms)
-                    .rotateYDegrees(yRot)
-                    .rotateXDegrees(xRot);
+            ms.rotateY(AngleHelper.rad(yRot)).rotateX(AngleHelper.rad(xRot));
         }
 
         @Override
         protected boolean isSideActive(final BlockState state, final Direction direction) {
             Level level = this.be.getLevel();
-            if (level != null && level.isClientSide && direction == Direction.UP) {
+            if (level != null && level.isClientSide() && direction == Direction.UP) {
                 final Minecraft mc = Minecraft.getInstance();
                 final HitResult target = mc.hitResult;
                 if (target instanceof BlockHitResult) {

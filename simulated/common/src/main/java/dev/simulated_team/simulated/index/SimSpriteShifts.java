@@ -1,19 +1,13 @@
 package dev.simulated_team.simulated.index;
 
-import dev.simulated_team.simulated.Simulated;
-import net.createmod.catnip.render.SpriteShiftEntry;
-import net.createmod.catnip.render.SpriteShifter;
+import net.minecraft.resources.Identifier;
 
-public class SimSpriteShifts {
-
-    public static final SpriteShiftEntry ROPE_WINCH_COIL = get("block/rope_winch/winch_coil", "block/rope_winch/winch_coil_scroll");
-
-    public static void init() {
-
-    }
-
-    private static SpriteShiftEntry get(final String originalLocation, final String targetLocation) {
-        return SpriteShifter.get(Simulated.path(originalLocation), Simulated.path(targetLocation));
-    }
-
+/** Reload-safe sprite identities; resolve the current native atlas only during extraction. */
+public final class SimSpriteShifts {
+    public record Shift(Identifier original, Identifier target) {}
+    public static final Shift ROPE_WINCH_COIL = new Shift(
+            Identifier.fromNamespaceAndPath("simulated", "block/rope_winch/winch_coil"),
+            Identifier.fromNamespaceAndPath("simulated", "block/rope_winch/winch_coil_scroll"));
+    public static void init() {}
+    private SimSpriteShifts() {}
 }

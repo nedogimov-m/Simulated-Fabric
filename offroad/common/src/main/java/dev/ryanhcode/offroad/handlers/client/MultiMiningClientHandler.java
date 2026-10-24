@@ -1,18 +1,17 @@
 package dev.ryanhcode.offroad.handlers.client;
 
 import com.simibubi.create.content.kinetics.base.BlockBreakingKineticBlockEntity;
-import dev.engine_room.flywheel.lib.util.LevelAttached;
+import dev.simulated_team.simulated.fabric.registry.NativeLevelData;
 import dev.ryanhcode.offroad.handlers.MultiminingDataTickResult;
-import dev.ryanhcode.offroad.mixin.client.multimining_destruction_progress.ClientLevelAccessor;
 import dev.ryanhcode.offroad.mixin_interface.level_renderer.MultiMiningDestructionExtension;
 import dev.ryanhcode.sable.util.LevelAccelerator;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.createmod.ponder.api.level.PonderLevel;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -22,7 +21,7 @@ import java.util.Map;
 
 public class MultiMiningClientHandler {
 
-    public static final LevelAttached<MultiMiningClientHandler> LEVEL_ATTACHED = new LevelAttached<>(level -> {
+    public static final NativeLevelData<MultiMiningClientHandler> LEVEL_ATTACHED = new NativeLevelData<>(Identifier.fromNamespaceAndPath("offroad", "multi_mining_client"), level -> {
         if (level instanceof PonderLevel || !level.isClientSide()) {
             return null;
         }
@@ -43,7 +42,7 @@ public class MultiMiningClientHandler {
     private LevelAccelerator accelerator;
 
     public static void handleInboundClientUpdate(final Level level, final Map<BlockPos, ClientBlockBreakingData> incomingData, final int breakingID) {
-        if (!level.isClientSide || incomingData.isEmpty()) {
+        if (!level.isClientSide() || incomingData.isEmpty()) {
             return;
         }
 
@@ -58,7 +57,7 @@ public class MultiMiningClientHandler {
     }
 
     public static void tick(final Level level) {
-        if (level instanceof PonderLevel || !level.isClientSide) {
+        if (level instanceof PonderLevel || !level.isClientSide()) {
             return;
         }
 
@@ -100,8 +99,7 @@ public class MultiMiningClientHandler {
     }
 
     private void bulkUpdateDestructionProgress(final Level level) {
-        final LevelRenderer levelRenderer = ((ClientLevelAccessor) level).getLevelRenderer();
-        ((MultiMiningDestructionExtension) levelRenderer).offroad$manuallyAddMultiDestructionProgress(this.breakingID, this.dirtyData);
+        ((MultiMiningDestructionExtension) level).offroad$manuallyAddMultiDestructionProgress(this.breakingID, this.dirtyData);
     }
 
     public static class ClientBlockBreakingData {
@@ -124,34 +122,34 @@ public class MultiMiningClientHandler {
             final ClientLevel clientLevel = (ClientLevel) level;
             final double radius = 0.5;
             if (accelerator.getBlockState(pos.below()).isAir()) {
-                if (level.random.nextFloat() > 0.8) {
+                if (level.getRandom().nextFloat() > 0.8) {
                     final BlockParticleOption blockBreakingParticles = new BlockParticleOption(ParticleTypes.BLOCK, state);
 
                     clientLevel.addParticle(blockBreakingParticles,
-                            pos.getX() + 0.5 + (level.random.nextFloat() - 0.5) * 2 * radius,
+                            pos.getX() + 0.5 + (level.getRandom().nextFloat() - 0.5) * 2 * radius,
                             pos.getY(),
-                            pos.getZ() + 0.5 + (level.random.nextFloat() - 0.5) * 2 * radius,
+                            pos.getZ() + 0.5 + (level.getRandom().nextFloat() - 0.5) * 2 * radius,
                             0,
                             -1,
                             0);
 
-                    if (level.random.nextFloat() > 0.8) {
+                    if (level.getRandom().nextFloat() > 0.8) {
                         clientLevel.addParticle(ParticleTypes.ASH,
-                                pos.getX() + 0.5 + (level.random.nextFloat() - 0.5) * 2 * radius,
+                                pos.getX() + 0.5 + (level.getRandom().nextFloat() - 0.5) * 2 * radius,
                                 pos.getY(),
-                                pos.getZ() + 0.5 + (level.random.nextFloat() - 0.5) * 2 * radius,
+                                pos.getZ() + 0.5 + (level.getRandom().nextFloat() - 0.5) * 2 * radius,
                                 0,
                                 -1,
                                 0);
                     }
                 }
             } else if (accelerator.getBlockState(pos.above()).isAir()) {
-                if (level.random.nextFloat() > 0.9) {
-                    if (level.random.nextFloat() > 0.5) {
+                if (level.getRandom().nextFloat() > 0.9) {
+                    if (level.getRandom().nextFloat() > 0.5) {
                         clientLevel.addParticle(ParticleTypes.CRIT,
-                                pos.getX() + 0.5 + (level.random.nextFloat() - 0.5) * 2 * radius,
+                                pos.getX() + 0.5 + (level.getRandom().nextFloat() - 0.5) * 2 * radius,
                                 pos.getY() + 1.2,
-                                pos.getZ() + 0.5 + (level.random.nextFloat() - 0.5) * 2 * radius,
+                                pos.getZ() + 0.5 + (level.getRandom().nextFloat() - 0.5) * 2 * radius,
                                 0,
                                 0,
                                 0);
@@ -160,7 +158,7 @@ public class MultiMiningClientHandler {
             }
 
             final double chance = 1 - (0.4 / (Math.sqrt(Math.pow(blocksBeingBroken, 2))));
-            if (soundCount < 64 && level.random.nextFloat() > chance) {
+            if (soundCount < 64 && level.getRandom().nextFloat() > chance) {
                 soundCount++;
                 clientLevel.playLocalSound(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, state.getSoundType()
                         .getHitSound(), SoundSource.BLOCKS, .4f, 0.1f, false);

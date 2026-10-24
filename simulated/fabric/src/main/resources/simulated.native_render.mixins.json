@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "package": "dev.simulated_team.simulated.fabric.mixin.client",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "NativeGlueOutlinePlotMixin",
+    "NativeSuperGluePlotMixin",
+    "NativeShaderFrameMixin",
+    "LauncherArmPoseMixin",
+    "NativeHandFocusFrameMixin",
+    "NativeLivingSwingAccessor",
+    "NativeSwingStateAccessor",
+    "NativeClientItemUseMixin",
+    "NativeEndSeaFrameMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

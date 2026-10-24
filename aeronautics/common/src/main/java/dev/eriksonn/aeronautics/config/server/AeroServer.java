@@ -1,9 +1,8 @@
 package dev.eriksonn.aeronautics.config.server;
 
-import net.createmod.catnip.config.ConfigBase;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import com.simibubi.create.infrastructure.config.NativeConfigBase;
 
-public class AeroServer extends ConfigBase {
+public class AeroServer extends NativeConfigBase {
 
 	public final AeroPhysics physics = this.nested(0, AeroPhysics::new, Comments.physics);
 	public final AeroBlockConfigs blocks = this.nested(0, AeroBlockConfigs::new, Comments.blockConfig);

@@ -1,41 +1,32 @@
 package dev.ryanhcode.offroad.index;
 
-import dev.simulated_team.simulated.registrate.SimulatedRegistrate;
-import dev.simulated_team.simulated.service.SimInventoryService;
-import com.tterrag.registrate.util.entry.BlockEntityEntry;
-import dev.ryanhcode.offroad.Offroad;
 import dev.ryanhcode.offroad.content.blocks.borehead_bearing.BoreheadBearingBlockEntity;
-import dev.ryanhcode.offroad.content.blocks.borehead_bearing.BoreheadBearingRenderer;
-import dev.ryanhcode.offroad.content.blocks.borehead_bearing.BoreheadBearingVisual;
 import dev.ryanhcode.offroad.content.blocks.rock_cutting_wheel.RockCuttingWheelBlockEntity;
-import dev.ryanhcode.offroad.content.blocks.rock_cutting_wheel.RockCuttingWheelRenderer;
 import dev.ryanhcode.offroad.content.blocks.wheel_mount.WheelMountBlockEntity;
-import dev.ryanhcode.offroad.content.blocks.wheel_mount.WheelMountRenderer;
+import dev.simulated_team.simulated.fabric.registry.NativeBlockEntities;
+import dev.simulated_team.simulated.service.SimInventoryService;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 
-public class OffroadBlockEntityTypes {
-    private static final SimulatedRegistrate REGISTRATE = Offroad.getRegistrate();
-
-    public static final BlockEntityEntry<WheelMountBlockEntity> WHEEL_MOUNT = REGISTRATE
-            .blockEntity("wheel_mount", WheelMountBlockEntity::new)
-            .onRegister(SimInventoryService.INSTANCE.registerInventory((be, dir) -> be.getInventory()))
-            .validBlocks(OffroadBlocks.WHEEL_MOUNT)
-            .renderer(() -> WheelMountRenderer::new)
-            .register();
-
-    public static final BlockEntityEntry<BoreheadBearingBlockEntity> BOREHEAD_BEARING = REGISTRATE
-            .blockEntity("borehead_bearing", BoreheadBearingBlockEntity::new)
-            .visual(() -> BoreheadBearingVisual::new)
-            .renderer(() -> BoreheadBearingRenderer::new)
-            .validBlock(OffroadBlocks.BOREHEAD_BEARING_BLOCK)
-            .onRegister(SimInventoryService.INSTANCE.registerInventory((be, dir) -> be.getContraptionWrappedInventory()))
-            .register();
-
-    public static final BlockEntityEntry<RockCuttingWheelBlockEntity> ROCKCUTTING_WHEEL_BLOCK_ENTITY = REGISTRATE
-            .blockEntity("rockcutting_wheel", RockCuttingWheelBlockEntity::new)
-            .renderer(() -> RockCuttingWheelRenderer::new)
-            .validBlock(OffroadBlocks.ROCK_CUTTER_BLOCK)
-            .register();
+/** Common factories and actual inventory providers; renderer registrations live in the client helper. */
+public final class OffroadBlockEntityTypes {
+    private static boolean registered;
+    public static final BlockEntityType<WheelMountBlockEntity> WHEEL_MOUNT = NativeBlockEntities.register(
+            id("wheel_mount"), WheelMountBlockEntity::new, OffroadBlocks.WHEEL_MOUNT);
+    public static final BlockEntityType<BoreheadBearingBlockEntity> BOREHEAD_BEARING = NativeBlockEntities.register(
+            id("borehead_bearing"), BoreheadBearingBlockEntity::new, OffroadBlocks.BOREHEAD_BEARING_BLOCK);
+    public static final BlockEntityType<RockCuttingWheelBlockEntity> ROCKCUTTING_WHEEL_BLOCK_ENTITY = NativeBlockEntities.register(
+            id("rockcutting_wheel"), RockCuttingWheelBlockEntity::new, OffroadBlocks.ROCK_CUTTER_BLOCK);
 
     public static void init() {
+        if (registered) return;
+        SimInventoryService.INSTANCE.<WheelMountBlockEntity>registerInventory((be, side) -> be.getInventory())
+                .accept(WHEEL_MOUNT);
+        SimInventoryService.INSTANCE.<BoreheadBearingBlockEntity>registerInventory((be, side) -> be.getContraptionWrappedInventory())
+                .accept(BOREHEAD_BEARING);
+        registered = true;
     }
+
+    private static Identifier id(String path) { return Identifier.fromNamespaceAndPath("offroad", path); }
+    private OffroadBlockEntityTypes() {}
 }

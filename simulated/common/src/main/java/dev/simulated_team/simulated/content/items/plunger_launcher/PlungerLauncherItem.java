@@ -2,10 +2,9 @@ package dev.simulated_team.simulated.content.items.plunger_launcher;
 
 import com.simibubi.create.content.equipment.armor.BacktankUtil;
 import com.simibubi.create.content.equipment.zapper.ShootableGadgetItemMethods;
-import com.simibubi.create.foundation.item.CustomArmPoseItem;
-import com.simibubi.create.foundation.utility.RaycastHelper;
+import dev.simulated_team.simulated.api.LauncherArmPoseItem;
 import dev.ryanhcode.sable.Sable;
-import dev.simulated_team.simulated.SimulatedClient;
+
 import dev.simulated_team.simulated.content.entities.launched_plunger.LaunchedPlungerEntity;
 import dev.simulated_team.simulated.content.entities.launched_plunger.LaunchedPlungerServerHandler;
 import dev.simulated_team.simulated.data.SimLang;
@@ -16,20 +15,20 @@ import dev.simulated_team.simulated.network.packets.PlungerLauncherShootPacket;
 import dev.simulated_team.simulated.service.SimConfigService;
 import dev.simulated_team.simulated.service.SimEntityService;
 import foundry.veil.api.network.VeilPacketManager;
-import net.minecraft.client.model.HumanoidModel;
-import net.minecraft.client.player.AbstractClientPlayer;
+
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.InteractionResultHolder;
+
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.UseAnim;
+import net.minecraft.world.item.ItemUseAnimation;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -40,12 +39,13 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class PlungerLauncherItem extends Item implements CustomArmPoseItem {
+public class PlungerLauncherItem extends Item implements LauncherArmPoseItem {
 
     public static boolean reloadCooldown = false;
+    public static @Nullable java.util.function.Consumer<InteractionHand> CLIENT_SHOT;
 
     public PlungerLauncherItem(final Properties properties) {
-        super(properties);
+        super(properties.enchantable(1));
     }
 
     @Override
@@ -54,21 +54,21 @@ public class PlungerLauncherItem extends Item implements CustomArmPoseItem {
     }
 
     @Override
-    public InteractionResultHolder<ItemStack> use(final Level level, final Player player, final InteractionHand interactionHand) {
+    public InteractionResult use(final Level level, final Player player, final InteractionHand interactionHand) {
         final ItemStack heldStack = player.getItemInHand(interactionHand);
         if (SimEntityService.INSTANCE.isFake(player)) {
-            return InteractionResultHolder.fail(heldStack);
+            return InteractionResult.FAIL;
         }
 
         if (ShootableGadgetItemMethods.shouldSwap(player, heldStack, interactionHand, s -> s.getItem() instanceof PlungerLauncherItem)) {
-            return InteractionResultHolder.fail(heldStack);
+            return InteractionResult.FAIL;
         }
 
-        if (!level.isClientSide) {
+        if (!level.isClientSide()) {
             if (player.isShiftKeyDown()) {
                 LaunchedPlungerServerHandler.removePlayerPlungers(player);
-                player.displayClientMessage(SimLang.translate("plunger_launcher.clear_plungers").color(0xaaaaaa).component(),true);
-                return InteractionResultHolder.success(heldStack);
+                player.sendOverlayMessage(SimLang.translate("plunger_launcher.clear_plungers").color(0xaaaaaa).component());
+                return InteractionResult.SUCCESS;
             }
 
             final BarrelAndCorrectionInfo info = this.getCorrectionInfo(player, interactionHand);
@@ -76,7 +76,7 @@ public class PlungerLauncherItem extends Item implements CustomArmPoseItem {
             level.playSound(null, barrelPos.x, barrelPos.y, barrelPos.z, SimSoundEvents.PLUNGER_LAUNCH.event(), SoundSource.PLAYERS, 1.0f, 1.0f);
 
             // add new plunger and set relevant data
-            final LaunchedPlungerEntity newPlunger = SimEntityTypes.PLUNGER.create(level);
+            final LaunchedPlungerEntity newPlunger = SimEntityTypes.PLUNGER.create(level, net.minecraft.world.entity.EntitySpawnReason.TRIGGERED);
             newPlunger.setPos(barrelPos);
 
             newPlunger.shootFromRotation(player, player.getXRot(), player.getYRot(), 0.0F, 0.5F, 0.0F);
@@ -109,12 +109,12 @@ public class PlungerLauncherItem extends Item implements CustomArmPoseItem {
 //            VeilPacketManager.tracking(player).sendPacket(new PlungerLauncherShootPacket(interactionHand));
 
             if (!BacktankUtil.canAbsorbDamage(player, maxUses()))
-                heldStack.hurtAndBreak(1, player, LivingEntity.getSlotForHand(interactionHand));
+                heldStack.hurtAndBreak(1, player, interactionHand.asEquipmentSlot());
         } else {
-            SimulatedClient.PLUNGER_LAUNCHER_RENDER_HANDLER.dontAnimateItem(interactionHand);
+            if (CLIENT_SHOT != null) CLIENT_SHOT.accept(interactionHand);
         }
 
-        return InteractionResultHolder.success(heldStack);
+        return InteractionResult.SUCCESS;
     }
 
     @Override
@@ -152,7 +152,8 @@ public class PlungerLauncherItem extends Item implements CustomArmPoseItem {
 
         Vec3 motion = player.getLookAngle();
 
-        final BlockHitResult hit = RaycastHelper.rayTraceRange(level, player, 48);
+        final BlockHitResult hit = level.clip(new ClipContext(player.getEyePosition(), player.getEyePosition().add(player.getLookAngle().scale(48)),
+                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
 
         if (hit != null) {
             final Vec3 projectedHit = Sable.HELPER.projectOutOfSubLevel(level, hit.getLocation());
@@ -163,24 +164,15 @@ public class PlungerLauncherItem extends Item implements CustomArmPoseItem {
     }
 
     @Override
-    public UseAnim getUseAnimation(final ItemStack stack) {
-        return UseAnim.NONE;
+    public ItemUseAnimation getUseAnimation(final ItemStack stack) {
+        return ItemUseAnimation.NONE;
     }
 
     @Override
-    public HumanoidModel.@Nullable ArmPose getArmPose(final ItemStack stack, final AbstractClientPlayer player, final InteractionHand hand) {
-        return HumanoidModel.ArmPose.CROSSBOW_HOLD;
-    }
-
-    @Override
-    public boolean canAttackBlock(final BlockState state, final Level level, final BlockPos pos, final Player player) {
+    public boolean canDestroyBlock(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final LivingEntity entity) {
         return false;
     }
 
-    @Override
-    public int getEnchantmentValue() {
-        return 1;
-    }
 
     public record BarrelAndCorrectionInfo(Vec3 barrelPos, Vec3 motion) {
     }

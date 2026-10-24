@@ -3,12 +3,8 @@
   "category": "misc",
   "group": "simulated:handle_variants",
   "ingredients": [
-    {
-      "item": "simulated:iron_handle"
-    },
-    {
-      "item": "minecraft:magenta_dye"
-    }
+    "simulated:iron_handle",
+    "minecraft:magenta_dye"
   ],
   "result": {
     "count": 1,

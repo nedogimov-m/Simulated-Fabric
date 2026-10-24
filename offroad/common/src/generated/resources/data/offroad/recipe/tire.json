@@ -2,12 +2,8 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "K": {
-      "item": "minecraft:dried_kelp"
-    },
-    "S": {
-      "item": "create:shaft"
-    }
+    "K": "minecraft:dried_kelp",
+    "S": "create:shaft"
   },
   "pattern": [
     " K ",

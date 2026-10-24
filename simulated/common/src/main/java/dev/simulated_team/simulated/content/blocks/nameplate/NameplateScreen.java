@@ -1,22 +1,21 @@
 package dev.simulated_team.simulated.content.blocks.nameplate;
 
-import com.mojang.blaze3d.platform.Lighting;
-import com.mojang.blaze3d.vertex.PoseStack;
+import org.joml.Matrix3x2fStack;
 import dev.simulated_team.simulated.Simulated;
 import dev.simulated_team.simulated.data.SimLang;
 import dev.simulated_team.simulated.network.packets.name_plate.NameplateChangeNamePacket;
 import foundry.veil.api.network.VeilPacketManager;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.font.TextFieldHelper;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.state.BlockState;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 public class NameplateScreen extends Screen {
    public static final int MAX_WIDTH = 8 * 16 - 6;
@@ -73,30 +72,29 @@ public class NameplateScreen extends Screen {
    }
 
    @Override
-   public boolean keyPressed(final int pKeyCode, final int pScanCode, final int pModifiers) {
+   public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+        final int pKeyCode = event.key(), pScanCode = event.keycode(), pModifiers = event.modifiers();
       if (pKeyCode != 264 && pKeyCode != 257 && pKeyCode != 335) {
-         return this.nameField.keyPressed(pKeyCode) || super.keyPressed(pKeyCode, pScanCode, pModifiers);
+         return this.nameField.keyPressed(event) || super.keyPressed(event);
       }
       return false;
    }
 
    @Override
-   public boolean charTyped(final char pCodePoint, final int pModifiers) {
-      this.nameField.charTyped(pCodePoint);
+   public boolean charTyped(final net.minecraft.client.input.CharacterEvent event) {
+      this.nameField.charTyped(event);
       return true;
    }
 
    @Override
-   public void render(final GuiGraphics gui, final int pMouseX, final int pMouseY, final float pPartialTick) {
-      Lighting.setupForFlatItems();
-      this.renderBackground(gui, pMouseX, pMouseY, pPartialTick);
-      gui.drawCenteredString(this.font, this.title, this.width / 2, 40, 16777215);
+   public void extractRenderState(final GuiGraphicsExtractor gui, final int pMouseX, final int pMouseY, final float pPartialTick) {
+      this.extractBackground(gui, pMouseX, pMouseY, pPartialTick);
+      gui.centeredText(this.font, this.title, this.width / 2, 40, 0xffffffff);
 
       this.renderSign(gui);
-      Lighting.setupFor3DItems();
 
       //we have to do this now because we are manually rendering the background, so we can't call super otherwise the background will be rendered twice
-      this.button.render(gui, pMouseX, pMouseY, pPartialTick);
+      this.button.extractRenderState(gui, pMouseX, pMouseY, pPartialTick);
    }
 
    @Override
@@ -114,56 +112,56 @@ public class NameplateScreen extends Screen {
       return false;
    }
 
-   protected void renderSignBackground(final GuiGraphics gui, final BlockState pState) {
+   protected void renderSignBackground(final GuiGraphicsExtractor gui, final BlockState pState) {
       final String color = ((NameplateBlock) pState.getBlock()).getColor().getSerializedName();
 
-      final PoseStack ps = gui.pose();
+      final Matrix3x2fStack ps = gui.pose();
 
-      ps.pushPose();
+      ps.pushMatrix();
       final float sy = 15.0f / 12.0f;
-      ps.scale(sy, sy, 1.0f);
-      ps.translate(8.0 - 16.0 * 4, 5.7, 0.0);
+      ps.scale(sy, sy);
+      ps.translate(8.0f - 16.0f * 4, 5.7f);
 
-      gui.blit(Simulated.path("textures/block/nameplate/" + color + "_nameplate.png"), -8, -8, 0.0F, 12, 16, 10, 32, 32);
+      gui.blit(RenderPipelines.GUI_TEXTURED, Simulated.path("textures/block/nameplate/" + color + "_nameplate.png"), -8, -8, 0.0F, 12, 16, 10, 32, 32);
 
       for (int i = 0; i < 6; i++) {
-         ps.translate(16.0, 0.0, 0.0);
-         gui.blit(Simulated.path("textures/block/nameplate/" + color + "_nameplate.png"), -8, -8,  8, 12, 16, 10, 32, 32);
+         ps.translate(16.0f, 0.0f);
+         gui.blit(RenderPipelines.GUI_TEXTURED, Simulated.path("textures/block/nameplate/" + color + "_nameplate.png"), -8, -8,  8, 12, 16, 10, 32, 32);
       }
-      ps.translate(16.0, 0.0, 0.0);
-      gui.blit(Simulated.path("textures/block/nameplate/" + color + "_nameplate.png"), -8, -8, 16, 12, 16, 10, 32, 32);
+      ps.translate(16.0f, 0.0f);
+      gui.blit(RenderPipelines.GUI_TEXTURED, Simulated.path("textures/block/nameplate/" + color + "_nameplate.png"), -8, -8, 16, 12, 16, 10, 32, 32);
 
-      ps.popPose();
+      ps.popMatrix();
    }
 
-   protected void offsetSign(final GuiGraphics pGuiGraphics, final BlockState pState) {
-      pGuiGraphics.pose().translate((float)this.width / 2.0F, this.height / 2f - 26, 50.0F);
+   protected void offsetSign(final GuiGraphicsExtractor pGuiGraphics, final BlockState pState) {
+      pGuiGraphics.pose().translate((float)this.width / 2.0F, this.height / 2f - 26);
    }
 
-   private void renderSign(final GuiGraphics pGuiGraphics) {
-      final PoseStack ps = pGuiGraphics.pose();
+   private void renderSign(final GuiGraphicsExtractor pGuiGraphics) {
+      final Matrix3x2fStack ps = pGuiGraphics.pose();
 
-      ps.pushPose();
+      ps.pushMatrix();
 
       final BlockState blockstate = this.be.getBlockState();
-      pGuiGraphics.pose().pushPose();
+      pGuiGraphics.pose().pushMatrix();
       this.offsetSign(pGuiGraphics, blockstate);
       final float scale = 2.0f;
-      ps.scale(scale, scale, scale);
-      pGuiGraphics.pose().pushPose();
+      ps.scale(scale, scale);
+      pGuiGraphics.pose().pushMatrix();
       this.renderSignBackground(pGuiGraphics, blockstate);
-      pGuiGraphics.pose().popPose();
+      pGuiGraphics.pose().popMatrix();
       this.renderSignText(pGuiGraphics);
-      pGuiGraphics.pose().popPose();
+      pGuiGraphics.pose().popMatrix();
 
-      ps.popPose();
+      ps.popMatrix();
    }
 
-   private void renderSignText(final GuiGraphics pGuiGraphics) {
+   private void renderSignText(final GuiGraphicsExtractor pGuiGraphics) {
       final int lineHeight = 8;
-      pGuiGraphics.pose().translate(0.0F, 0.0F, 4.0F);
+      // Extraction preserves draw order; text follows the sign background.
 
-      final int color = this.be.getDarkColor(this.be.getTextColor());
+      final int color = 0xff000000 | this.be.getDarkColor(this.be.getTextColor());
 
       final boolean cursorFlash = this.frame / 6 % 2 == 0;
       final int cursorPos = this.nameField.getCursorPos();
@@ -175,12 +173,12 @@ public class NameplateScreen extends Screen {
          }
 
          final int w = -this.font.width(this.message) / 2;
-         pGuiGraphics.drawString(this.font, this.message, w, 0, color, false);
+         pGuiGraphics.text(this.font, this.message, w, 0, color, false);
          if (cursorPos >= 0 && cursorFlash) {
             final int l1 = this.font.width(this.message.substring(0, Math.max(Math.min(cursorPos, this.message.length()), 0)));
             final int i2 = l1 - this.font.width(this.message) / 2;
             if (cursorPos >= this.message.length()) {
-               pGuiGraphics.drawString(this.font, "_", i2, 0, color, false);
+               pGuiGraphics.text(this.font, "_", i2, 0, color, false);
             }
          }
       }
@@ -199,19 +197,19 @@ public class NameplateScreen extends Screen {
             final int maxWith = this.font.width(this.message.substring(0, max)) - this.font.width(this.message) / 2;
             final int selMin = Math.min(minWidth, maxWith);
             final int selMax = Math.max(minWidth, maxWith);
-            pGuiGraphics.fill(RenderType.guiTextHighlight(), selMin, -1, selMax, lineHeight, -16776961);
+            pGuiGraphics.textHighlight(selMin, -1, selMax, lineHeight, false);
          }
       }
    }
 
    private void onDone() {
-      this.minecraft.setScreen(null);
+      this.minecraft.setScreenAndShow(null);
    }
 
    public static void setScreen(final NameplateBlockEntity be) {
       if (be != null && NameplateBlockEntity.canPlayerReach(be, Minecraft.getInstance().player)) {
          final NameplateScreen screen = new NameplateScreen(be.findController());
-         Minecraft.getInstance().setScreen(screen);
+         Minecraft.getInstance().setScreenAndShow(screen);
       }
    }
 }

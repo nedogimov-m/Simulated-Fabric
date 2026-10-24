@@ -3,17 +3,15 @@ package dev.simulated_team.simulated.content.particle;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import com.simibubi.create.foundation.particle.ICustomParticleDataWithSprite;
 import dev.simulated_team.simulated.index.SimParticleTypes;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 
-public class MagnetFieldParticleData implements ParticleOptions, ICustomParticleDataWithSprite<MagnetFieldParticleData> {
+public class MagnetFieldParticleData implements ParticleOptions {
     public static final MapCodec<MagnetFieldParticleData> CODEC = RecordCodecBuilder.mapCodec((i) -> {
         return i.group(Codec.BOOL.fieldOf("negative").forGetter((p) -> {
             return p.negative;
@@ -31,19 +29,7 @@ public class MagnetFieldParticleData implements ParticleOptions, ICustomParticle
     }
 
     public ParticleType<?> getType() {
-        return SimParticleTypes.MAGNET_FIELD.get();
-    }
-
-    public MapCodec<MagnetFieldParticleData> getCodec(final ParticleType<MagnetFieldParticleData> type) {
-        return CODEC;
-    }
-
-    public ParticleEngine.SpriteParticleRegistration<MagnetFieldParticleData> getMetaFactory() {
-        return MagnetFieldParticle.Factory::new;
-    }
-
-    public StreamCodec<? super RegistryFriendlyByteBuf, MagnetFieldParticleData> getStreamCodec() {
-        return STREAM_CODEC;
+        return SimParticleTypes.MAGNET_FIELD;
     }
 
     static {

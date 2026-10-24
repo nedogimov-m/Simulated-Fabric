@@ -1,75 +1,22 @@
 package dev.simulated_team.simulated.content.blocks.redstone.redstone_accumulator;
 
-import com.tterrag.registrate.providers.DataGenContext;
-import com.tterrag.registrate.providers.RegistrateBlockstateProvider;
-import com.tterrag.registrate.util.nullness.NonNullBiConsumer;
-import dev.simulated_team.simulated.Simulated;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.client.model.generators.ConfiguredModel;
-import net.neoforged.neoforge.client.model.generators.ModelFile;
-import net.neoforged.neoforge.client.model.generators.MultiPartBlockStateBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import dev.simulated_team.simulated.fabric.data.NativeBlockStateJson;
 
-public class RedstoneAccumulatorBlockStateGen {
-    public static ConfiguredModel.Builder<MultiPartBlockStateBuilder.PartBuilder> rotateHorizontal(final Direction direction, final ConfiguredModel.Builder<MultiPartBlockStateBuilder.PartBuilder> builder) {
-        final int angleOffset = 0;
-        builder.rotationY(((int) direction.toYRot() + angleOffset) % 360);
-        return builder;
-    }
-
-    public static <P extends RedstoneAccumulatorBlock> NonNullBiConsumer<DataGenContext<Block, P>, RegistrateBlockstateProvider> generate() {
-        return (ctx, prov) -> {
-            final ModelFile backOff = sub(prov, "block_back_off");
-            final ModelFile backOn = sub(prov, "block_back_on");
-            final ModelFile front = sub(prov, "block_front");
-            final ModelFile middleOff = sub(prov, "block_middle_off");
-            final ModelFile middleOn = sub(prov, "block_middle_on");
-            final ModelFile torchOff = sub(prov, "torch_off");
-            final ModelFile torchOn = sub(prov, "torch_on");
-
-            final MultiPartBlockStateBuilder builder = prov.getMultipartBuilder(ctx.get());
-
-            for (final BlockState state : ctx.get().getStateDefinition().getPossibleStates()) {
-                final Direction facing = state.getValue(RedstoneAccumulatorBlock.FACING);
-                final boolean powered = state.getValue(RedstoneAccumulatorBlock.POWERED);
-                final boolean sidePowered = state.getValue(RedstoneAccumulatorBlock.SIDE_POWERED);
-                final boolean powering = state.getValue(RedstoneAccumulatorBlock.POWERING);
-
-                final int yRot = ((int) facing.getOpposite().toYRot());
-
-                builder.part()
-                        .modelFile(front)
-                        .rotationY(yRot)
-                        .addModel()
-                        .condition(RedstoneAccumulatorBlock.FACING, facing)
-                        .end().part()
-
-                        .modelFile(powered ? backOn : backOff)
-                        .rotationY(yRot)
-                        .addModel()
-                        .condition(RedstoneAccumulatorBlock.POWERED, powered)
-                        .condition(RedstoneAccumulatorBlock.FACING, facing)
-                        .end().part()
-
-                        .modelFile(sidePowered ? middleOn : middleOff)
-                        .rotationY(yRot)
-                        .addModel()
-                        .condition(RedstoneAccumulatorBlock.SIDE_POWERED, sidePowered)
-                        .condition(RedstoneAccumulatorBlock.FACING, facing)
-                        .end().part()
-
-                        .modelFile(powering ? torchOn : torchOff)
-                        .rotationY(yRot)
-                        .addModel()
-                        .condition(RedstoneAccumulatorBlock.POWERING, powering)
-                        .condition(RedstoneAccumulatorBlock.FACING, facing)
-                        .end();
+/** Original256 multipart entries, including duplicates from the waterlogged state loop. */
+public final class RedstoneAccumulatorBlockStateGen {
+    public static JsonObject generate(){
+        var parts=new JsonArray();
+        for(String face:new String[]{"north","south","west","east"})for(boolean powered:new boolean[]{true,false})
+            for(boolean side:new boolean[]{true,false})for(boolean powering:new boolean[]{true,false})for(boolean water:new boolean[]{true,false}){
+                int y=NativeBlockStateJson.angle(face)+180;String base="redstone_accumulator/";
+                parts.add(NativeBlockStateJson.part(NativeBlockStateJson.model(base+"block_front",0,y),"facing",face));
+                parts.add(NativeBlockStateJson.part(NativeBlockStateJson.model(base+"block_back_"+(powered?"on":"off"),0,y),"powered",String.valueOf(powered),"facing",face));
+                parts.add(NativeBlockStateJson.part(NativeBlockStateJson.model(base+"block_middle_"+(side?"on":"off"),0,y),"side_powered",String.valueOf(side),"facing",face));
+                parts.add(NativeBlockStateJson.part(NativeBlockStateJson.model(base+"torch_"+(powering?"on":"off"),0,y),"powering",String.valueOf(powering),"facing",face));
             }
-        };
+        var output=new JsonObject();output.add("multipart",parts);return output;
     }
-
-    private static ModelFile sub(final RegistrateBlockstateProvider p, final String suffix) {
-        return p.models().getExistingFile(Simulated.path("block/redstone_accumulator/" + suffix));
-    }
+    private RedstoneAccumulatorBlockStateGen(){}
 }

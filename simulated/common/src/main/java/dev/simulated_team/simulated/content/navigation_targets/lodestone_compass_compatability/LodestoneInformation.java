@@ -8,12 +8,13 @@ import java.util.UUID;
 public record LodestoneInformation(UUID id, Vector3d projectedPos) {
 	public CompoundTag saveAsCompound() {
 		final CompoundTag data = new CompoundTag();
-		data.putUUID("trackerID", this.id);
+		data.put("trackerID", net.minecraft.core.UUIDUtil.CODEC.encodeStart(net.minecraft.nbt.NbtOps.INSTANCE, this.id).getOrThrow());
 
 		return data;
 	}
 
 	public static LodestoneInformation loadFromCompound(final CompoundTag tag) {
-		return new LodestoneInformation(tag.getUUID("trackerID"), new Vector3d());
+		return new LodestoneInformation(net.minecraft.core.UUIDUtil.CODEC.parse(net.minecraft.nbt.NbtOps.INSTANCE,
+				tag.get("trackerID")).getOrThrow(), new Vector3d());
 	}
 }

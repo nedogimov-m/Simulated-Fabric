@@ -1,70 +1,48 @@
 package dev.simulated_team.simulated.content.blocks.gimbal_sensor;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.simibubi.create.foundation.blockEntity.behaviour.filtering.FilteringRenderer;
-import com.simibubi.create.foundation.blockEntity.renderer.SafeBlockEntityRenderer;
-import dev.engine_room.flywheel.api.visualization.VisualizationManager;
-import dev.engine_room.flywheel.lib.model.baked.PartialModel;
+import com.mojang.math.Axis;
+import dev.simulated_team.simulated.fabric.registry.NativePartsRenderer;
 import dev.simulated_team.simulated.index.SimPartialModels;
 import dev.simulated_team.simulated.util.SimColors;
 import dev.simulated_team.simulated.util.SimDirectionUtil;
-import net.createmod.catnip.render.CachedBuffers;
-import net.createmod.catnip.render.SuperByteBuffer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.fabricmc.fabric.api.client.model.loading.v1.ExtraModelKey;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.core.Direction;
 import org.joml.Quaternionf;
 
-public class GimbalSensorRenderer extends SafeBlockEntityRenderer<GimbalSensorBlockEntity> {
-    public GimbalSensorRenderer(final BlockEntityRendererProvider.Context context) {
+/** Filter/value boxes are handled by Create's native global behaviour renderer. */
+public final class GimbalSensorRenderer extends NativePartsRenderer<GimbalSensorBlockEntity> {
+    public GimbalSensorRenderer(BlockEntityRendererProvider.Context context) {}
 
+    @Override protected void extractParts(GimbalSensorBlockEntity entity, float partial, Parts parts) {
+        for (final var direction : SimDirectionUtil.Y_AXIS_PLANE) {
+            final var pose = new PoseStack();
+            pose.translate(.5, 0, .5);
+            // Original Flywheel Rotate.rotateToFace uses NORTH as its identity orientation.
+            if (direction == Direction.SOUTH) pose.rotate(Axis.YP.rotationDegrees(180));
+            else if (direction == Direction.WEST) pose.rotate(Axis.YP.rotationDegrees(90));
+            else if (direction == Direction.EAST) pose.rotate(Axis.YP.rotationDegrees(270));
+            pose.translate(0, 0, -.5);
+            parts.add(SimPartialModels.GIMBAL_SENSOR_INDICATOR, pose,
+                    SimColors.redstone(Math.max(entity.getPower(direction), 0) / 15f),
+                    ChunkSectionLayer.CUTOUT, false, parts.light());
+        }
+        final var rotation = new Quaternionf(entity.getBaseQuaternion());
+        entity.applyPrimaryQuaternion(rotation, partial);
+        add(parts, SimPartialModels.GIMBAL_SENSOR_GIMBAL, rotation);
+        entity.applySecondaryQuaternion(rotation, partial);
+        add(parts, SimPartialModels.GIMBAL_SENSOR_COMPASS, rotation);
+        entity.applyCompassQuaternion(rotation, partial);
+        add(parts, SimPartialModels.GIMBAL_SENSOR_NEEDLE, rotation);
     }
 
-    @Override
-    protected void renderSafe(final GimbalSensorBlockEntity be, final float partialTicks, final PoseStack ms, final MultiBufferSource buffer, final int light, final int overlay) {
-        FilteringRenderer.renderOnBlockEntity(be, partialTicks, ms, buffer, light, overlay);
-
-        if (VisualizationManager.supportsVisualization(be.getLevel())) {
-            return;
-        }
-
-        final VertexConsumer vb = buffer.getBuffer(RenderType.cutout());
-        final Quaternionf Q = be.getBaseQuaternion();
-
-        // Render Redstone Indicators
-        ms.pushPose();
-        ms.translate(0.5, 0, 0.5);
-        for (final Direction direction : SimDirectionUtil.Y_AXIS_PLANE) {
-            ms.pushPose();
-            final SuperByteBuffer indicator = CachedBuffers.partial(SimPartialModels.GIMBAL_SENSOR_INDICATOR, be.getBlockState());
-
-            indicator.rotateToFace(direction);
-            indicator.translate(0, 0, -0.5);
-            final float signalStrength = Math.max(be.getPower(direction), 0) / 15.0F;
-            final int color = SimColors.redstone(signalStrength); // Analog indicators (mixes between colors smoothly)
-            // int color = (signalStrength > 0) ? 0xCD0000 : 0x630002; // Digital indicators (on/off only)
-            indicator.light(light)
-                    .color(color)
-                    .renderInto(ms, buffer.getBuffer(RenderType.cutout()));
-
-            ms.popPose();
-        }
-
-        ms.popPose();
-        be.applyPrimaryQuaternion(Q, partialTicks);
-        this.apply(SimPartialModels.GIMBAL_SENSOR_GIMBAL, be, Q, light, ms, vb);
-        be.applySecondaryQuaternion(Q, partialTicks);
-        this.apply(SimPartialModels.GIMBAL_SENSOR_COMPASS, be, Q, light, ms, vb);
-        be.applyCompassQuaternion(Q, partialTicks);
-        this.apply(SimPartialModels.GIMBAL_SENSOR_NEEDLE, be, Q, light, ms, vb);
-    }
-
-    private void apply(final PartialModel model, final GimbalSensorBlockEntity te, final Quaternionf Q, final int light, final PoseStack ms, final VertexConsumer vb) {
-        final SuperByteBuffer buf = CachedBuffers.partial(model, te.getBlockState());
-        buf.rotateCentered(Q);
-        buf.translate(0.5, 0.5, 0.5);
-        buf.light(light).renderInto(ms, vb);
+    private static void add(Parts parts, ExtraModelKey<BlockStateModel> key, Quaternionf rotation) {
+        final var pose = new PoseStack();
+        rotateCentered(pose, new Quaternionf(rotation));
+        pose.translate(.5, .5, .5);
+        parts.add(key, pose, -1, ChunkSectionLayer.CUTOUT, false, parts.light());
     }
 }

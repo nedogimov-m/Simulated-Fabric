@@ -2,15 +2,9 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "A": {
-      "tag": "c:gems/amethyst"
-    },
-    "B": {
-      "item": "create:brass_casing"
-    },
-    "C": {
-      "item": "create:electron_tube"
-    }
+    "A": "#c:gems/amethyst",
+    "B": "create:brass_casing",
+    "C": "create:electron_tube"
   },
   "pattern": [
     " A ",

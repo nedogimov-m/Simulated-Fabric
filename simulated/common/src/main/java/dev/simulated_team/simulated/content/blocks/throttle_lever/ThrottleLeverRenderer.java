@@ -2,145 +2,76 @@ package dev.simulated_team.simulated.content.blocks.throttle_lever;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.simibubi.create.content.redstone.analogLever.AnalogLeverBlock;
-import com.simibubi.create.foundation.blockEntity.renderer.SafeBlockEntityRenderer;
-import dev.engine_room.flywheel.api.visualization.VisualizationManager;
-import dev.engine_room.flywheel.lib.transform.PoseTransformStack;
-import dev.engine_room.flywheel.lib.transform.TransformStack;
+import com.mojang.math.Axis;
+import dev.simulated_team.simulated.fabric.registry.NativePartsRenderer;
 import dev.simulated_team.simulated.index.SimBlocks;
 import dev.simulated_team.simulated.index.SimPartialModels;
-import dev.simulated_team.simulated.mixin.accessor.LevelRendererAccessor;
 import dev.simulated_team.simulated.util.SimColors;
 import net.createmod.catnip.math.AngleHelper;
-import net.createmod.catnip.render.CachedBuffers;
-import net.createmod.catnip.render.SuperByteBuffer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.FaceAttachedHorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.shapes.VoxelShape;
+import java.util.ArrayList;
+import java.util.List;
 
-public class ThrottleLeverRenderer extends SafeBlockEntityRenderer<ThrottleLeverBlockEntity> {
-
-    protected static final double ANGLE_LIMIT = 40.0;
-
-    public ThrottleLeverRenderer(final BlockEntityRendererProvider.Context context) {
-        
+/** Handle/button/diode extraction, source grip transform and detached native hover outline. */
+public final class ThrottleLeverRenderer extends NativePartsRenderer<ThrottleLeverBlockEntity> {
+    protected static final double ANGLE_LIMIT=40;
+    public ThrottleLeverRenderer(BlockEntityRendererProvider.Context context) { }
+    private static float angle(float value,AttachFace face) {
+        final float angle=(float)Math.toRadians((value/15)*(ANGLE_LIMIT*2)-ANGLE_LIMIT);
+        return face==AttachFace.WALL?-angle:angle;
     }
-
-    public static void transformHandleExternal(final ThrottleLeverBlockEntity blockEntity, final float partialTicks, final PoseStack ms) {
-        final float state = blockEntity.clientAngle.getValue(partialTicks);
-        final AttachFace face = blockEntity.getBlockState().getValue(FaceAttachedHorizontalDirectionalBlock.FACE);
-        float angle = (float) (((state / 15) * (ANGLE_LIMIT * 2) - ANGLE_LIMIT) / 180 * Math.PI);
-
-        if (face == AttachFace.WALL) {
-            angle = -angle;
-        }
-
-        final PoseTransformStack stack = TransformStack.of(ms);
-        transform(stack, blockEntity.getBlockState());
-        stack
-                .translate(1 / 2f, 3.0 / 16.0, 1 / 2f)
-                .rotateX(angle)
-                .translateBack(1 / 2f, 3.0 / 16.0, 1 / 2f);
+    public static void transformHandleExternal(ThrottleLeverBlockEntity entity,float partial,PoseStack pose) {
+        final var state=entity.getBlockState();initial(pose,state);
+        pivot(pose,angle(entity.clientAngle.getValue(partial),state.getValue(FaceAttachedHorizontalDirectionalBlock.FACE)));
     }
-
-    @Override
-    protected void renderSafe(final ThrottleLeverBlockEntity be, final float partialTicks, final PoseStack ms, final MultiBufferSource bufferSource,
-                              final int light, final int overlay) {
-        final BlockState leverState = be.getBlockState();
-        final float state = be.clientAngle.getValue(partialTicks);
-        final AttachFace face = be.getBlockState().getValue(FaceAttachedHorizontalDirectionalBlock.FACE);
-        float angle = (float) (((state / 15) * (ANGLE_LIMIT * 2) - ANGLE_LIMIT) / 180 * Math.PI);
-
-        if (face == AttachFace.WALL) {
-            angle = -angle;
-        }
-
-        if (!VisualizationManager.supportsVisualization(be.getLevel())) {
-            final VertexConsumer vb = bufferSource.getBuffer(RenderType.cutoutMipped());
-
-            final SuperByteBuffer handle = CachedBuffers.partial(SimPartialModels.THROTTLE_LEVER_HANDLE, leverState);
-            final SuperByteBuffer button = CachedBuffers.partial(SimPartialModels.THROTTLE_LEVER_BUTTON, leverState);
-
-            final float signalStrength = Math.max(0, be.state / 15F);
-            final SuperByteBuffer diode = CachedBuffers.partial(SimPartialModels.THROTTLE_LEVER_DIODE, leverState);
-            final int color = SimColors.redstone(signalStrength);
-
-            final double buttonAngle = be.clientPressedLerp.getValue(partialTicks) * -7f;
-
-            transform(handle, leverState);
-            transform(button, leverState);
-            transform(diode, leverState);
-
-            this.transformHandleExternal(handle, angle, face);
-            handle
-                    .light(light)
-                    .renderInto(ms, vb);
-
-            this.transformHandleExternal(button, angle, face)
-                    .translate(0, 14 / 16f, 8 / 16f)
-                    .rotateXDegrees((float) buttonAngle)
-                    .translateBack(0, 14 / 16f, 8 / 16f)
-                    .light(light)
-                    .renderInto(ms, vb);
-
-            diode.light(light)
-                    .color(color)
-                    .renderInto(ms, vb);
-        }
-
-        final Minecraft minecraft = Minecraft.getInstance();
-
-        if (!be.isVirtual() && minecraft.hitResult instanceof final BlockHitResult hitResult && hitResult.getBlockPos().equals(be.getBlockPos())) {
-            renderOutline(be, ms, bufferSource, angle);
+    private static void initial(PoseStack pose,BlockState state) {
+        final var attached=state.getValue(FaceAttachedHorizontalDirectionalBlock.FACE);
+        final var facing=state.getValue(FaceAttachedHorizontalDirectionalBlock.FACING);
+        rotateCentered(pose,Direction.Axis.Y,AngleHelper.horizontalAngle(facing));
+        rotateCentered(pose,Direction.Axis.X,attached==AttachFace.FLOOR?0:attached==AttachFace.WALL?90:180);
+        if(attached==AttachFace.CEILING)rotateCentered(pose,Direction.Axis.Y,180);
+    }
+    private static void pivot(PoseStack pose,float angle) {
+        pose.translate(.5,3/16f,.5);pose.rotate(Axis.XP.rotation(angle));pose.translate(-.5,-3/16f,-.5);
+    }
+    private static PoseStack handle(BlockState state,float angle) {
+        final var pose=new PoseStack();initial(pose,state);pivot(pose,angle);
+        if(state.getValue(FaceAttachedHorizontalDirectionalBlock.FACE)==AttachFace.WALL)rotateCentered(pose,Direction.Axis.Y,180);
+        return pose;
+    }
+    @Override protected void extractParts(ThrottleLeverBlockEntity entity,float partial,Parts parts) {
+        final var state=entity.getBlockState();final var face=state.getValue(FaceAttachedHorizontalDirectionalBlock.FACE);
+        final float angle=angle(entity.clientAngle.getValue(partial),face);
+        parts.add(SimPartialModels.THROTTLE_LEVER_HANDLE,handle(state,angle));
+        final var button=handle(state,angle);button.translate(0,14/16f,8/16f);
+        button.rotate(Axis.XP.rotationDegrees(entity.clientPressedLerp.getValue(partial)*-7));button.translate(0,-14/16f,-8/16f);
+        parts.add(SimPartialModels.THROTTLE_LEVER_BUTTON,button);
+        final var diode=new PoseStack();initial(diode,state);
+        parts.add(SimPartialModels.THROTTLE_LEVER_DIODE,diode,SimColors.redstone(Math.max(0,entity.state/15f)),ChunkSectionLayer.CUTOUT,false,parts.light());
+        final var client=Minecraft.getInstance();
+        if(!entity.isVirtual()&&client.hitResult instanceof BlockHitResult hit&&hit.getBlockPos().equals(entity.getBlockPos())) {
+            final var outline=new PoseStack();initial(outline,state);pivot(outline,angle);
+            final var edges=new ArrayList<Edge>();
+            SimBlocks.THROTTLE_LEVER.getHandleShape(SimBlocks.THROTTLE_LEVER.defaultBlockState())
+                    .forAllEdges((x1,y1,z1,x2,y2,z2)->edges.add(new Edge((float)x1,(float)y1,(float)z1,(float)x2,(float)y2,(float)z2)));
+            final List<Edge> copied=List.copyOf(edges);
+            final float lineWidth=Math.max(2.5f,client.getWindow().getWidth()/1920f*2.5f);
+            parts.addGeometry(RenderTypes.lines(),(pose,vertices)->{for(var edge:copied)edge.render(pose,vertices,lineWidth);},outline);
         }
     }
-
-    private static void renderOutline(final ThrottleLeverBlockEntity be, final PoseStack ms, final MultiBufferSource bufferSource, final float angle) {
-        final VertexConsumer consumer = bufferSource.getBuffer(RenderType.lines());
-        final VoxelShape leverShape = SimBlocks.THROTTLE_LEVER.get().getHandleShape(SimBlocks.THROTTLE_LEVER.getDefaultState());
-
-        ms.pushPose();
-        final PoseTransformStack stack = TransformStack.of(ms);
-        transform(stack, be.getBlockState());
-        stack
-                .translate(1 / 2f, 3.0 / 16.0, 1 / 2f)
-                .rotateX(angle)
-                .translateBack(1 / 2f, 3.0 / 16.0, 1 / 2f);
-        LevelRendererAccessor.invokeRenderShape(ms, consumer, leverShape, 0.0, 0.0, 0.0, 0.0f, 0.0f, 0.0f, 0.4F);
-        ms.popPose();
-    }
-
-    private <T extends TransformStack<T>> TransformStack<T> transformHandleExternal(final TransformStack<T> buffer, final float angle, final AttachFace face) {
-        return buffer
-                .translate(1 / 2f, 3 / 16f, 1 / 2f)
-                .rotateX(angle)
-                .translateBack(1 / 2f, 3 / 16f, 1 / 2f)
-                .rotateCentered(face == AttachFace.WALL ? (float) Math.PI : 0.0f, Direction.UP);
-    }
-
-    private static  <T extends TransformStack<T>> TransformStack<T> transform(final TransformStack<T> buffer, final BlockState leverState) {
-        final AttachFace attached = leverState.getValue(AnalogLeverBlock.FACE);
-        final Direction facing = leverState.getValue(AnalogLeverBlock.FACING);
-
-        final float rX;
-        switch (attached) {
-            case FLOOR -> rX = 0;
-            case WALL -> rX = 90;
-            default -> rX = 180;
+    private record Edge(float x1,float y1,float z1,float x2,float y2,float z2) {
+        void render(PoseStack.Pose pose,VertexConsumer out,float lineWidth) {
+            float x=x2-x1,y=y2-y1,z=z2-z1;float length=(float)Math.sqrt(x*x+y*y+z*z);x/=length;y/=length;z/=length;
+            out.addVertex(pose,x1,y1,z1).setColor(0x66000000).setNormal(pose,x,y,z).setLineWidth(lineWidth);
+            out.addVertex(pose,x2,y2,z2).setColor(0x66000000).setNormal(pose,x,y,z).setLineWidth(lineWidth);
         }
-
-        final float rY = AngleHelper.horizontalAngle(facing);
-        buffer.rotateCentered((float) (rY / 180 * Math.PI), Direction.UP);
-        buffer.rotateCentered((float) (rX / 180 * Math.PI), Direction.EAST);
-        buffer.rotateCentered(attached == AttachFace.CEILING ? (float) Math.PI : 0.0f, Direction.UP);
-        return buffer;
     }
-
 }

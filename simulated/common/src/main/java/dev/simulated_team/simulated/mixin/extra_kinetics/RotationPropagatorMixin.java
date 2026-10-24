@@ -1,162 +1,71 @@
 package dev.simulated_team.simulated.mixin.extra_kinetics;
 
-import com.llamalad7.mixinextras.injector.ModifyReceiver;
-import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
-import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.injector.wrapoperation.*;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.simibubi.create.content.kinetics.RotationPropagator;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.simpleRelays.ICogWheel;
-import dev.simulated_team.simulated.util.extra_kinetics.ExtraBlockPos;
-import dev.simulated_team.simulated.util.extra_kinetics.ExtraKinetics;
+import com.simibubi.create.foundation.utility.LoadedLevelAccess;
+import dev.simulated_team.simulated.util.extra_kinetics.*;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
 import java.util.*;
 
-@Mixin(RotationPropagator.class)
+/** Feed real secondary rotation configurations through the actual native Create connection rules. */
+@Mixin(value=RotationPropagator.class,remap=false)
 public abstract class RotationPropagatorMixin {
+    private static final String RULES="getRotationSpeedModifier(Lnet/minecraft/world/level/LevelReader;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;)D";
+    private static final String OWNER_RULES="getRotationSpeedModifier(Lcom/simibubi/create/content/kinetics/base/KineticBlockEntity;Lcom/simibubi/create/content/kinetics/base/KineticBlockEntity;)F";
 
-    @WrapOperation(method = {"handleRemoved", "propagateMissingSource", "findConnectedNeighbour"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getBlockEntity(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/entity/BlockEntity;"))
-    private static BlockEntity simulated$accountForExtraKinetics(final Level instance, final BlockPos pos, final Operation<BlockEntity> original) {
-        final BlockEntity be = original.call(instance, pos);
-        if (be instanceof final ExtraKinetics ek && pos instanceof ExtraBlockPos) {
-            return ek.getExtraKinetics();
+    @ModifyVariable(method=RULES,at=@At("STORE"),ordinal=0,require=1)
+    private static IRotate simulated$fromConfiguration(IRotate ordinary,@Local(argsOnly=true,ordinal=0) BlockPos position,@Local(argsOnly=true,ordinal=0) BlockState state){
+        return NativeKineticChannels.configuration(ordinary,position,state);
+    }
+    @ModifyVariable(method=RULES,at=@At("STORE"),ordinal=1,require=1)
+    private static IRotate simulated$toConfiguration(IRotate ordinary,@Local(argsOnly=true,ordinal=1) BlockPos position,@Local(argsOnly=true,ordinal=1) BlockState state){
+        return NativeKineticChannels.configuration(ordinary,position,state);
+    }
+    @ModifyVariable(method={"getGraphConnection",OWNER_RULES},at=@At("STORE"),ordinal=0,require=1)
+    private static IRotate simulated$fromOwnerConfiguration(IRotate ordinary,@Local(argsOnly=true,ordinal=0) KineticBlockEntity owner){
+        return NativeKineticChannels.configuration(ordinary,owner.getBlockPos(),owner.getBlockState());
+    }
+    @ModifyVariable(method={"getGraphConnection",OWNER_RULES},at=@At("STORE"),ordinal=1,require=1)
+    private static IRotate simulated$toOwnerConfiguration(IRotate ordinary,@Local(argsOnly=true,ordinal=1) KineticBlockEntity owner){
+        return NativeKineticChannels.configuration(ordinary,owner.getBlockPos(),owner.getBlockState());
+    }
+    @ModifyVariable(method="getPotentialNeighbourLocations",at=@At("STORE"),ordinal=0,require=1)
+    private static IRotate simulated$propagationConfiguration(IRotate ordinary,@Local(argsOnly=true) KineticBlockEntity owner){
+        return NativeKineticChannels.configuration(ordinary,owner.getBlockPos(),owner.getBlockState());
+    }
+    @WrapOperation(method="getGraphConnection",at=@At(value="INVOKE",target="Lcom/simibubi/create/content/kinetics/base/KineticBlockEntity;propagateRotationTo(Lcom/simibubi/create/content/kinetics/base/KineticBlockEntity;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/BlockPos;ZZ)F"),require=1)
+    private static float simulated$nativeCogConfiguration(KineticBlockEntity from,KineticBlockEntity to,BlockState fromState,BlockState toState,BlockPos delta,boolean shafts,boolean cogs,Operation<Float> original){
+        final var left=NativeKineticChannels.configuration(from);
+        final var right=NativeKineticChannels.configuration(to);
+        final boolean smallCogs=left instanceof ICogWheel a && !a.isLargeCog() && right instanceof ICogWheel b && !b.isLargeCog();
+        return original.call(from,to,fromState,toState,delta,shafts,smallCogs);
+    }
+    @WrapOperation(method="*",at=@At(value="INVOKE",target="Lnet/minecraft/core/BlockPos;equals(Ljava/lang/Object;)Z"),require=1)
+    private static boolean simulated$sameSourceChannel(BlockPos position,Object other,Operation<Boolean> original){return NativeKineticPositions.same(position,other);}
+
+    @Inject(method="getPotentialNeighbourLocations",at=@At("RETURN"),cancellable=true,require=1)
+    private static void simulated$allStoredCandidates(KineticBlockEntity owner,CallbackInfoReturnable<List<BlockPos>> result){
+        final var level=owner.getLevel();
+        if(level==null||!LoadedLevelAccess.isLoaded(level,owner.getBlockPos()))return;
+        final var candidates=new NativeKineticSet<BlockPos>();
+        for(var position:result.getReturnValue()){
+            candidates.add(position);
+            if(LoadedLevelAccess.blockState(level,position).getBlock() instanceof ExtraKinetics.ExtraKineticsBlock)
+                candidates.add(new ExtraBlockPos(position));
         }
-
-        return be;
-    }
-
-    @WrapOperation(method = "getRotationSpeedModifier", at = {
-            @At(value = "INVOKE", target = "Lcom/simibubi/create/content/kinetics/simpleRelays/ICogWheel;isSmallCog(Lnet/minecraft/world/level/block/state/BlockState;)Z", ordinal = 0),
-            @At(value = "INVOKE", target = "Lcom/simibubi/create/content/kinetics/simpleRelays/ICogWheel;isSmallCog(Lnet/minecraft/world/level/block/state/BlockState;)Z", ordinal = 3)
-    })
-    private static boolean testSmallCogFrom1(final BlockState state, final Operation<Boolean> original, @Local(argsOnly = true, ordinal = 0) final KineticBlockEntity fromBE) {
-        return simulated$checkCogStateSmall(original.call(state), fromBE);
-    }
-
-    @WrapOperation(method = "getRotationSpeedModifier", at = {
-            @At(value = "INVOKE", target = "Lcom/simibubi/create/content/kinetics/simpleRelays/ICogWheel;isSmallCog(Lnet/minecraft/world/level/block/state/BlockState;)Z", ordinal = 1),
-            @At(value = "INVOKE", target = "Lcom/simibubi/create/content/kinetics/simpleRelays/ICogWheel;isSmallCog(Lnet/minecraft/world/level/block/state/BlockState;)Z", ordinal = 2)
-    })
-    private static boolean testSmallCogTo(final BlockState state, final Operation<Boolean> original, @Local(argsOnly = true, ordinal = 1) final KineticBlockEntity toBE) {
-        return simulated$checkCogStateSmall(original.call(state), toBE);
-    }
-
-    @WrapOperation(method = "getRotationSpeedModifier", at = @At(value = "INVOKE", target = "Lcom/simibubi/create/content/kinetics/simpleRelays/ICogWheel;isLargeCog(Lnet/minecraft/world/level/block/state/BlockState;)Z", ordinal = 0))
-    private static boolean testLargeCogFrom(final BlockState state, final Operation<Boolean> original, @Local(argsOnly = true, ordinal = 0) final KineticBlockEntity fromBE) {
-        return simulated$checkCogStateLarge(original.call(state), fromBE);
-    }
-
-    @WrapOperation(method = "getRotationSpeedModifier", at = {
-            @At(value = "INVOKE", target = "Lcom/simibubi/create/content/kinetics/simpleRelays/ICogWheel;isLargeCog(Lnet/minecraft/world/level/block/state/BlockState;)Z", ordinal = 1),
-            @At(value = "INVOKE", target = "Lcom/simibubi/create/content/kinetics/simpleRelays/ICogWheel;isLargeCog(Lnet/minecraft/world/level/block/state/BlockState;)Z", ordinal = 2)
-    })
-    private static boolean testLargeCogTo(final BlockState state, final Operation<Boolean> original, @Local(argsOnly = true, ordinal = 1) final KineticBlockEntity toBE) {
-        return simulated$checkCogStateLarge(original.call(state), toBE);
-    }
-
-    @ModifyReceiver(method = "getRotationSpeedModifier", at = @At(value = "INVOKE", target = "Lcom/simibubi/create/content/kinetics/base/IRotate;hasShaftTowards(Lnet/minecraft/world/level/LevelReader;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/Direction;)Z", ordinal = 0))
-    private static IRotate changeIRotateShaftFrom(final IRotate instance, final LevelReader levelReader, final BlockPos blockPos, final BlockState state, final Direction direction, @Local(argsOnly = true, ordinal = 0) final KineticBlockEntity fromBE) {
-        return simulated$getNewIRotate(instance, fromBE);
-    }
-
-    @ModifyReceiver(method = "getRotationSpeedModifier", at = @At(value = "INVOKE", target = "Lcom/simibubi/create/content/kinetics/base/IRotate;hasShaftTowards(Lnet/minecraft/world/level/LevelReader;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/Direction;)Z", ordinal = 1))
-    private static IRotate changeIRotateShaftTo(final IRotate instance, final LevelReader levelReader, final BlockPos blockPos, final BlockState state, final Direction direction, @Local(argsOnly = true, ordinal = 1) final KineticBlockEntity toBe) {
-        return simulated$getNewIRotate(instance, toBe);
-    }
-
-    @ModifyReceiver(method = "getRotationSpeedModifier", at = {
-            @At(value = "INVOKE", target = "Lcom/simibubi/create/content/kinetics/base/IRotate;getRotationAxis(Lnet/minecraft/world/level/block/state/BlockState;)Lnet/minecraft/core/Direction$Axis;", ordinal = 0),
-            @At(value = "INVOKE", target = "Lcom/simibubi/create/content/kinetics/base/IRotate;getRotationAxis(Lnet/minecraft/world/level/block/state/BlockState;)Lnet/minecraft/core/Direction$Axis;", ordinal = 1)
-    })
-    private static IRotate changeIRotateAxisFrom(final IRotate instance, final BlockState state, @Local(argsOnly = true, ordinal = 0) final KineticBlockEntity fromBE) {
-        return simulated$getNewIRotate(instance, fromBE);
-    }
-
-    @ModifyReceiver(method = "getRotationSpeedModifier", at = @At(value = "INVOKE", target = "Lcom/simibubi/create/content/kinetics/base/IRotate;getRotationAxis(Lnet/minecraft/world/level/block/state/BlockState;)Lnet/minecraft/core/Direction$Axis;", ordinal = 2))
-    private static IRotate changeIRotateAxisTo(final IRotate instance, final BlockState state, @Local(argsOnly = true, ordinal = 1) final KineticBlockEntity toBe) {
-        return simulated$getNewIRotate(instance, toBe);
-    }
-
-    @Inject(method = "getConnectedNeighbours", at = @At("TAIL"), remap = false)
-    private static void simulated$addExtraKineticsBlockEntities(final KineticBlockEntity be, final CallbackInfoReturnable<List<KineticBlockEntity>> cir) {
-        final List<KineticBlockEntity> list = cir.getReturnValue();
-        if (be instanceof final ExtraKinetics.ExtraKineticsBlockEntity ekbe) {
-            final KineticBlockEntity parent = ekbe.getParentBlockEntity();
-            if (parent != null && ((ExtraKinetics) parent).shouldConnectExtraKinetics()) {
-                list.add(parent);
-            }
-        } else if (be instanceof final ExtraKinetics ek && ek.shouldConnectExtraKinetics()) {
-            final KineticBlockEntity extraKinetics = ek.getExtraKinetics();
-            if (extraKinetics != null) {
-                list.add(extraKinetics);
-            }
-        }
-    }
-
-    @Inject(method = "getPotentialNeighbourLocations", at = @At("TAIL"), remap = false)
-    private static void simulated$getExtraKineticsBlockPositions(final KineticBlockEntity be, final CallbackInfoReturnable<List<BlockPos>> cir) {
-
-        //This list should NOT be getting replaced ever ever, OR made immutable... whoever is replacing the list with their own IMMUTABLE one needs to fix it on THEIR side. This method provides its own list that should be modified by mixins, OR the block, NOT replaced.
-        final List<BlockPos> list = cir.getReturnValue();
-        final Level level = be.getLevel();
-
-        final ListIterator<BlockPos> lIter = list.listIterator();
-        while (lIter.hasNext()) {
-            final BlockPos current = lIter.next();
-            //make sure that we're not actually modifying the list unless there are extra kinetics
-            if (level.getBlockState(current).getBlock() instanceof ExtraKinetics.ExtraKineticsBlock) {
-                lIter.add(new ExtraBlockPos(current));
-            }
-        }
-    }
-
-    @Unique
-    private static boolean simulated$checkCogStateSmall(final boolean original, final KineticBlockEntity be) {
-        if (original) {
-            return true;
-        }
-
-        if (be.getBlockPos() instanceof ExtraBlockPos && be.getBlockState().getBlock() instanceof final ExtraKinetics.ExtraKineticsBlock ekb) {
-            return ekb.getExtraKineticsRotationConfiguration() instanceof final ICogWheel ic && ic.isSmallCog();
-        }
-
-        return false;
-    }
-
-    @Unique
-    private static boolean simulated$checkCogStateLarge(final boolean original, final KineticBlockEntity be) {
-        if (original) {
-            return true;
-        }
-
-        if (be.getBlockPos() instanceof ExtraBlockPos && be.getBlockState().getBlock() instanceof final ExtraKinetics.ExtraKineticsBlock ekb) {
-            return ekb.getExtraKineticsRotationConfiguration() instanceof final ICogWheel ic && ic.isLargeCog();
-        }
-
-        return false;
-    }
-
-    @Unique
-    private static IRotate simulated$getNewIRotate(final IRotate currentRotate, final KineticBlockEntity be) {
-        if (be.getBlockPos() instanceof ExtraBlockPos && be.getBlockState().getBlock() instanceof final ExtraKinetics.ExtraKineticsBlock ekb) {
-            return ekb.getExtraKineticsRotationConfiguration();
-        }
-
-        return currentRotate;
+        if(owner instanceof ExtraKinetics parent && parent.shouldConnectExtraKinetics() && parent.getExtraKinetics()!=null)
+            candidates.add(parent.getExtraKinetics().getBlockPos());
+        if(owner instanceof ExtraKinetics.ExtraKineticsBlockEntity secondary && secondary.getParentBlockEntity() instanceof ExtraKinetics parent && parent.shouldConnectExtraKinetics())
+            candidates.add(secondary.getParentBlockEntity().getBlockPos());
+        // The native owner returns an immutable distinct list; the addon supplies a fresh real list.
+        result.setReturnValue(new ArrayList<>(candidates));
     }
 }

@@ -1,9 +1,11 @@
 package dev.simulated_team.simulated.index;
 
+import com.mojang.serialization.Lifecycle;
 import dev.simulated_team.simulated.Simulated;
 import dev.simulated_team.simulated.client.BlockPropertiesTooltip;
 import dev.simulated_team.simulated.content.blocks.nav_table.navigation_target.NavigationTarget;
-import foundry.veil.platform.registry.RegistrationProvider;
+import net.fabricmc.fabric.api.event.registry.FabricRegistryBuilder;
+import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 
@@ -18,11 +20,13 @@ public class SimRegistries {
 	}
 
 	public static final Registry<NavigationTarget> NAVIGATION_TARGET = registry(Keys.NAVIGATION_TARGET);
-	public static final Registry<BlockPropertiesTooltip.Entry> PROPERTY_TOOLTIP = registry(Keys.PROPERTY_TOOLTIP);
+	// Tooltip functions are registered by the client and never serialized or synchronized.
+	// Keep their public Registry API without adding an empty server registry to BuiltInRegistries.
+	public static final Registry<BlockPropertiesTooltip.Entry> PROPERTY_TOOLTIP =
+			new MappedRegistry<>(Keys.PROPERTY_TOOLTIP, Lifecycle.stable());
 
 	private static <T> Registry<T> registry(final ResourceKey<Registry<T>> registryKey) {
-		final RegistrationProvider<T> provider = RegistrationProvider.get(registryKey, Simulated.MOD_ID);
-		return provider.asVanillaRegistry();
+		return FabricRegistryBuilder.create(registryKey).buildAndRegister();
 	}
 
 	public static void register() {}

@@ -1,24 +1,35 @@
 package dev.simulated_team.simulated.index;
 
 import dev.simulated_team.simulated.Simulated;
-import dev.simulated_team.simulated.content.navigation_targets.CompassNavigationTarget;
-import dev.simulated_team.simulated.content.navigation_targets.MagnetNavigationTarget;
-import dev.simulated_team.simulated.content.navigation_targets.MapNavigationTarget;
-import dev.simulated_team.simulated.content.navigation_targets.RecoveryCompassNavigationTarget;
-import dev.simulated_team.simulated.registrate.SimulatedRegistrate;
+import dev.simulated_team.simulated.content.blocks.nav_table.navigation_target.NavigationTarget;
+import dev.simulated_team.simulated.content.navigation_targets.*;
+import net.minecraft.core.Registry;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.world.item.Items;
-
+import net.minecraft.world.level.ItemLike;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class SimNavigationTargets {
-	private static final SimulatedRegistrate REGISTRATE = Simulated.getRegistrate();
+public final class SimNavigationTargets {
+    private static final Map<NavigationTarget, Supplier<? extends ItemLike>> ITEMS = new LinkedHashMap<>();
+    public static final CompassNavigationTarget COMPASS = register("compass", CompassNavigationTarget::new, () -> Items.COMPASS);
+    public static final RecoveryCompassNavigationTarget RECOVERY_COMPASS = register("recovery_compass", RecoveryCompassNavigationTarget::new, () -> Items.RECOVERY_COMPASS);
+    public static final MapNavigationTarget MAP = register("map", MapNavigationTarget::new, () -> Items.FILLED_MAP);
+    public static final MagnetNavigationTarget MAGNET = register("magnet", MagnetNavigationTarget::new, () -> SimBlocks.REDSTONE_MAGNET);
 
-	public static final Supplier<CompassNavigationTarget> COMPASS = REGISTRATE.navTarget("compass", CompassNavigationTarget::new, Items.COMPASS);
-	public static final Supplier<RecoveryCompassNavigationTarget> RECOVERY_COMPASS = REGISTRATE.navTarget("recovery_compass", RecoveryCompassNavigationTarget::new, Items.RECOVERY_COMPASS);
-	public static final Supplier<MapNavigationTarget> MAP = REGISTRATE.navTarget("map", MapNavigationTarget::new, Items.FILLED_MAP);
-	public static final Supplier<MagnetNavigationTarget> MAGNET = REGISTRATE.navTarget("magnet", MagnetNavigationTarget::new, SimBlocks.REDSTONE_MAGNET);
+    public static <T extends NavigationTarget> T register(String name, Supplier<T> factory, Supplier<? extends ItemLike> item) {
+        final T target = Registry.register(SimRegistries.NAVIGATION_TARGET, Simulated.path(name), factory.get());
+        ITEMS.put(target, item);
+        return target;
+    }
 
-	public static void register() {
+    public static void onAddDefaultComponents(BiConsumer<ItemLike, Consumer<DataComponentMap.Builder>> modify) {
+        ITEMS.forEach((target, item) -> modify.accept(item.get(), builder -> builder.set(SimDataComponents.TARGET, target)));
+    }
 
-	}
+    public static void register() {}
+    private SimNavigationTargets() {}
 }

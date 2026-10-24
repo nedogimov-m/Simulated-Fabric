@@ -3,12 +3,10 @@
   "criteria": {
     "0": {
       "conditions": {
-        "location": [
-          {
-            "block": "simulated:velocity_sensor",
-            "condition": "minecraft:block_state_property"
-          }
-        ]
+        "location": {
+          "type": "minecraft:match_block",
+          "blocks": "simulated:velocity_sensor"
+        }
       },
       "trigger": "minecraft:placed_block"
     }

@@ -1,172 +1,93 @@
 package dev.simulated_team.simulated.content.physics_staff;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import com.simibubi.create.foundation.item.render.CustomRenderedItemModel;
-import com.simibubi.create.foundation.item.render.CustomRenderedItemModelRenderer;
-import com.simibubi.create.foundation.item.render.PartialItemModelRenderer;
-import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.ryanhcode.sable.sublevel.ClientSubLevel;
 import dev.simulated_team.simulated.SimulatedClient;
-import dev.simulated_team.simulated.index.SimPartialModels;
+import dev.simulated_team.simulated.fabric.client.NativeAnimatedItemRenderer;
+import dev.simulated_team.simulated.fabric.client.NativeItemFocus;
 import dev.simulated_team.simulated.index.SimRenderTypes;
-import dev.simulated_team.simulated.util.SimDistUtil;
 import dev.simulated_team.simulated.util.SimMathUtils;
-import foundry.veil.Veil;
-import net.createmod.catnip.animation.AnimationTickHolder;
-import net.irisshaders.iris.Iris;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.Sheets;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.ItemOwner;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
-import org.joml.*;
-import java.lang.Math;
-import java.util.UUID;
+import org.joml.Quaternionf;
+import org.joml.Quaternionfc;
+import org.joml.Vector3d;
+import org.joml.Vector3f;
+import java.util.IdentityHashMap;
+import java.util.Map;
 
-public class PhysicsStaffItemRenderer extends CustomRenderedItemModelRenderer {
-    private static final Vector3d focusPos = new Vector3d();
-    private static final Matrix4f itemProjMat = new Matrix4f();
-
-    public static Vec3 getFirstPersonFocusPos(final float pt) {
-        final GameRenderer gameRenderer = Minecraft.getInstance().gameRenderer;
-        final Camera camera = gameRenderer.getMainCamera();
-
-        final Vector3d focusPoint = new Vector3d(PhysicsStaffItemRenderer.focusPos);
-        final Quaternionf orientation = camera.rotation();
-        orientation.transformInverse(focusPoint);
-        final Vector4f v4 = new Vector4f((float) focusPoint.x, (float) focusPoint.y, (float) focusPoint.z, 1.0f);
-
-
-        final Matrix4f actualProjMat = gameRenderer.getProjectionMatrix(gameRenderer.getFov(camera, AnimationTickHolder.getPartialTicks(), true));
-        actualProjMat.invert(new Matrix4f()).transform(v4);
-        itemProjMat.transform(v4);
-        focusPoint.set(v4.x, v4.y, v4.z);
-        orientation.transform(focusPoint);
-
-        final double fov = gameRenderer.getFov(camera, pt, true);
-        focusPoint.mul(100 / fov);
-
-        return JOMLConversion.toMojang(focusPoint);
-    }
-
-    @Override
-    protected void render(final ItemStack stack, final CustomRenderedItemModel model, final PartialItemModelRenderer renderer, final ItemDisplayContext context, final PoseStack ms,
-                          final MultiBufferSource buffer, final int light, final int overlay) {
-        float openAmount = 0;
-        float cubeScale = 0;
-        final PhysicsStaffClientHandler clientHandler = SimulatedClient.PHYSICS_STAFF_CLIENT_HANDLER;
-        final Minecraft minecraft = Minecraft.getInstance();
-
-        final float partialTicks = AnimationTickHolder.getPartialTicks();
-
-        // only staffs held in a players hand should attempt to render opened
-        final Player player = SimDistUtil.getClientPlayer();
-
-        if (player != null && (context.firstPerson() || context == ItemDisplayContext.THIRD_PERSON_LEFT_HAND || context == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND)) {
-            if (player.getMainHandItem() == stack || player.getOffhandItem() == stack) {
-                // smooth lerping for your own staff you're holding
-                openAmount = Mth.lerp(partialTicks, clientHandler.previousExtension, clientHandler.extension);
-                cubeScale = Mth.lerp(partialTicks, clientHandler.previousCubeScale, clientHandler.cubeScale);
+/** Native staff articulation, real emissive partials and late world-oriented cube/muzzle transforms. */
+public final class PhysicsStaffItemRenderer extends NativeAnimatedItemRenderer {
+    public static final PhysicsStaffItemRenderer INSTANCE=new PhysicsStaffItemRenderer();
+    public static final Identifier FOCUS_ID=Identifier.parse("simulated:physics_staff");
+    private record Cube(Quaternionfc orientation,float scale) {public Cube{orientation=new Quaternionf(orientation);}}
+    private static final class StaffState extends AnimatedState {final Map<Draw,Cube> cubes=new IdentityHashMap<>();}
+    public PhysicsStaffItemRenderer(){for(String name:new String[]{"item","core","core_glow","ring","sigma","inner_cube","outer_cube"})model(name,modelPath(name));}
+    @Override protected String modelPath(String name){return "simulated:item/creative_physics_staff/"+name;}
+    public static Vec3 getFirstPersonFocusPos(float partial){return NativeItemFocus.relative(FOCUS_ID);}
+    @Override protected State extract(ItemStack stack,ItemDisplayContext display,float partial,float time){return extractForOwner(stack,display,partial,time,null);}
+    @Override protected State extractForOwner(ItemStack stack,ItemDisplayContext display,float partial,float time,ItemOwner itemOwner) {
+        final var state=new StaffState();final var client=Minecraft.getInstance();final var handler=SimulatedClient.PHYSICS_STAFF_CLIENT_HANDLER;
+        float open=0,cube=0;final var player=client.player;
+        final boolean held=display.firstPerson()||display==ItemDisplayContext.THIRD_PERSON_LEFT_HAND||display==ItemDisplayContext.THIRD_PERSON_RIGHT_HAND;
+        if(player!=null&&held) {
+            final Player owner=itemOwner instanceof Player source?source:player;
+            if(owner==player&&(ItemStack.isSameItemSameComponents(player.getMainHandItem(),stack)||ItemStack.isSameItemSameComponents(player.getOffhandItem(),stack))) {
+                open=Mth.lerp(partial,handler.previousExtension,handler.extension);cube=Mth.lerp(partial,handler.previousCubeScale,handler.cubeScale);
             } else {
-                // look up existing beams for their associated player
-                for (final UUID playerUUID : clientHandler.beams.keySet()) {
-                    final Player otherPlayer = minecraft.level.getPlayerByUUID(playerUUID);
-                    if (otherPlayer != null && (otherPlayer.getMainHandItem() == stack || otherPlayer.getOffhandItem() == stack)) {
-                        openAmount = Mth.lerp(partialTicks, clientHandler.beams.get(playerUUID).previousExtension, clientHandler.beams.get(playerUUID).extension);
-                        cubeScale = Mth.lerp(partialTicks, clientHandler.beams.get(playerUUID).previousCubeScale, clientHandler.beams.get(playerUUID).cubeScale);
-                        break;
+                for(var entry:handler.beams.entrySet()) {
+                    final var other=client.level==null?null:client.level.getPlayerByUUID(entry.getKey());
+                    if(other!=null&&(other==owner||other.getMainHandItem()==stack||other.getOffhandItem()==stack)) {
+                        open=Mth.lerp(partial,entry.getValue().previousExtension,entry.getValue().extension);
+                        cube=Mth.lerp(partial,entry.getValue().previousCubeScale,entry.getValue().cubeScale);break;
                     }
                 }
             }
         }
-
-        final float tiltAmount = Mth.lerp(partialTicks, clientHandler.previousTilt, clientHandler.tilt);
-        final Quaternionf utilQuat = new Quaternionf();
-
-        boolean shadersActive = Veil.IRIS && Iris.isPackInUseQuick();
-
-        if (context.firstPerson()) {
-            if (clientHandler.getDragSession() != null) {
-                final PhysicsStaffClientHandler.ClientDragSession dragSession = clientHandler.getDragSession();
-
-                final Quaternionf rotation = minecraft.gameRenderer.getMainCamera().rotation();
-                final Vector3d globalAnchor = ((ClientSubLevel) dragSession.dragSubLevel()).renderPose().transformPosition(new Vector3d(dragSession.dragLocalAnchor()));
-                final Vector3d dirToAnchor = globalAnchor.sub(JOMLConversion.toJOML(player.getEyePosition(partialTicks))).normalize();
-                rotation.transformInverse(dirToAnchor);
-
-                final Quaternionf quat = SimMathUtils.getQuaternionfFromVectorRotation(new Vector3d(0.0, 0.0, -1.0), dirToAnchor);
-                ms.mulPose(utilQuat.identity().rotateY(-Mth.HALF_PI));
-                ms.mulPose(quat.slerp(utilQuat.identity(), 0.6f));
-                ms.mulPose(utilQuat.identity().rotateY(Mth.HALF_PI));
+        final var pose=new PoseStack();final var util=new Quaternionf();
+        if(display.firstPerson()) {
+            final var drag=handler.getDragSession();
+            if(drag!=null&&player!=null) {
+                final var anchor=((ClientSubLevel)drag.dragSubLevel()).renderPose().transformPosition(new Vector3d(drag.dragLocalAnchor()));
+                anchor.sub(player.getEyePosition(partial).x,player.getEyePosition(partial).y,player.getEyePosition(partial).z);
+                if(anchor.lengthSquared()>1E-12) {
+                    anchor.normalize();client.gameRenderer.mainCamera().rotation().transformInverse(anchor);
+                    final var aim=SimMathUtils.getQuaternionfFromVectorRotation(new Vector3d(0,0,-1),anchor);
+                    pose.rotate(util.identity().rotateY(-Mth.HALF_PI));pose.rotate(aim.slerp(util.identity(),.6f));pose.rotate(util.identity().rotateY(Mth.HALF_PI));
+                }
             }
-            final float tiltMultiplier = context == ItemDisplayContext.FIRST_PERSON_LEFT_HAND ? -1.0f : 1.0f;
-
-            ms.mulPose(utilQuat.identity().rotateZ((float) Math.toRadians((tiltAmount * 0.5 + 0.5) * -61.0f) * tiltMultiplier));
+            final float flip=display==ItemDisplayContext.FIRST_PERSON_LEFT_HAND?-1:1;
+            final float tilt=Mth.lerp(partial,handler.previousTilt,handler.tilt);
+            pose.rotate(util.identity().rotateZ((float)Math.toRadians((tilt*.5+.5)*-61)*flip));
         }
-
-
-        renderer.render(model.getOriginalModel(), Sheets.cutoutBlockSheet(), light);
-
-        renderer.render(SimPartialModels.PHYSICS_STAFF_CORE.get(), SimRenderTypes.itemGlowingSolid(shadersActive), LightTexture.FULL_BRIGHT);
-        renderer.render(SimPartialModels.PHYSICS_STAFF_CORE_GLOW.get(), SimRenderTypes.itemGlowingTranslucent(shadersActive), LightTexture.FULL_BRIGHT);
-        final float worldTime = AnimationTickHolder.getRenderTime() / 20;
-
-        ms.pushPose();
-        ms.translate(0, 6.5 / 16.0, 0);
-        renderer.render(SimPartialModels.PHYSICS_STAFF_RING.get(), Sheets.cutoutBlockSheet(), light);
-        ms.popPose();
-
-        ms.translate(0, 9 / 16.0, 0);
-        for (int i = 0; i < 2; i++) {
-            ms.pushPose();
-            ms.mulPose(Axis.YP.rotationDegrees(i * 180));
-            ms.translate(-3 / 16.0, 0, 0);
-            ms.mulPose(Axis.ZP.rotationDegrees(openAmount * 20));
-            renderer.render(SimPartialModels.PHYSICS_STAFF_SIGMA.get(), Sheets.cutoutBlockSheet(), light);
-            ms.popPose();
+        draw(state,"item",pose);
+        glowing(state,"core",pose,SimRenderTypes.itemGlowingSolid(false),0xF000F0);
+        glowing(state,"core_glow",pose,SimRenderTypes.itemGlowingTranslucent(false),0xF000F0);
+        pose.pushPose();pose.translate(0,6.5/16,0);draw(state,"ring",pose);pose.popPose();
+        pose.translate(0,9/16.0,0);
+        for(int side=0;side<2;side++){pose.pushPose();pose.rotate(Axis.YP.rotationDegrees(side*180));pose.translate(-3/16.0,0,0);pose.rotate(Axis.ZP.rotationDegrees(open*20));draw(state,"sigma",pose);pose.popPose();}
+        pose.translate(0,6/16.0,0);state.focusId=FOCUS_ID;state.focus=pose.last().pose().transformPosition(new Vector3f());
+        if(display.firstPerson()&&handler.getDragSession()!=null)handler.lastCubeOrientation.set(handler.getDragSession().dragOrientation());
+        cube=Mth.clamp(Mth.lerp(cube,-.05f,1),0,1)*.8f;
+        if(cube>1E-6f) {
+            pose.scale(cube,cube,cube);glowing(state,"inner_cube",pose,SimRenderTypes.itemGlowingSolid(false),0xF000F0);
+            if(display.firstPerson())state.cubes.put(state.draws.getLast(),new Cube(handler.lastCubeOrientation,cube));
+            pose.scale(1.2f,1.2f,1.2f);glowing(state,"outer_cube",pose,SimRenderTypes.itemGlowingTranslucent(false),0xF000F0);
+            if(display.firstPerson())state.cubes.put(state.draws.getLast(),new Cube(handler.lastCubeOrientation,cube*1.2f));
         }
-        ms.translate(0, 6 / 16.0, 0);
-
-        if (context.firstPerson()) {
-            if (clientHandler.getDragSession() != null) {
-                clientHandler.lastCubeOrientation.set(clientHandler.getDragSession().dragOrientation());
-            }
-
-            final Matrix4f m = new Matrix4f(ms.last().pose());
-            m.m30(0).m31(0).m32(0);
-            m.invert();
-            m.rotate(clientHandler.lastCubeOrientation);
-            ms.mulPose(m);
-        }
-
-        cubeScale = Mth.lerp(cubeScale, -0.05f, 1f);
-        cubeScale = Mth.clamp(cubeScale, 0, 1);
-        cubeScale *= 0.8f;
-        ms.scale(cubeScale, cubeScale, cubeScale);
-        renderer.render(SimPartialModels.PHYSICS_STAFF_INNER_CUBE.get(), SimRenderTypes.itemGlowingSolid(shadersActive), LightTexture.FULL_BRIGHT);
-
-        if (context.firstPerson()) {
-            final Vector3f focusPoint = new Vector3f();
-            ms.last().pose().transformPosition(focusPoint);
-
-            itemProjMat.set(RenderSystem.getProjectionMatrix());
-            focusPos.set(focusPoint.x, focusPoint.y, focusPoint.z);
-        }
-
-        ms.scale(1.2f, 1.2f, 1.2f);
-        renderer.render(SimPartialModels.PHYSICS_STAFF_OUTER_CUBE.get(), SimRenderTypes.itemGlowingTranslucent(shadersActive), LightTexture.FULL_BRIGHT);
-
-        // Iris doesn't allow individual render types to be ended, so all batches must be ended for the translucent parts to draw correctly
-        if (Veil.IRIS && !shadersActive) {
-            Minecraft.getInstance().renderBuffers().bufferSource().endBatch();
-        }
+        return state;
+    }
+    @Override protected PoseStack poseForDraw(State source,Draw draw,PoseStack parent) {
+        final var posed=super.poseForDraw(source,draw,parent);final var cube=((StaffState)source).cubes.get(draw);if(cube==null)return posed;
+        final var center=posed.last().pose().transformPosition(new Vector3f(.5f));
+        final var world=new PoseStack();world.translate(center.x,center.y,center.z);world.rotate(cube.orientation);
+        world.scale(cube.scale,cube.scale,cube.scale);world.translate(-.5,-.5,-.5);return world;
     }
 }

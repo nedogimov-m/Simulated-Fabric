@@ -26,6 +26,6 @@ public class CompassNavigationTarget implements NavigationTarget {
 			}
 		}
 
-		return level.getSharedSpawnPos().getCenter();
+		return Vec3.atCenterOf(level.getRespawnData().pos());
 	}
 }

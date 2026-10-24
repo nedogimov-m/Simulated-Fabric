@@ -11,7 +11,7 @@ import org.jetbrains.annotations.Nullable;
 public class MagnetNavigationTarget implements NavigationTarget {
 	@Override
 	public @Nullable Vec3 getTarget(final NavTableBlockEntity navBE, final ItemStack self) {
-		final Vec3i normal = Direction.NORTH.getNormal().multiply(10);
+		final Vec3i normal = Direction.NORTH.getUnitVec3i().multiply(10);
 		return navBE.getProjectedSelfPos().add(normal.getX(), normal.getY(), normal.getZ());
 	}
 

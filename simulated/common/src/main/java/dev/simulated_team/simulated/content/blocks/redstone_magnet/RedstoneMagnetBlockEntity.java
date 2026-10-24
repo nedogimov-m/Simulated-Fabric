@@ -77,7 +77,7 @@ public class RedstoneMagnetBlockEntity extends SmartBlockEntity implements SimMa
         //todo: do this in the behaviour or using common method or something
         if (this.latestSubLevel != null) {
             final MagnetMap<RedstoneMagnetBlockEntity> map = RedstoneMagnetBlockEntity.GLOBAL_REDSTONE_MAGNET_MAP;
-            final SimMovementContext context = SimMovementContext.getMovementContext(this.getLevel(), this.getBlockPos().getCenter());
+            final SimMovementContext context = SimMovementContext.getMovementContext(this.getLevel(), net.minecraft.world.phys.Vec3.atCenterOf(this.getBlockPos()));
             final List<SimMovementContext> contexts = map.findNearby(context);
             for (final SimMovementContext movementContext : contexts) {
                 if (movementContext.subLevel() != this.latestSubLevel) {
@@ -98,34 +98,34 @@ public class RedstoneMagnetBlockEntity extends SmartBlockEntity implements SimMa
     }
 
     @Override
-    public void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
+    public void write(final net.minecraft.world.level.storage.ValueOutput compound, final boolean clientPacket) {
         compound.putBoolean("IsPowered", this.powered);
         compound.putInt("SignalStrength", this.signalStrength);
-        super.write(compound, registries, clientPacket);
+        super.write(compound, clientPacket);
     }
 
     @Override
-    protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        this.powered = compound.getBoolean("IsPowered");
-        this.signalStrength = compound.getInt("SignalStrength");
-        super.read(compound, registries, clientPacket);
+    protected void read(final net.minecraft.world.level.storage.ValueInput compound, final boolean clientPacket) {
+        this.powered = compound.getBooleanOr("IsPowered", false);
+        this.signalStrength = compound.getIntOr("SignalStrength", 0);
+        super.read(compound, clientPacket);
     }
 
     private void spawnParticles() {
         final float probability = 0.1f * (this.signalStrength / 15f);
-        if (probability > 0 && this.level.random.nextFloat() < probability) {
-            final boolean negative = this.level.random.nextBoolean();
+        if (probability > 0 && this.level.getRandom().nextFloat() < probability) {
+            final boolean negative = this.level.getRandom().nextBoolean();
 
-            Vec3i dir = (this.getBlockState().getValue(RedstoneMagnetBlock.FACING)).getNormal();
+            Vec3i dir = (this.getBlockState().getValue(RedstoneMagnetBlock.FACING)).getUnitVec3i();
             if (negative) {
                 dir = dir.multiply(-1);
             }
 
             final BlockPos blockpos = this.getBlockPos().offset(dir);
-            if (this.level.getBlockState(blockpos).isSolidRender(this.level, blockpos)) {
+            if (this.level.getBlockState(blockpos).isSolidRender()) {
                 return;
             }
-            final Vector3d offset = JOMLConversion.toJOML(VecHelper.offsetRandomly(new Vec3(0, 0, 0), this.level.random, 0.35f));
+            final Vector3d offset = JOMLConversion.toJOML(VecHelper.offsetRandomly(new Vec3(0, 0, 0), this.level.getRandom(), 0.35f));
             final Vector3d pos = JOMLConversion.toJOML(Vec3.atLowerCornerOf(dir));
             offset.fma(-pos.dot(offset), pos);
             pos.mul(0.55);
@@ -150,7 +150,7 @@ public class RedstoneMagnetBlockEntity extends SmartBlockEntity implements SimMa
                 this.nearbyMagnetPositions.put(JOMLConversion.toJOML(movementContext.globalPosition()), otherMagneticMoment);
             }
 
-            final int steps = 4 + (int) (20 * (this.signalStrength / 15f) * this.level.random.nextFloat());
+            final int steps = 4 + (int) (20 * (this.signalStrength / 15f) * this.level.getRandom().nextFloat());
 
             this.particleEmitters.add(new MagnetParticleEmitter(pos, this.nearbyMagnetPositions, steps, this.level, negative));
         }
@@ -173,7 +173,7 @@ public class RedstoneMagnetBlockEntity extends SmartBlockEntity implements SimMa
 
     @Override
     public Vector3d setMagneticMoment(final Vector3d v) {
-        v.set(JOMLConversion.toJOML(Vec3.atLowerCornerOf(this.getBlockState().getValue(RedstoneMagnetBlock.FACING).getNormal())));
+        v.set(JOMLConversion.toJOML(Vec3.atLowerCornerOf(this.getBlockState().getValue(RedstoneMagnetBlock.FACING).getUnitVec3i())));
         v.mul((this.signalStrength / 15.0) * Math.sqrt(SimConfigService.INSTANCE.server().physics.redstoneMagnetStrength.get()));
         return v;
     }

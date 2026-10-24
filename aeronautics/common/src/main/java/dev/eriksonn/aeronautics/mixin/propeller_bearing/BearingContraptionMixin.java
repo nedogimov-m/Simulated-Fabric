@@ -18,7 +18,7 @@ public class BearingContraptionMixin implements BearingContraptionExtension {
     @Shadow(remap = false)
     protected int sailBlocks;
 
-    @Shadow private boolean isWindmill;
+    @Shadow private boolean windmill;
 
     @Unique
     protected float aeronautics$tempSailStrength;
@@ -51,7 +51,7 @@ public class BearingContraptionMixin implements BearingContraptionExtension {
 
     @Unique
     private void aeronautics$tryCustomFailAssembly() throws AssemblyException {
-        if (this.isWindmill && (this.sailBlocks + this.aeronautics$tempSailStrength) < AllConfigs.server().kinetics.minimumWindmillSails.get()) {
+        if (this.windmill && (this.sailBlocks + this.aeronautics$tempSailStrength) < AllConfigs.server().kinetics.minimumWindmillSails.get()) {
             throw new AssemblyException("not_enough_sails", this.sailBlocks + this.aeronautics$tempSailStrength, AllConfigs.server().kinetics.minimumWindmillSails.get());
         }
     }

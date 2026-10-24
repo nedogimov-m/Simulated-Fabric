@@ -1,7 +1,7 @@
 package dev.simulated_team.simulated.content.blocks.rope.strand.client;
 
-import com.simibubi.create.AllTags;
-import com.simibubi.create.foundation.utility.RaycastHelper;
+import com.mojang.blaze3d.platform.InputConstants;
+import com.simibubi.create.content.kinetics.chainConveyor.ChainConveyorRidingState;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.api.math.OrientedBoundingBox3d;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
@@ -33,7 +33,7 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
-import org.lwjgl.glfw.GLFW;
+
 
 import java.util.Optional;
 import java.util.UUID;
@@ -64,7 +64,7 @@ public class ZiplineClientManager implements InteractCallback {
 
         final ClientLevelRopeManager ropeManager = ClientLevelRopeManager.getOrCreate(mc.level);
         final Vector3d from = JOMLConversion.toJOML(mc.player.getEyePosition());
-        final Vector3d to = JOMLConversion.toJOML(RaycastHelper.getTraceTarget(mc.player, maxRange, JOMLConversion.toMojang(from)));
+        final Vector3d to = new Vector3d(from).fma(maxRange, JOMLConversion.toJOML(mc.player.getViewVector(1)));
         final double bestDiffSqr = hitResult == null ? Float.MAX_VALUE : Sable.HELPER.projectOutOfSubLevel(mc.level, hitResult.getLocation()).distanceToSqr(from.x, from.y, from.z);
 
         hoveringRope = raycastRope(ropeManager, from, to, bestDiffSqr, HALF_THICKNESS);
@@ -157,7 +157,7 @@ public class ZiplineClientManager implements InteractCallback {
                     continue;
                 }
                 embark(foundStrand);
-                player.swing(InteractionHand.MAIN_HAND);
+                player.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
                 return;
             }
         }
@@ -167,7 +167,7 @@ public class ZiplineClientManager implements InteractCallback {
         final Minecraft mc = Minecraft.getInstance();
         if (mc.isPaused())
             return;
-        if (!AllTags.AllItemTags.CHAIN_RIDEABLE.matches(mc.player.getMainHandItem())) {
+        if (!chainRideable(mc.player.getMainHandItem())) {
             disembark();
             return;
         }
@@ -244,13 +244,13 @@ public class ZiplineClientManager implements InteractCallback {
     public static boolean canStartRiding(final ClosestQuery query, final Player player, final boolean sendMessage) {
         if (!canStartRidingDistance(query, player)) {
             if (sendMessage) {
-                player.displayClientMessage(SimLang.translate("zipline.too_far").color(SimColors.NUH_UH_RED).component(), true);
+                player.sendOverlayMessage(SimLang.translate("zipline.too_far").color(SimColors.NUH_UH_RED).component());
             }
             return false;
         }
         if (!canStartRidingSteepness(query, player)) {
             if (sendMessage) {
-                player.displayClientMessage(SimLang.translate("zipline.too_steep").color(SimColors.NUH_UH_RED).component(), true);
+                player.sendOverlayMessage(SimLang.translate("zipline.too_steep").color(SimColors.NUH_UH_RED).component());
             }
             return false;
         }
@@ -302,14 +302,16 @@ public class ZiplineClientManager implements InteractCallback {
         return getClosestPointOnStrand(strand, playerPosition);
     }
 
+    private static boolean chainRideable(ItemStack stack) { return stack.is(ChainConveyorRidingState.CHAIN_RIDEABLE); }
+
     public static boolean isRopeInteractable(final ItemStack stack) {
-        return AllTags.AllItemTags.CHAIN_RIDEABLE.matches(stack) || stack.is(SimTags.Items.DESTROYS_ROPE);
+        return chainRideable(stack) || stack.is(SimTags.Items.DESTROYS_ROPE);
     }
 
     public static void embark(final UUID rope) {
         final Minecraft mc = Minecraft.getInstance();
         final Component component = Component.translatable("mount.onboard", mc.options.keyShift.getTranslatedKeyMessage());
-        mc.gui.setOverlayMessage(component, false);
+        mc.player.sendOverlayMessage(component);
         mc.getSoundManager()
                 .play(SimpleSoundInstance.forUI(SoundEvents.WOOL_HIT, 1f, 0.5f));
         ridingRope = rope;
@@ -330,13 +332,13 @@ public class ZiplineClientManager implements InteractCallback {
 
     @Override
     public Result onUse(final int modifiers, final int action, final KeyMapping rightKey) {
-        if (action == GLFW.GLFW_RELEASE || hoveringRope == null || ridingRope == hoveringRope)
+        if (action == InputConstants.RELEASE || hoveringRope == null || ridingRope == hoveringRope)
             return Result.empty();
 
         final Minecraft mc = Minecraft.getInstance();
         final ItemStack mainHandItem = mc.player.getMainHandItem();
 
-        final boolean isWrench = AllTags.AllItemTags.CHAIN_RIDEABLE.matches(mainHandItem);
+        final boolean isWrench = chainRideable(mainHandItem);
         final boolean isDestroyer = mainHandItem.is(SimTags.Items.DESTROYS_ROPE);
         if (isWrench && !mc.player.isShiftKeyDown()) {
             final ClientLevelRopeManager ropeManager = ClientLevelRopeManager.getOrCreate(mc.player.level());
@@ -353,13 +355,13 @@ public class ZiplineClientManager implements InteractCallback {
             }
 
             embark(hoveringRope);
-            mc.player.swing(InteractionHand.MAIN_HAND);
+            mc.player.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
             return new Result(true);
         }
 
         if (isDestroyer || (isWrench && mc.player.isShiftKeyDown())) {
             VeilPacketManager.server().sendPacket(new RopeBreakPacket(hoveringRope));
-            mc.player.swing(InteractionHand.MAIN_HAND);
+            mc.player.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
             return new Result(true);
         }
 

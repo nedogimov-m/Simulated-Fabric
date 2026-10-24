@@ -3,12 +3,8 @@
   "category": "building",
   "group": "aeronautics:envelope",
   "ingredients": [
-    {
-      "tag": "c:dyes/black"
-    },
-    {
-      "tag": "aeronautics:shaftless_envelope"
-    }
+    "#c:dyes/black",
+    "#aeronautics:shaftless_envelope"
   ],
   "result": {
     "count": 1,

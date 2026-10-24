@@ -3,12 +3,8 @@
   "category": "misc",
   "group": "simulated:handle_variants",
   "ingredients": [
-    {
-      "item": "simulated:iron_handle"
-    },
-    {
-      "item": "minecraft:red_dye"
-    }
+    "simulated:iron_handle",
+    "minecraft:red_dye"
   ],
   "result": {
     "count": 1,

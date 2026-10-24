@@ -1,7 +1,8 @@
 package dev.simulated_team.simulated.content.blocks.rope.strand.client;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import net.createmod.catnip.data.WorldAttached;
+import dev.simulated_team.simulated.fabric.registry.NativeLevelData;
+import dev.simulated_team.simulated.Simulated;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
@@ -15,7 +16,7 @@ import java.util.UUID;
  */
 public class ClientLevelRopeManager {
 
-    private static final WorldAttached<ClientLevelRopeManager> worldAttached = new WorldAttached<>(ClientLevelRopeManager::create);
+    private static final NativeLevelData<ClientLevelRopeManager> worldAttached = new NativeLevelData<>(Simulated.path("client_ropes"), ClientLevelRopeManager::create);
 
     private final Level level;
     private final Map<UUID, ClientRopeStrand> ropeStrands = new Object2ObjectOpenHashMap<>();

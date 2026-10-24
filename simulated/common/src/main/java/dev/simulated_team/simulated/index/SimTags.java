@@ -1,13 +1,12 @@
 package dev.simulated_team.simulated.index;
 
 import com.simibubi.create.AllItems;
-import com.simibubi.create.AllTags;
-import com.simibubi.create.foundation.data.TagGen;
-import com.tterrag.registrate.providers.ProviderType;
-import com.tterrag.registrate.providers.RegistrateTagsProvider;
 import dev.simulated_team.simulated.Simulated;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.BuiltInRegistries;
+import dev.simulated_team.simulated.fabric.registry.NativeTagDefinitions;
+import net.minecraft.tags.TagFile;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EntityType;
@@ -22,10 +21,11 @@ import java.util.Map;
 import static net.minecraft.world.item.Items.*;
 
 public class SimTags {
-
-    public static void addGenerators() {
-        Blocks.addGenerators();
-        Items.addGenerators();
+    private static TagKey<net.minecraft.world.item.Item> commonItemTag(String path) {
+        return TagKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath("c", path));
+    }
+    private static TagKey<Block> commonBlockTag(String path) {
+        return TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("c", path));
     }
 
     public static class Blocks {
@@ -46,30 +46,30 @@ public class SimTags {
             return TagKey.create(Registries.BLOCK, Simulated.path(path));
         }
         private static TagKey<Block> create(final String namespace, final String path) {
-            return TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(namespace, path));
+            return TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(namespace, path));
         }
-        protected static void addGenerators() {
-            Simulated.getRegistrate().addDataGenerator(ProviderType.BLOCK_TAGS, Blocks::genBlockTags);
-        }
-        private static void genBlockTags(final RegistrateTagsProvider<Block> provIn) {
-            final TagGen.CreateTagsProvider<Block> prov = new TagGen.CreateTagsProvider<>(provIn, Block::builtInRegistryHolder);
+
+        public static java.util.Map<Identifier, TagFile> blockDefinitions() {
+            final NativeTagDefinitions<Block> prov = new NativeTagDefinitions<>(BuiltInRegistries.BLOCK);
             prov.tag(Blocks.NON_MOVABLE);
 
             prov.tag(SimTags.Blocks.SUPER_LIGHT).addTag(SimTags.Blocks.NAMEPLATE_BLOCKS);
             prov.tag(SimTags.Blocks.SUPER_LIGHT).addTag(HANDLES);
-            prov.tag(AllTags.AllBlockTags.BRITTLE.tag).addTag(HANDLES);
+            prov.tag(TagKey.create(Registries.BLOCK, Identifier.parse("create:brittle"))).addTag(HANDLES);
             prov.tag(BlockTags.MINEABLE_WITH_PICKAXE).addTag(HANDLES);
 
-            prov.tag(AllTags.AllBlockTags.SAFE_NBT.tag)
+            prov.tag(TagKey.create(Registries.BLOCK, Identifier.parse("create:safe_nbt")))
                     .addTag(NAMEPLATE_BLOCKS);
+
+            return prov.definitions();
         }
     }
 
     public static class Items {
-        public static final TagKey<Item> STONE = AllTags.commonItemTag("stones");
-        public static final TagKey<Item> REDSTONE_DUST = AllTags.commonItemTag("dusts/redstone");
-        public static final TagKey<Item> SLIME_BALLS = AllTags.commonItemTag("slime_balls");
-        public static final TagKey<Item> AMETHYST_SHARDS = AllTags.commonItemTag("gems/amethyst");
+        public static final TagKey<Item> STONE = commonItemTag("stones");
+        public static final TagKey<Item> REDSTONE_DUST = commonItemTag("dusts/redstone");
+        public static final TagKey<Item> SLIME_BALLS = commonItemTag("slime_balls");
+        public static final TagKey<Item> AMETHYST_SHARDS = commonItemTag("gems/amethyst");
 
         public static final TagKey<Item> NAMEPLATE_ITEMS = create("nameplate_items");
         public static final TagKey<Item> ROTATE_WITH_NAV_ARROW = create("rotate_with_nav_arrow");
@@ -85,20 +85,16 @@ public class SimTags {
         }
 
         public static TagKey<Item> dyesTag(DyeColor dyeColor) {
-            return TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath("c", "dyes/" + dyeColor.getName()));
+            return TagKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath("c", "dyes/" + dyeColor.getName()));
         }
 
-        public static void addGenerators() {
-            Simulated.getRegistrate().addDataGenerator(ProviderType.ITEM_TAGS, Items::genItemTags);
-        }
-
-        private static void genItemTags(final RegistrateTagsProvider<Item> provIn) {
-            final TagGen.CreateTagsProvider<Item> prov = new TagGen.CreateTagsProvider<>(provIn, Item::builtInRegistryHolder);
+        public static java.util.Map<Identifier, TagFile> itemDefinitions() {
+            final NativeTagDefinitions<Item> prov = new NativeTagDefinitions<>(BuiltInRegistries.ITEM);
             prov.tag(ROTATE_WITH_NAV_ARROW)
                     .add(COMPASS, RECOVERY_COMPASS)
-                    .addOptional(ResourceLocation.fromNamespaceAndPath("naturescompass", "naturescompass"));
+                    .addOptional(Identifier.fromNamespaceAndPath("naturescompass", "naturescompass"));
             prov.tag(ROTATE_WITH_NAV_ARROW)
-                    .addOptional(ResourceLocation.fromNamespaceAndPath("explorerscompass", "explorerscompass"));
+                    .addOptional(Identifier.fromNamespaceAndPath("explorerscompass", "explorerscompass"));
             prov.tag(DESTROYS_ROPE)
                     .add(SHEARS)
                     .add(AllItems.WRENCH.asItem());
@@ -110,6 +106,8 @@ public class SimTags {
                     .add(NETHER_STAR);
             prov.tag(SPRING_ADJUSTER)
                     .add(AllItems.IRON_SHEET.asItem());
+
+            return prov.definitions();
         }
     }
 
@@ -131,7 +129,7 @@ public class SimTags {
     public static final Map<String, TagKey<Item>> DYE_MAP = new HashMap<>();
     static {
         for (final DyeColor color : DyeColor.values()) {
-            DYE_MAP.put(color.getName(), AllTags.commonItemTag("dyes/" + color.getName()));
+            DYE_MAP.put(color.getName(), commonItemTag("dyes/" + color.getName()));
         }
     }
 

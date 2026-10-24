@@ -31,7 +31,7 @@ public class OffroadCommonEvents {
     }
 
     public static void tickLevelEvent(final Level level) {
-        if (!level.isClientSide) {
+        if (!level.isClientSide()) {
             MultiMiningServerManager.tick(level);
         } else {
             MultiMiningClientHandler.tick(level);

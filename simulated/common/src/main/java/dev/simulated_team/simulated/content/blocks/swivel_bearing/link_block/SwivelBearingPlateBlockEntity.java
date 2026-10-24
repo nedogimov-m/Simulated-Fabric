@@ -43,7 +43,7 @@ public class SwivelBearingPlateBlockEntity extends KineticBlockEntity implements
     @Override
     public void remove() {
         // if the block was broken / destroyed, destroy our parent
-        if (!this.level.isClientSide && !this.assembling) {
+        if (!this.level.isClientSide() && !this.assembling) {
             this.destroyBearing();
         }
 
@@ -70,12 +70,18 @@ public class SwivelBearingPlateBlockEntity extends KineticBlockEntity implements
 
     @Override
     public float propagateRotationTo(final KineticBlockEntity target, final BlockState stateFrom, final BlockState stateTo, final BlockPos diff, final boolean connectedViaAxes, final boolean connectedViaCogs) {
-        return this.parent != null && target.equals(this.level.getBlockEntity(this.parent)) ? 1 : super.propagateRotationTo(target, stateFrom, stateTo, diff, connectedViaAxes, connectedViaCogs);
+        return this.isOwningBearing(target) ? 1 : super.propagateRotationTo(target, stateFrom, stateTo, diff, connectedViaAxes, connectedViaCogs);
     }
 
     @Override
     public boolean isCustomConnection(final KineticBlockEntity other, final BlockState state, final BlockState otherState) {
-        return this.parent != null && other.equals(this.level.getBlockEntity(this.parent));
+        return this.isOwningBearing(other);
+    }
+
+    private boolean isOwningBearing(final KineticBlockEntity target) {
+        return this.parent != null && target instanceof SwivelBearingBlockEntity bearing
+                && target == this.level.getBlockEntity(this.parent)
+                && this.getBlockPos().equals(bearing.getPlatePos());
     }
 
     @Override
@@ -88,34 +94,25 @@ public class SwivelBearingPlateBlockEntity extends KineticBlockEntity implements
     }
 
     @Override
-    protected void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(compound, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput compound, final boolean clientPacket) {
+        super.write(compound, clientPacket);
 
         if (this.parent != null) {
-            compound.put("ParentPos", NbtUtils.writeBlockPos(this.parent));
+            compound.store("ParentPos", dev.simulated_team.simulated.api.SimBlockEntityCodecs.BLOCK_POS, this.parent);
         }
 
         if (this.parentSubLevelId != null) {
-            compound.putUUID("ParentSubLevelId", this.parentSubLevelId);
+            compound.store("ParentSubLevelId", net.minecraft.core.UUIDUtil.CODEC, this.parentSubLevelId);
         }
     }
 
     @Override
-    protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(compound, registries, clientPacket);
+    protected void read(final net.minecraft.world.level.storage.ValueInput compound, final boolean clientPacket) {
+        super.read(compound, clientPacket);
 
-        if (compound.contains("parent")) {
-            this.parent = NbtUtils.readBlockPos(compound, "parent").get();
-        }
-
-
-        if (compound.contains("ParentPos")) {
-            this.parent = NbtUtils.readBlockPos(compound, "ParentPos").get();
-        }
-
-        if (compound.contains("ParentSubLevelId")) {
-            this.parentSubLevelId = compound.getUUID("ParentSubLevelId");
-        }
+        this.parent = compound.read("ParentPos", dev.simulated_team.simulated.api.SimBlockEntityCodecs.BLOCK_POS)
+                .or(() -> compound.read("parent", dev.simulated_team.simulated.api.SimBlockEntityCodecs.BLOCK_POS)).orElse(null);
+        this.parentSubLevelId = compound.read("ParentSubLevelId", net.minecraft.core.UUIDUtil.CODEC).orElse(null);
     }
 
     @Override

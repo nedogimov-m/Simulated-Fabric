@@ -35,18 +35,18 @@ public class ThrottleLeverBlockEntity extends SmartBlockEntity implements IHaveG
     }
 
     @Override
-    public void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
+    public void write(final net.minecraft.world.level.storage.ValueOutput compound, final boolean clientPacket) {
         compound.putInt("State", this.state);
         compound.putInt("ChangeTimer", this.lastChange);
-        super.write(compound, registries, clientPacket);
+        super.write(compound, clientPacket);
     }
 
     @Override
-    protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        this.state = compound.getInt("State");
-        this.lastChange = compound.getInt("ChangeTimer");
+    protected void read(final net.minecraft.world.level.storage.ValueInput compound, final boolean clientPacket) {
+        this.state = compound.getIntOr("State", 0);
+        this.lastChange = compound.getIntOr("ChangeTimer", 0);
         this.clientAngle.chase(this.getBlockState().getValue(ThrottleLeverBlock.INVERTED) ? 15 - this.state : this.state, 0.5f, LerpedFloat.Chaser.EXP);
-        super.read(compound, registries, clientPacket);
+        super.read(compound, clientPacket);
     }
 
     @Override
@@ -58,7 +58,7 @@ public class ThrottleLeverBlockEntity extends SmartBlockEntity implements IHaveG
                 this.updateOutput();
         }
 
-        if (this.level.isClientSide) {
+        if (this.level.isClientSide()) {
             this.clientAngle.tickChaser();
             final boolean pressed = SimClickInteractions.THROTTLE_LEVER_MANAGER.isBlockActive(this.getBlockPos());
             this.clientPressedLerp.updateChaseTarget(pressed ? 1 : 0);
@@ -100,7 +100,7 @@ public class ThrottleLeverBlockEntity extends SmartBlockEntity implements IHaveG
 
     @Override
     public AABB getRenderBoundingBox() {
-        return AABB.ofSize(this.getBlockPos().getCenter(), 1.5, 1.5, 1.5);
+        return AABB.ofSize(net.minecraft.world.phys.Vec3.atCenterOf(this.getBlockPos()), 1.5, 1.5, 1.5);
     }
 
     public int getState() {

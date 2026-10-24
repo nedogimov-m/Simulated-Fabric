@@ -2,7 +2,7 @@ package dev.simulated_team.simulated.content.entities.diagram;
 
 import com.simibubi.create.api.schematic.requirement.SpecialEntityItemRequirement;
 import com.simibubi.create.content.schematics.requirement.ItemRequirement;
-import com.simibubi.create.foundation.networking.ISyncPersistentData;
+
 import com.simibubi.create.foundation.utility.IInteractionChecker;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.api.physics.force.ForceGroup;
@@ -46,29 +46,27 @@ import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.DiodeBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.WeakHashMap;
 
-public class DiagramEntity extends HangingEntity implements ISyncPersistentData, IInteractionChecker, SpecialEntityItemRequirement {
+public class DiagramEntity extends HangingEntity implements IInteractionChecker, SpecialEntityItemRequirement {
     private static final Map<ResourceKey<Level>, Map<ServerSubLevel, DiagramRecordingTicket>> queuedDiagramRecordings = new WeakHashMap<>();
 
-    protected int size;
-    protected Direction verticalOrientation;
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Integer> SIZE = SynchedEntityData.defineId(DiagramEntity.class, net.minecraft.network.syncher.EntityDataSerializers.INT);
+    private static final net.minecraft.network.syncher.EntityDataAccessor<Direction> ORIENTATION = SynchedEntityData.defineId(DiagramEntity.class, net.minecraft.network.syncher.EntityDataSerializers.DIRECTION);
     protected DiagramConfig config;
 
     public static DiagramEntity create(final EntityType<? extends HangingEntity> entityType, final Level world) {
@@ -78,15 +76,16 @@ public class DiagramEntity extends HangingEntity implements ISyncPersistentData,
     @SuppressWarnings("unchecked")
     public DiagramEntity(final EntityType<? extends HangingEntity> entityType, final Level level) {
         super(entityType, level);
-        this.size = 1;
+        this.pos = this.blockPosition();
+        this.entityData.set(SIZE, 1);
         this.config = DiagramConfig.makeDefault(this);
     }
 
     public DiagramEntity(final Level world, final BlockPos pos, final Direction facing, final Direction verticalOrientation) {
-        super(SimEntityTypes.CONTRAPTION_DIAGRAM.get(), world, pos);
+        super(SimEntityTypes.CONTRAPTION_DIAGRAM, world, pos);
 
         for (int size = 3; size > 0; size--) {
-            this.size = size;
+            this.entityData.set(SIZE, size);
             this.updateFacingWithBoundingBox(facing, verticalOrientation);
             if (this.survives()) {
                 break;
@@ -104,7 +103,7 @@ public class DiagramEntity extends HangingEntity implements ISyncPersistentData,
         DiagramRecordingTicket ticket = map != null ? map.get(serverSubLevel) : null;
 
         if (ticket != null && !ticket.isValid()) {
-            queuedDiagramRecordings.remove(serverSubLevel);
+            map.remove(serverSubLevel);
             ticket = null;
         }
 
@@ -194,54 +193,54 @@ public class DiagramEntity extends HangingEntity implements ISyncPersistentData,
     }
 
     @Override
-    public void addAdditionalSaveData(final CompoundTag tag) {
-        tag.putByte("Facing", (byte) this.direction.get3DDataValue());
-        tag.putByte("Orientation", (byte) this.verticalOrientation.get3DDataValue());
-        tag.putInt("Size", this.size);
-
-        if (this.config != null) {
-            tag.put("Config", DiagramConfig.CODEC.encodeStart(NbtOps.INSTANCE, this.config).getOrThrow());
-        }
-
-        super.addAdditionalSaveData(tag);
+    public void addAdditionalSaveData(final net.minecraft.world.level.storage.ValueOutput output) {
+        super.addAdditionalSaveData(output);
+        output.putByte("Facing", (byte) this.getDirection().get3DDataValue());
+        output.putByte("Orientation", (byte) this.entityData.get(ORIENTATION).get3DDataValue());
+        output.putInt("Size", this.entityData.get(SIZE));
+        output.storeNullable("Config", DiagramConfig.CODEC, this.config);
     }
 
     @Override
-    public void readAdditionalSaveData(final CompoundTag tag) {
-        if (tag.contains("Facing", Tag.TAG_ANY_NUMERIC)) {
-            this.direction = Direction.from3DDataValue(tag.getByte("Facing"));
-            this.verticalOrientation = Direction.from3DDataValue(tag.getByte("Orientation"));
-            this.size = tag.getInt("Size");
+    public void readAdditionalSaveData(final net.minecraft.world.level.storage.ValueInput input) {
+        if (input.read("block_pos", BlockPos.CODEC).isPresent()) {
+            super.readAdditionalSaveData(input);
         } else {
-            this.direction = Direction.SOUTH;
-            this.verticalOrientation = Direction.DOWN;
-            this.size = 1;
+            // Vanilla's data fixer does not migrate this mod's old TileX/Y/Z fields.
+            // A schematic can relocate Pos while retaining the original absolute tile anchor.
+            final BlockPos legacy = new BlockPos(input.getIntOr("TileX", this.blockPosition().getX()),
+                    input.getIntOr("TileY", this.blockPosition().getY()), input.getIntOr("TileZ", this.blockPosition().getZ()));
+            this.pos = legacy.closerThan(this.blockPosition(), 16) ? legacy : this.blockPosition();
         }
+        this.entityData.set(SIZE, Math.clamp(input.getIntOr("Size", 1), 1, 3));
+        final Direction facing = Direction.from3DDataValue(input.getByteOr("Facing", (byte) Direction.SOUTH.get3DDataValue()));
+        final Direction orientation = Direction.from3DDataValue(input.getByteOr("Orientation", (byte) Direction.DOWN.get3DDataValue()));
+        this.updateFacingWithBoundingBox(facing, orientation);
+        this.config = input.read("Config", DiagramConfig.CODEC).orElseGet(() -> DiagramConfig.makeDefault(this));
+    }
 
-        if (tag.contains("Config", Tag.TAG_COMPOUND)) {
-            final CompoundTag configTag = tag.getCompound("Config");
-            this.config = DiagramConfig.CODEC.parse(NbtOps.INSTANCE, configTag).getOrThrow();
-        } else {
-            this.config = DiagramConfig.makeDefault(this);
-        }
-
-        super.readAdditionalSaveData(tag);
-        this.updateFacingWithBoundingBox(this.direction, this.verticalOrientation);
+    @Override
+    protected void setDirection(final Direction facing) {
+        // HangingEntity now rejects UP/DOWN; diagrams support all six faces like item frames.
+        this.updateFacingWithBoundingBox(facing, this.entityData.get(ORIENTATION));
     }
 
     protected void updateFacingWithBoundingBox(final Direction facing, final Direction verticalOrientation) {
         Objects.requireNonNull(facing);
-        this.direction = facing;
-        this.verticalOrientation = verticalOrientation;
+        final Direction orientation = facing.getAxis().isVertical() && !verticalOrientation.getAxis().isHorizontal()
+                ? Direction.SOUTH : verticalOrientation;
+        // Publish orientation before facing: native facing metadata invokes setDirection immediately.
+        this.entityData.set(ORIENTATION, orientation);
+        this.setDirectionRaw(facing);
         if (facing.getAxis()
                 .isHorizontal()) {
             this.setXRot(0.0F);
-            this.setYRot(this.direction.get2DDataValue() * 90);
+            this.setYRot(this.getDirection().get2DDataValue() * 90);
         } else {
             this.setXRot(-90 * facing.getAxisDirection()
                     .getStep());
-            this.setYRot(verticalOrientation.getAxis()
-                    .isHorizontal() ? 180 + verticalOrientation.toYRot() : 0);
+            this.setYRot(orientation.getAxis()
+                    .isHorizontal() ? 180 + orientation.toYRot() : 0);
         }
 
         this.xRotO = this.getXRot();
@@ -258,7 +257,7 @@ public class DiagramEntity extends HangingEntity implements ISyncPersistentData,
     protected AABB calculateBoundingBox(final BlockPos blockPos, final Direction direction) {
         Vec3 pos = Vec3.atLowerCornerOf(this.getPos())
                 .add(.5, .5, .5)
-                .subtract(Vec3.atLowerCornerOf(direction.getNormal())
+                .subtract(Vec3.atLowerCornerOf(direction.getUnitVec3i())
                         .scale(0.46875));
         double d1 = pos.x;
         double d2 = pos.y;
@@ -266,17 +265,17 @@ public class DiagramEntity extends HangingEntity implements ISyncPersistentData,
         this.setPosRaw(d1, d2, d3);
 
         final Axis axis = direction.getAxis();
-        if (this.size == 2)
+        if (this.entityData.get(SIZE) == 2)
             pos = pos.add(Vec3.atLowerCornerOf(axis.isHorizontal() ? direction.getCounterClockWise()
-                                    .getNormal()
-                                    : this.verticalOrientation.getClockWise()
-                                    .getNormal())
+                                    .getUnitVec3i()
+                                    : this.entityData.get(ORIENTATION).getClockWise()
+                                    .getUnitVec3i())
                             .scale(0.5))
                     .add(Vec3
-                            .atLowerCornerOf(axis.isHorizontal() ? Direction.UP.getNormal()
-                                    : direction == Direction.UP ? this.verticalOrientation.getNormal()
-                                    : this.verticalOrientation.getOpposite()
-                                    .getNormal())
+                            .atLowerCornerOf(axis.isHorizontal() ? Direction.UP.getUnitVec3i()
+                                    : direction == Direction.UP ? this.entityData.get(ORIENTATION).getUnitVec3i()
+                                    : this.entityData.get(ORIENTATION).getOpposite()
+                                    .getUnitVec3i())
                             .scale(0.5));
 
         d1 = pos.x;
@@ -286,7 +285,7 @@ public class DiagramEntity extends HangingEntity implements ISyncPersistentData,
         double d4 = this.getWidth();
         double d5 = this.getHeight();
         double d6 = this.getWidth();
-        final Axis direction$axis = this.direction.getAxis();
+        final Axis direction$axis = this.getDirection().getAxis();
         switch (direction$axis) {
             case X:
                 d4 = 1.0D;
@@ -307,8 +306,8 @@ public class DiagramEntity extends HangingEntity implements ISyncPersistentData,
 
     @Override
     public void recalculateBoundingBox() {
-        if (this.direction != null && this.verticalOrientation != null) {
-            this.setBoundingBox(this.calculateBoundingBox(this.pos, this.direction));
+        if (this.pos != null && this.getDirection() != null && this.entityData.get(ORIENTATION) != null) {
+            this.setBoundingBox(this.calculateBoundingBox(this.pos, this.getDirection()));
         }
     }
 
@@ -324,12 +323,12 @@ public class DiagramEntity extends HangingEntity implements ISyncPersistentData,
         }
         final int i = Math.max(1, this.getWidth() / 16);
         final int j = Math.max(1, this.getHeight() / 16);
-        final BlockPos blockpos = this.pos.relative(this.direction.getOpposite());
-        final Direction upDirection = this.direction.getAxis()
+        final BlockPos blockpos = this.pos.relative(this.getDirection().getOpposite());
+        final Direction upDirection = this.getDirection().getAxis()
                 .isHorizontal() ? Direction.UP
-                : this.direction == Direction.UP ? this.verticalOrientation : this.verticalOrientation.getOpposite();
-        final Direction newDirection = this.direction.getAxis()
-                .isVertical() ? this.verticalOrientation.getClockWise() : this.direction.getCounterClockWise();
+                : this.getDirection() == Direction.UP ? this.entityData.get(ORIENTATION) : this.entityData.get(ORIENTATION).getOpposite();
+        final Direction newDirection = this.getDirection().getAxis()
+                .isVertical() ? this.entityData.get(ORIENTATION).getClockWise() : this.getDirection().getCounterClockWise();
         final BlockPos.MutableBlockPos blockpos$mutable = new BlockPos.MutableBlockPos();
 
         for (int k = 0; k < i; ++k) {
@@ -340,7 +339,7 @@ public class DiagramEntity extends HangingEntity implements ISyncPersistentData,
                         .move(newDirection, k + i1)
                         .move(upDirection, l + j1);
                 final BlockState blockstate = this.level().getBlockState(blockpos$mutable);
-                if (Block.canSupportCenter(this.level(), blockpos$mutable, this.direction)) {
+                if (Block.canSupportCenter(this.level(), blockpos$mutable, this.getDirection())) {
                     continue;
                 }
                 if (!blockstate.isSolid() && !DiodeBlock.isDiode(blockstate)) {
@@ -349,38 +348,41 @@ public class DiagramEntity extends HangingEntity implements ISyncPersistentData,
             }
         }
 
-        return this.level().getEntities(this, this.getBoundingBox(), HANGING_ENTITY)
+        return this.level().getEntities(this, this.getBoundingBox(), entity -> entity instanceof HangingEntity)
                 .isEmpty();
     }
 
     public int getWidth() {
-        return 16 * this.size;
+        return 16 * this.entityData.get(SIZE);
     }
 
     public int getHeight() {
-        return 16 * this.size;
+        return 16 * this.entityData.get(SIZE);
     }
 
+    public int getSize() { return this.entityData.get(SIZE); }
+
+    public Direction getOrientation() { return this.entityData.get(ORIENTATION); }
+
     @Override
-    public void dropItem(@Nullable final Entity p_110128_1_) {
-        if (!this.level().getGameRules()
-                .getBoolean(GameRules.RULE_DOENTITYDROPS)) {
+    public void dropItem(final ServerLevel level, @Nullable final Entity p_110128_1_) {
+        if (!level.getGameRules().get(GameRules.ENTITY_DROPS)) {
             return;
         }
 
         this.playSound(SoundEvents.PAINTING_BREAK, 1.0F, 1.0F);
         if (p_110128_1_ instanceof final Player playerentity) {
-            if (playerentity.getAbilities().instabuild) {
+            if (playerentity.hasInfiniteMaterials()) {
                 return;
             }
         }
 
-        this.spawnAtLocation(SimItems.CONTRAPTION_DIAGRAM.asStack());
+        this.spawnAtLocation(level, new net.minecraft.world.item.ItemStack(SimItems.CONTRAPTION_DIAGRAM));
     }
 
     @Override
     public ItemStack getPickResult() {
-        return SimItems.CONTRAPTION_DIAGRAM.asStack();
+        return new net.minecraft.world.item.ItemStack(SimItems.CONTRAPTION_DIAGRAM);
     }
 
     @Override
@@ -390,20 +392,20 @@ public class DiagramEntity extends HangingEntity implements ISyncPersistentData,
 
     @Override
     protected void defineSynchedData(final SynchedEntityData.Builder builder) {
-
+        super.defineSynchedData(builder);
+        builder.define(SIZE, 1);
+        builder.define(ORIENTATION, Direction.DOWN);
     }
 
     @Override
-    public void moveTo(final double x, final double y, final double z, final float p_70012_7_, final float p_70012_8_) {
+    public void onSyncedDataUpdated(final net.minecraft.network.syncher.EntityDataAccessor<?> accessor) {
+        super.onSyncedDataUpdated(accessor);
+        if (SIZE.equals(accessor) || ORIENTATION.equals(accessor)) this.updateFacingWithBoundingBox(this.getDirection(), this.entityData.get(ORIENTATION));
+    }
+
+    @Override
+    public void snapTo(final double x, final double y, final double z, final float p_70012_7_, final float p_70012_8_) {
         this.setPos(x, y, z);
-    }
-
-    @Override
-    @OnlyIn(Dist.CLIENT)
-    public void lerpTo(final double pX, final double pY, final double pZ, final float pYRot, final float pXRot, final int pSteps) {
-        final BlockPos blockpos =
-                this.pos.offset(BlockPos.containing(pX - this.getX(), pY - this.getY(), pZ - this.getZ()));
-        this.setPos(blockpos.getX(), blockpos.getY(), blockpos.getZ());
     }
 
     @Override
@@ -413,13 +415,13 @@ public class DiagramEntity extends HangingEntity implements ISyncPersistentData,
     }
 
     @Override
-    public InteractionResult interactAt(final Player player, final Vec3 vec, final InteractionHand hand) {
+    public InteractionResult interact(final Player player, final InteractionHand hand, final Vec3 vec) {
 
-        if (this.level().isClientSide) {
+        if (this.level().isClientSide()) {
             final SubLevel subLevel = Sable.HELPER.getContaining(this);
 
             if (subLevel == null) {
-                player.displayClientMessage(SimLang.translate("contraption_diagram.cannot_use").color(SimColors.NUH_UH_RED).component(), true);
+                player.sendOverlayMessage(SimLang.translate("contraption_diagram.cannot_use").color(SimColors.NUH_UH_RED).component());
             }
         } else {
             final SubLevel subLevel = Sable.HELPER.getContaining(this);
@@ -435,11 +437,6 @@ public class DiagramEntity extends HangingEntity implements ISyncPersistentData,
         return InteractionResult.SUCCESS;
     }
 
-
-    @Override
-    public void onPersistentDataUpdated() {
-
-    }
 
     @Override
     public boolean canPlayerUse(final Player player) {
@@ -471,7 +468,7 @@ public class DiagramEntity extends HangingEntity implements ISyncPersistentData,
 
     @Override
     public ItemRequirement getRequiredItems() {
-        return new ItemRequirement(ItemRequirement.ItemUseType.CONSUME, SimItems.CONTRAPTION_DIAGRAM.get());
+        return new ItemRequirement(ItemRequirement.ItemUseType.CONSUME, SimItems.CONTRAPTION_DIAGRAM);
     }
 
     public void setConfig(final DiagramConfig config) {

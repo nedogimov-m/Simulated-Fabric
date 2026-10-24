@@ -19,7 +19,7 @@ public class PhysicsStaffItem extends Item {
     }
 
     @Override
-    public boolean canAttackBlock(final BlockState state, final Level world, final BlockPos pos, final Player player) {
+    public boolean canDestroyBlock(final net.minecraft.world.item.ItemStack stack, final BlockState state, final Level world, final BlockPos pos, final net.minecraft.world.entity.LivingEntity entity) {
         return false;
     }
 }

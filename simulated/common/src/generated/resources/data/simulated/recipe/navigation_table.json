@@ -2,15 +2,9 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "B": {
-      "item": "create:brass_casing"
-    },
-    "P": {
-      "item": "create:precision_mechanism"
-    },
-    "S": {
-      "item": "create:brass_sheet"
-    }
+    "B": "create:brass_casing",
+    "P": "create:precision_mechanism",
+    "S": "create:brass_sheet"
   },
   "pattern": [
     "S",

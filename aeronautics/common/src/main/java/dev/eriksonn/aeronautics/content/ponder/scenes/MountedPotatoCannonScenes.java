@@ -6,7 +6,6 @@ import com.simibubi.create.foundation.particle.AirParticleData;
 import com.simibubi.create.foundation.ponder.CreateSceneBuilder;
 import dev.eriksonn.aeronautics.content.blocks.mounted_potato_cannon.MountedPotatoCannonBlockEntity;
 import net.createmod.catnip.math.Pointing;
-import net.createmod.catnip.nbt.NBTHelper;
 import net.createmod.ponder.api.PonderPalette;
 import net.createmod.ponder.api.element.ElementLink;
 import net.createmod.ponder.api.element.EntityElement;
@@ -142,7 +141,7 @@ public class MountedPotatoCannonScenes {
 			inventory.put("item", ItemStack.OPTIONAL_CODEC.encodeStart(NbtOps.INSTANCE, new ItemStack(Items.POTATO)).result().orElseThrow());
 			tag.put("inventory", inventory);
 			tag.putInt("ItemTimer", 20);
-			NBTHelper.writeEnum(tag, "State", MountedPotatoCannonBlockEntity.State.CHARGING);
+			tag.putString("State", MountedPotatoCannonBlockEntity.State.CHARGING.name());
 			tag.putInt("ChargeTimer", windupTime);
 		});
 	}
@@ -152,7 +151,7 @@ public class MountedPotatoCannonScenes {
 			tag.put("inventory", new CompoundTag());
 			tag.putInt("BarrelTimer", 0);
 			tag.putInt("ItemTimer", 0);
-			NBTHelper.writeEnum(tag, "State", MountedPotatoCannonBlockEntity.State.FIRING);
+			tag.putString("State", MountedPotatoCannonBlockEntity.State.FIRING.name());
 		});
 	}
 
@@ -166,7 +165,7 @@ public class MountedPotatoCannonScenes {
 
 	private static ElementLink<EntityElement> spawnPotatoCannonProjectile(final SceneBuilder scene, final ItemStack stack, final Vec3 pos, final Vec3 aiming, final boolean physics) {
 		return scene.world().createEntity(level -> {
-			final PotatoProjectileEntity entity = Objects.requireNonNull(AllEntityTypes.POTATO_PROJECTILE.create(level), "entity");
+			final PotatoProjectileEntity entity = Objects.requireNonNull(AllEntityTypes.POTATO_PROJECTILE.create(level, net.minecraft.world.entity.EntitySpawnReason.EVENT), "entity");
 			entity.setItem(stack);
 			entity.setPos(pos);
 			entity.xo = pos.x;

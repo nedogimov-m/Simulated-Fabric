@@ -10,9 +10,61 @@ import java.util.Set;
 
 /**
  * An abstract container that inventories can extend from. Used for multiloader compatibility through wrappers that each loader creates. <p>
- * Inspired by {@link net.neoforged.neoforge.items.ItemStackHandler ItemStackHandler} In <b>Porting lib</b> by the <b>fabricators of create</b> team
+ * Inspired by {@link the Fabric transactional inventory ItemStackHandler} In <b>Porting lib</b> by the <b>fabricators of create</b> team
  */
 public interface AbstractContainer extends NBTSerializable, Container {
+
+    /** Native contextual storage, preserving the existing multi-slot Items/index/item schema. */
+    default void write(final net.minecraft.world.level.storage.ValueOutput output) {
+        output.putInt("Stored Count", this.getInventoryAsList().stream().mapToInt(slot -> slot.getStack().getCount()).sum());
+        final var items = output.childrenList("Items");
+        for (int i = 0; i < this.getInventoryAsList().size(); i++) {
+            final var slot = this.getInventoryAsList().get(i);
+            final var entry = items.addChild();
+            entry.putInt("index", i);
+            if (!slot.getStack().isEmpty()) entry.store("item", ItemStack.CODEC, slot.getStack());
+        }
+    }
+    default void read(final net.minecraft.world.level.storage.ValueInput input) {
+        try (var ignored = suppressChangeNotifications()) {
+            this.clearContent();
+            for (final var entry : input.childrenListOrEmpty("Items")) {
+                final int index = entry.getIntOr("index", -1);
+                if (index >= 0 && index < this.getInventoryAsList().size())
+                    this.getInventoryAsList().get(index).setStack(entry.read("item", ItemStack.CODEC).orElse(ItemStack.EMPTY));
+            }
+        }
+    }
+
+    /** Internal mutation bookkeeping runs immediately; observers can be notified after a Fabric commit. */
+    default void notifyContentsChanged() {
+        if (!MutationScope.isSuppressed()) {
+            this.setChanged();
+        }
+    }
+
+    /** Suppress synchronous inventory notifications while applying or restoring a transaction snapshot. */
+    static MutationScope suppressChangeNotifications() {
+        return new MutationScope();
+    }
+
+    final class MutationScope implements AutoCloseable {
+        private static final ThreadLocal<Integer> DEPTH = ThreadLocal.withInitial(() -> 0);
+        private boolean closed;
+
+        private MutationScope() { DEPTH.set(DEPTH.get() + 1); }
+        private static boolean isSuppressed() { return DEPTH.get() > 0; }
+
+        @Override
+        public void close() {
+            if (!this.closed) {
+                final int depth = DEPTH.get();
+                if (depth == 1) DEPTH.remove();
+                else DEPTH.set(depth - 1);
+                this.closed = true;
+            }
+        }
+    }
 
     /**
      * Common method called for both slot and general insert methods.
@@ -128,8 +180,7 @@ public interface AbstractContainer extends NBTSerializable, Container {
      */
     @Override
     default @NotNull ItemStack removeItem(final int slot, final int amount) {
-        final ItemStack item = this.getItem(slot);
-        return item.split(amount);
+        return this.extractSlot(slot, amount, false);
     }
 
     /**

@@ -18,16 +18,16 @@ public class PlayerHoldingHandleRenderer {
     }
 
     public static void afterSetupAnim(final Player player, final HumanoidModel<?> model) {
-        if (holdingPlayers.contains(player.getUUID()))
+        if (isHolding(player.getUUID()) && !Minecraft.getInstance().isPaused())
             setHangingPose(model);
     }
 
-    private static void setHangingPose(final HumanoidModel<?> model) {
-        if (Minecraft.getInstance().isPaused()) {
-            return;
-        }
+    public static boolean isHolding(UUID player) { return holdingPlayers.contains(player); }
+
+    /** Applies only the state already captured for this native avatar frame. */
+    public static void setHangingPose(final HumanoidModel<?> model) {
         model.leftArm.zRot = 0.0f;
-        model.leftArm.zRot = 0.0f;
+        model.rightArm.zRot = 0.0f;
 
         model.leftArm.xRot = (float) Math.toRadians(-80.0f)+ model.head.xRot;
         model.rightArm.xRot = (float) Math.toRadians(-80.0f)+ model.head.xRot;

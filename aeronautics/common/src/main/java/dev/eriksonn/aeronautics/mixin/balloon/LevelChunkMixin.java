@@ -24,13 +24,13 @@ public class LevelChunkMixin {
     @Unique
     private BlockPos simulated$blockSet = null;
 
-    @Inject(method = "setBlockState", at = @At("HEAD"))
-    private void simulated$preSetBlockState(final BlockPos pPos, final BlockState pState, final boolean pIsMoving,
+    @Inject(method = "setBlockState(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;I)Lnet/minecraft/world/level/block/state/BlockState;", at = @At("HEAD"))
+    private void simulated$preSetBlockState(final BlockPos pPos, final BlockState pState, final int flags,
                                             final CallbackInfoReturnable<BlockState> cir) {
         this.simulated$blockSet = pPos;
     }
 
-    @WrapOperation(method = "setBlockState", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/chunk/LevelChunkSection;setBlockState(IIILnet/minecraft/world/level/block/state/BlockState;)Lnet/minecraft/world/level/block/state/BlockState;"))
+    @WrapOperation(method = "setBlockState(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;I)Lnet/minecraft/world/level/block/state/BlockState;", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/chunk/LevelChunkSection;setBlockState(IIILnet/minecraft/world/level/block/state/BlockState;)Lnet/minecraft/world/level/block/state/BlockState;"))
     private BlockState simulated$setBlockState(final LevelChunkSection instance, final int pX, final int pY, final int pZ, final BlockState newState, final Operation<BlockState> original) {
         final BlockState oldState = original.call(instance, pX, pY, pZ, newState);
 

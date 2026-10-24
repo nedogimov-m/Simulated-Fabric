@@ -3,7 +3,6 @@ package dev.simulated_team.simulated.content.display_sources;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.source.NumericSingleLineDisplaySource;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
-import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
 import dev.simulated_team.simulated.content.blocks.lasers.optical_sensor.OpticalSensorBlockEntity;
 import dev.simulated_team.simulated.data.SimLang;
 import net.minecraft.network.chat.MutableComponent;
@@ -16,7 +15,7 @@ public class OpticalSensorDisplaySource extends NumericSingleLineDisplaySource {
             return ZERO.copy();
         }
 
-        switch (context.sourceConfig().getInt("OpticalSensorSelection")) {
+        switch (context.sourceConfig().getIntOr("OpticalSensorSelection", 0)) {
             case 0 -> {
                 return be.hasHit() ? be.getHitBlock().getName() : SimLang.text("No Block Detected").component();
             }
@@ -36,16 +35,12 @@ public class OpticalSensorDisplaySource extends NumericSingleLineDisplaySource {
     }
 
     @Override
-    public void initConfigurationWidgets(final DisplayLinkContext context, final ModularGuiLineBuilder builder, final boolean isFirstLine) {
-        super.initConfigurationWidgets(context, builder, isFirstLine);
-        if (isFirstLine) {
-            return;
-        }
-
-        builder.addSelectionScrollInput(0, 85, (selectionScrollInput, label) -> {
-            selectionScrollInput
-                    .forOptions(SimLang.translatedOptions("display_source.optical_sensor", "detected_block", "block_distance"));
-        }, "OpticalSensorSelection");
+    public java.util.List<com.simibubi.create.content.redstone.displayLink.DisplaySourceConfiguration> configuration(final DisplayLinkContext context) {
+        var options = new java.util.ArrayList<>(super.configuration(context));
+        options.add(new com.simibubi.create.content.redstone.displayLink.DisplaySourceConfiguration(
+                "OpticalSensorSelection", java.util.List.of("simulated.display_source.optical_sensor.detected_block", "simulated.display_source.optical_sensor.block_distance"), 0,
+                0, 0, 1, 0, 1, 0, 85, "", ""));
+        return java.util.List.copyOf(options);
     }
 
     @Override

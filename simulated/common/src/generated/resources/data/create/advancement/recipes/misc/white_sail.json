@@ -13,7 +13,7 @@
     },
     "has_the_recipe": {
       "conditions": {
-        "recipe": "create:white_sail"
+        "recipes": "create:white_sail"
       },
       "trigger": "minecraft:recipe_unlocked"
     }

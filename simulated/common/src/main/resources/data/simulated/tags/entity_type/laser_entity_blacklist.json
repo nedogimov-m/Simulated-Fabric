@@ -3,9 +3,10 @@
   "values": [
     "simulated:honey_glue",
     "create:super_glue",
-    "create:contraption",
-    "create:stationary_contraption",
     "create:gantry_contraption",
-    "create:carriage_contraption"
+    "create:carriage_contraption",
+    "create:oriented_contraption",
+    "create:linear_contraption",
+    "create:controlled_contraption"
   ]
 }

@@ -35,8 +35,10 @@ public class RedstoneSignalInstruction extends WorldModifyInstruction {
                 nixie.updateDisplayedStrings();
             }
             if (BE instanceof final AnalogLeverBlockEntity lever) {
-                final CompoundTag tag = new CompoundTag();
-                lever.write(tag, level.registryAccess(), false);
+                final var output=net.minecraft.world.level.storage.TagValueOutput.createWithContext(
+                        net.minecraft.util.ProblemReporter.DISCARDING,level.registryAccess());
+                lever.saveCustomOnly(output);
+                final CompoundTag tag=output.buildResult();
                 tag.putInt("State", this.signal);
                 lever.readClient(tag, level.registryAccess());
             }

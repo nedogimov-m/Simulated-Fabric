@@ -7,10 +7,10 @@ import org.spongepowered.asm.mixin.Shadow;
 
 @Mixin(value = LinearActuatorBlockEntity.class, remap = false)
 public abstract class LinearActuatorBlockEntityMixin implements IControlContraptionExtension  {
-    @Shadow public abstract void disassemble();
+    @Shadow public abstract boolean disassemble();
 
     @Override
-    public void sable$disassemble() {
-        this.disassemble();
+    public boolean sable$disassemble() {
+        return this.disassemble();
     }
 }

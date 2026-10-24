@@ -1,8 +1,8 @@
 package dev.eriksonn.aeronautics.config.server;
 
-import net.createmod.catnip.config.ConfigBase;
+import com.simibubi.create.infrastructure.config.NativeConfigBase;
 
-public class AeroPhysics extends ConfigBase {
+public class AeroPhysics extends NativeConfigBase {
 
 	public final ConfigFloat mountedPotatoCannonMagnitude = this.f(0.2f, 0, Float.MAX_VALUE, "recoil_magnitude", Comments.mountedPotatoCannonComment);
 	public final ConfigFloat propellerBearingThrust = this.f(0.2f, 0, Float.MAX_VALUE, "propellerBearingThrust", Comments.propellerBearingThrust);

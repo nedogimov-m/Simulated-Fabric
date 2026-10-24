@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "package": "dev.simulated_team.simulated.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "creative_tab_sections.CreativeModeInventoryScreenMixin",
+    "creative_tab_sections.CreativeModeTabMixin",
+    "creative_tab_sections.ItemPickerMenuMixin",
+    "creative_tab_sections.SpriteContentsMixin",
+    "creative_tab_sections.SpriteContentsTickerMixin",
+    "accessor.CreativeModeInventoryScreenAccessor",
+    "accessor.CreativeModeInventoryScreenSelectedTabAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

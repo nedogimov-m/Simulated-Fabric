@@ -35,7 +35,11 @@ public class HoneyGlueScenes {
 
     private static KeybindWindowElement.Builder showControls(final SceneBuilder builder, final Vec3 sceneSpace, final Pointing direction, final int duration) {
         final KeybindWindowElement inputWindowElement = new KeybindWindowElement(sceneSpace, direction);
-        builder.addInstruction(new ShowInputInstruction(inputWindowElement, duration));
+        builder.addInstruction(new net.createmod.ponder.foundation.instruction.FadeInOutInstruction(duration) {
+            @Override protected void show(net.createmod.ponder.foundation.PonderScene scene){scene.addElement(inputWindowElement);inputWindowElement.setVisible(true);}
+            @Override protected void hide(net.createmod.ponder.foundation.PonderScene scene){inputWindowElement.setVisible(false);}
+            @Override protected void applyFade(net.createmod.ponder.foundation.PonderScene scene,float fade){inputWindowElement.setFade(fade);}
+        });
         return inputWindowElement.builder();
     }
 
@@ -82,17 +86,17 @@ public class HoneyGlueScenes {
                 .text("Clicking two endpoints creates a new 'glued' area...")
                 .placeNearTarget()
                 .pointAt(vector.blockSurface(new BlockPos(3, 2, 2), Direction.WEST));
-        overlay.showControls(vector.centerOf(3, 1, 1), Pointing.RIGHT, 20).withItem(SimItems.HONEY_GLUE.asStack()).rightClick();
+        overlay.showControls(vector.centerOf(3, 1, 1), Pointing.RIGHT, 20).withItem(new net.minecraft.world.item.ItemStack(SimItems.HONEY_GLUE)).rightClick();
         scene.idle(6);
-        effects.emitParticles(new Vec3(3, 1, 1), effects.particleEmitterWithinBlockSpace(new DustParticleOptions(new Color(255, 232, 142).asVectorF(), 1.0F), Vec3.ZERO), 10.0f, 2);
+        effects.emitParticles(new Vec3(3, 1, 1), effects.particleEmitterWithinBlockSpace(new DustParticleOptions(0xffffe88e, 1.0F), Vec3.ZERO), 10.0f, 2);
         scene.idle(24);
-        overlay.showControls(vector.centerOf(3, 3, 3), Pointing.RIGHT, 20).withItem(SimItems.HONEY_GLUE.asStack()).rightClick();
+        overlay.showControls(vector.centerOf(3, 3, 3), Pointing.RIGHT, 20).withItem(new net.minecraft.world.item.ItemStack(SimItems.HONEY_GLUE)).rightClick();
         scene.idle(6);
         final AABB bb = AABB.unitCubeFromLowerCorner(new Vec3(3, 1, 1));
         overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb, bb, 0);
         overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb, bb.expandTowards(0, 2, 2), 100);
         scene.idle(40);
-        overlay.showControls(vector.centerOf(2, 2, 2), Pointing.LEFT, 20).withItem(SimItems.HONEY_GLUE.asStack()).scroll().whileCTRL();
+        overlay.showControls(vector.centerOf(2, 2, 2), Pointing.LEFT, 20).withItem(new net.minecraft.world.item.ItemStack(SimItems.HONEY_GLUE)).scroll().whileCTRL();
         scene.idle(10);
         overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, bb, bb.expandTowards(-1, 2, 2), 15);
         scene.idle(15);
@@ -107,7 +111,7 @@ public class HoneyGlueScenes {
         world.hideSection(structure2, Direction.UP);
         scene.idle(20);
         scene.addKeyframe();
-        showControls(builder, vector.blockSurface(new BlockPos(1, 3, 3), Direction.NORTH), Pointing.RIGHT, 80).withItem(SimItems.HONEY_GLUE.asStack()).rightClick().keybind("simulated.key.alt");
+        showControls(builder, vector.blockSurface(new BlockPos(1, 3, 3), Direction.NORTH), Pointing.RIGHT, 80).withItem(new net.minecraft.world.item.ItemStack(SimItems.HONEY_GLUE)).rightClick().keybind("simulated.key.alt");
         final AABB whitebb = new AABB(new Vec3(1.05, 3.95, 3.05), new Vec3(1.05, 3.95, 3.05));
         overlay.chaseBoundingBoxOutline(PonderPalette.WHITE, whitebb, whitebb, 0);
         overlay.chaseBoundingBoxOutline(PonderPalette.WHITE, whitebb, whitebb.expandTowards(0.9, -0.9, 0.9), 80);
@@ -136,7 +140,7 @@ public class HoneyGlueScenes {
         world.setBlock(movedBlockElement, Blocks.SPRUCE_PLANKS.defaultBlockState(), false);
 
         world.modifyBlock(pistonBase, s -> s.setValue(MechanicalPistonBlock.STATE, MechanicalPistonBlock.PistonState.MOVING), false);
-        world.setBlock(new BlockPos(1, 2, 2), AllBlocks.PISTON_EXTENSION_POLE.getDefaultState().setValue(PistonExtensionPoleBlock.FACING, Direction.WEST), false);
+        world.setBlock(new BlockPos(1, 2, 2), AllBlocks.PISTON_EXTENSION_POLE.defaultBlockState().setValue(PistonExtensionPoleBlock.FACING, Direction.WEST), false);
 
         world.setKineticSpeed(kineticShafts, 32);
         world.setKineticSpeed(select.position(largeCog), -16);
@@ -238,10 +242,10 @@ public class HoneyGlueScenes {
             scene.idle(5);
         }
         scene.idle(10);
-        overlay.showControls(vector.centerOf(carMinCorner), Pointing.RIGHT, 10).withItem(AllItems.SUPER_GLUE.asStack()).rightClick();
+        overlay.showControls(vector.centerOf(carMinCorner), Pointing.RIGHT, 10).withItem(new net.minecraft.world.item.ItemStack(AllItems.SUPER_GLUE)).rightClick();
         effects.indicateSuccess(carMinCorner);
         scene.idle(15);
-        overlay.showControls(vector.centerOf(carMaxCorner), Pointing.RIGHT, 10).withItem(AllItems.SUPER_GLUE.asStack()).rightClick();
+        overlay.showControls(vector.centerOf(carMaxCorner), Pointing.RIGHT, 10).withItem(new net.minecraft.world.item.ItemStack(AllItems.SUPER_GLUE)).rightClick();
         final AABB carGlueCorner = new AABB(vector.centerOf(carMinCorner).subtract(0.55, 0.55, 0.55), vector.centerOf(carMinCorner).add(0.55, 0.55, 0.55));
         final AABB carGlueFull = new AABB(vector.centerOf(carMinCorner).subtract(0.5, 0.5, 0.5), vector.centerOf(carMaxCorner).add(0.5, 0.5, 0.5));
         overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, carGlueCorner, carGlueCorner, 5);
@@ -251,7 +255,7 @@ public class HoneyGlueScenes {
                 .attachKeyFrame()
                 .text("For more complex Simulated Contraptions...")
                 .placeNearTarget()
-                .pointAt(carFull.getCenter().getCenter());
+                .pointAt(Vec3.atCenterOf(carFull.getCenter()));
         scene.idle(40);
         overlay.showControls(vector.centerOf(carAssembler), Pointing.DOWN, 10).rightClick();
         scene.idle(5);
@@ -295,18 +299,18 @@ public class HoneyGlueScenes {
         }
         overlay.chaseBoundingBoxOutline(PonderPalette.GREEN, carGlueFull, carGlueFull, 16);
         scene.idle(10);
-        overlay.showControls(carFull.getCenter().getCenter(), Pointing.DOWN, 10).withItem(AllItems.SUPER_GLUE.asStack()).leftClick();
+        overlay.showControls(Vec3.atCenterOf(carFull.getCenter()), Pointing.DOWN, 10).withItem(new net.minecraft.world.item.ItemStack(AllItems.SUPER_GLUE)).leftClick();
         scene.idle(30);
         overlay.showText(75)
                 .attachKeyFrame()
                 .text("Honey Glue may be preferable in this scenario")
                 .placeNearTarget()
-                .pointAt(carFull.getCenter().getCenter());
+                .pointAt(Vec3.atCenterOf(carFull.getCenter()));
         scene.idle(20);
-        overlay.showControls(vector.centerOf(carMinCorner), Pointing.RIGHT, 10).withItem(SimItems.HONEY_GLUE.asStack()).rightClick();
-        effects.emitParticles(vector.centerOf(carMinCorner), effects.particleEmitterWithinBlockSpace(new DustParticleOptions((new Color(255, 232, 142)).asVectorF(), 1.0F), Vec3.ZERO), 10.0f, 2);
+        overlay.showControls(vector.centerOf(carMinCorner), Pointing.RIGHT, 10).withItem(new net.minecraft.world.item.ItemStack(SimItems.HONEY_GLUE)).rightClick();
+        effects.emitParticles(vector.centerOf(carMinCorner), effects.particleEmitterWithinBlockSpace(new DustParticleOptions(0xffffe88e, 1.0F), Vec3.ZERO), 10.0f, 2);
         scene.idle(25);
-        overlay.showControls(vector.centerOf(carMaxCorner), Pointing.RIGHT, 10).withItem(SimItems.HONEY_GLUE.asStack()).rightClick();
+        overlay.showControls(vector.centerOf(carMaxCorner), Pointing.RIGHT, 10).withItem(new net.minecraft.world.item.ItemStack(SimItems.HONEY_GLUE)).rightClick();
         overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, carGlueCorner, carGlueCorner, 5);
         overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, carGlueCorner, carGlueCorner.expandTowards(4, 2, 6), 40);
         scene.idle(45);

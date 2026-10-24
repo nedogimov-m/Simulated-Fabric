@@ -1,116 +1,57 @@
 package dev.simulated_team.simulated.index;
 
 import com.simibubi.create.content.processing.sequenced.SequencedAssemblyItem;
-import com.simibubi.create.foundation.data.AssetLookup;
-import com.simibubi.create.foundation.data.CreateRegistrate;
-import com.simibubi.create.foundation.data.recipe.CommonMetal;
-import com.tterrag.registrate.builders.ItemBuilder;
-import com.tterrag.registrate.providers.RegistrateRecipeProvider;
-import com.tterrag.registrate.util.entry.ItemEntry;
-import dev.simulated_team.simulated.Simulated;
 import dev.simulated_team.simulated.content.entities.diagram.DiagramItem;
 import dev.simulated_team.simulated.content.entities.honey_glue.HoneyGlueItem;
 import dev.simulated_team.simulated.content.items.plunger_launcher.PlungerLauncherItem;
 import dev.simulated_team.simulated.content.items.rope.RopeItem.RopeItem;
 import dev.simulated_team.simulated.content.items.spring.SpringItem;
 import dev.simulated_team.simulated.content.physics_staff.PhysicsStaffItem;
-import dev.simulated_team.simulated.registrate.SimulatedRegistrate;
-import dev.simulated_team.simulated.registrate.simulated_tab.CreativeTabItemTransforms;
-import net.minecraft.data.recipes.RecipeCategory;
-import net.minecraft.data.recipes.ShapedRecipeBuilder;
-import net.minecraft.data.recipes.ShapelessRecipeBuilder;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.ItemTags;
+import dev.simulated_team.simulated.fabric.registry.NativeItemCatalog;
+import dev.simulated_team.simulated.fabric.registry.NativeItemCatalog.Visibility;
+import dev.simulated_team.simulated.fabric.registry.NativeRegistrations;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.Rarity;
-import net.neoforged.neoforge.common.Tags;
 
-public class SimItems {
-    public static final SimulatedRegistrate REGISTRATE = Simulated.getRegistrate();
+import java.util.function.Function;
 
-    public static final ItemEntry<DiagramItem> CONTRAPTION_DIAGRAM =
-            REGISTRATE.item("contraption_diagram", DiagramItem::new)
-                    .recipe((c, p) -> ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, c.get(), 1)
-                            .requires(Items.PAPER)
-                            .requires(SimBlocks.PHYSICS_ASSEMBLER)
-                            .unlockedBy("has_ingredient", RegistrateRecipeProvider.has(SimBlocks.PHYSICS_ASSEMBLER))
-                            .save(p))
-                    .register();
+/** Actual runtime items; the original checked-in item models, tags and recipes remain authoritative. */
+public final class SimItems {
+    private static final Identifier SECTION = id("simulated");
 
-    public static final ItemEntry<SpringItem> SPRING =
-            REGISTRATE.item("spring", SpringItem::new)
-                    .properties(p -> p.component(SimDataComponents.BOUNCINESS, 1f))
-                    .recipe((ctx, prov) ->
-                            ShapedRecipeBuilder.shaped(RecipeCategory.MISC, ctx.get(), 2)
-                                    .pattern("S")
-                                    .pattern("N")
-                                    .pattern("S")
-                                    .define('S', CommonMetal.IRON.plates)
-                                    .define('N', CommonMetal.IRON.nuggets)
-                                    .unlockedBy("has_ingredient", RegistrateRecipeProvider.has(CommonMetal.IRON.plates))
-                                    .save(prov)
-                    )
-                    .register();
+    public static final DiagramItem CONTRAPTION_DIAGRAM = item("contraption_diagram", DiagramItem::new, new Item.Properties());
+    public static final SpringItem SPRING = item("spring", SpringItem::new,
+            new Item.Properties().component(SimDataComponents.BOUNCINESS, 1f));
+    public static final RopeItem ROPE_COUPLING = item("rope_coupling", RopeItem::new, new Item.Properties());
+    public static final Item GYRO_MECHANISM = item("gyroscopic_mechanism", Item::new, new Item.Properties());
+    public static final SequencedAssemblyItem INCOMPLETE_GYRO_MECHANISM = item("incomplete_gyroscopic_mechanism",
+            SequencedAssemblyItem::new, new Item.Properties(), Visibility.INVISIBLE);
+    public static final Item ENGINE_ASSEMBLY = item("engine_assembly", Item::new, new Item.Properties());
+    public static final SequencedAssemblyItem INCOMPLETE_ENGINE_ASSEMBLY = item("incomplete_engine_assembly",
+            SequencedAssemblyItem::new, new Item.Properties(), Visibility.INVISIBLE);
 
-    public static ItemEntry<RopeItem> ROPE_COUPLING = REGISTRATE
-            .item("rope_coupling", RopeItem::new)
-            .recipe((ctx, prov) -> ShapedRecipeBuilder.shaped(RecipeCategory.MISC, ctx.get(), 1)
-                    .pattern(" S ")
-                    .pattern("NSN")
-                    .pattern(" S ")
-                    .define('S', Tags.Items.STRINGS)
-                    .define('N', Tags.Items.NUGGETS_IRON)
-                    .unlockedBy("has_ingredient", RegistrateRecipeProvider.has(Tags.Items.STRINGS))
-                    .save(prov))
-            .register();
+    static { NativeItemCatalog.addExtra(Identifier.withDefaultNamespace("slime_ball"), SECTION); }
 
-    public static ItemEntry<Item> GYRO_MECHANISM = ingredient("gyroscopic_mechanism");
+    public static final HoneyGlueItem HONEY_GLUE = item("honey_glue", HoneyGlueItem::new,
+            new Item.Properties().stacksTo(1).durability(100));
+    public static final PhysicsStaffItem PHYSICS_STAFF = item("creative_physics_staff", PhysicsStaffItem::new,
+            new Item.Properties().rarity(Rarity.EPIC).stacksTo(1));
+    public static final PlungerLauncherItem PLUNGER_LAUNCHER = item("plunger_launcher", PlungerLauncherItem::new,
+            new Item.Properties().stacksTo(1).durability(200));
 
-    public static ItemEntry<SequencedAssemblyItem> INCOMPLETE_GYRO_MECHANISM =
-            REGISTRATE.item("incomplete_gyroscopic_mechanism", SequencedAssemblyItem::new)
-                    .transform(CreativeTabItemTransforms.VisibilityType.INVISIBLE.applyItem())
-                    .register();
-
-    public static final ItemEntry<Item> ENGINE_ASSEMBLY = ingredient("engine_assembly");
-
-    public static final ItemEntry<SequencedAssemblyItem> INCOMPLETE_ENGINE_ASSEMBLY =
-            REGISTRATE.item("incomplete_engine_assembly", SequencedAssemblyItem::new)
-                    .transform(CreativeTabItemTransforms.VisibilityType.INVISIBLE.applyItem())
-                    .register();
-
-    static { REGISTRATE.addExtraItem(ResourceLocation.withDefaultNamespace("slime_ball")); }
-
-    public static final ItemEntry<HoneyGlueItem> HONEY_GLUE =
-            REGISTRATE.item("honey_glue", HoneyGlueItem::new)
-                    .properties(p -> p.stacksTo(1)
-                            .durability(100))
-                    .tag(ItemTags.DURABILITY_ENCHANTABLE)
-                    .register();
-
-    public static final ItemEntry<PhysicsStaffItem> PHYSICS_STAFF =
-            REGISTRATE.item("creative_physics_staff", PhysicsStaffItem::new)
-                    .properties(p -> p.rarity(Rarity.EPIC).stacksTo(1))
-                    .model(AssetLookup.itemModelWithPartials())
-                    .register();
-
-    public static final ItemEntry<PlungerLauncherItem> PLUNGER_LAUNCHER =
-            REGISTRATE.item("plunger_launcher", PlungerLauncherItem::new)
-                    .properties(p -> p.stacksTo(1).durability(200))
-                    .model(AssetLookup.itemModelWithPartials())
-                    .tag(Tags.Items.ENCHANTABLES, ItemTags.DURABILITY_ENCHANTABLE)
-                    .register();
-
-    private static ItemEntry<Item> ingredient(final String name) {
-        return REGISTRATE.item(name, Item::new)
-                .register();
+    private static <I extends Item> I item(String name, Function<Item.Properties, I> factory, Item.Properties properties) {
+        return item(name, factory, properties, Visibility.MAIN);
     }
 
-    private static ItemBuilder<Item, CreateRegistrate> ingredientNoRegister(final String name) {
-        return REGISTRATE.item(name, Item::new);
+    private static <I extends Item> I item(String name, Function<Item.Properties, I> factory,
+                                          Item.Properties properties, Visibility visibility) {
+        final I item = NativeRegistrations.item(id(name), factory, properties);
+        NativeItemCatalog.add(item, SECTION, visibility);
+        return item;
     }
 
-    public static void register() {
-
-    }
+    private static Identifier id(String path) { return Identifier.fromNamespaceAndPath("simulated", path); }
+    public static void register() {} // Initializes these real native registrations when invoked by the mod bootstrap.
+    private SimItems() {}
 }

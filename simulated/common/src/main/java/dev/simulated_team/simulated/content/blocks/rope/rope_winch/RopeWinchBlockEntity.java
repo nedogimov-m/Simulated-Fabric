@@ -32,6 +32,8 @@ import org.joml.Vector3d;
 import java.util.List;
 
 public class RopeWinchBlockEntity extends KineticBlockEntity implements RopeStrandHolderBlockEntity, ThresholdSwitchObservable {
+    private final dev.simulated_team.simulated.content.blocks.behaviour.SimKineticEffectHandler effects = new dev.simulated_team.simulated.content.blocks.behaviour.SimKineticEffectHandler(this);
+
     private RopeStrandHolderBehavior ropeHolder;
 
     private int stretchTimer = 0;
@@ -54,13 +56,13 @@ public class RopeWinchBlockEntity extends KineticBlockEntity implements RopeStra
     }
 
     @Override
-    protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(compound, registries, clientPacket);
+    protected void read(final net.minecraft.world.level.storage.ValueInput compound, final boolean clientPacket) {
+        super.read(compound, clientPacket);
     }
 
     @Override
-    protected void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(compound, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput compound, final boolean clientPacket) {
+        super.write(compound, clientPacket);
     }
 
     @Override
@@ -70,12 +72,12 @@ public class RopeWinchBlockEntity extends KineticBlockEntity implements RopeStra
         final ServerRopeStrand strand = this.ropeHolder.getOwnedStrand();
         final boolean hasRope = strand != null;
 
-        if (this.level.isClientSide) {
+        if (this.level.isClientSide()) {
             this.invalidateRenderBoundingBox();
             this.clientAngle.setValue(this.clientAngle.getValue() + this.getMovementSpeed());
         }
 
-        if (!this.level.isClientSide && hasRope && this.ropeHolder.ownsRope()) {
+        if (!this.level.isClientSide() && hasRope && this.ropeHolder.ownsRope()) {
             this.updateRopeStrandExtension(strand);
         }
 
@@ -104,8 +106,8 @@ public class RopeWinchBlockEntity extends KineticBlockEntity implements RopeStra
             }
 
             if (this.stretchTimer == 0) {
-                this.stretchTimer = this.level.random.nextIntBetweenInclusive(5 * 20, 15 * 20);
-                this.level.playSound(null, this.getBlockPos(), SimSoundEvents.ROPE_WINCH_STRETCH.event(), SoundSource.BLOCKS, 0.1f, 0.8f + this.level.random.nextFloat() * 0.2f);
+                this.stretchTimer = this.level.getRandom().nextIntBetweenInclusive(5 * 20, 15 * 20);
+                this.level.playSound(null, this.getBlockPos(), SimSoundEvents.ROPE_WINCH_STRETCH.event(), SoundSource.BLOCKS, 0.1f, 0.8f + this.level.getRandom().nextFloat() * 0.2f);
             }
 
             movementSpeed = Math.max(0.0f, movementSpeed);
@@ -176,7 +178,7 @@ public class RopeWinchBlockEntity extends KineticBlockEntity implements RopeStra
 
     @Override
     public Vec3 getAttachmentPoint(final BlockPos pos, final BlockState state) {
-        return pos.getCenter();
+        return net.minecraft.world.phys.Vec3.atCenterOf(pos);
     }
 
     @Override

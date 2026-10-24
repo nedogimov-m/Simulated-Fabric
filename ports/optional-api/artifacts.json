@@ -1,0 +1,39 @@
+{
+  "minecraft": "26.3",
+  "artifacts": [
+    {
+      "file": "jei-26.3-common-api-31.16.0.87.jar",
+      "url": "https://maven.blamejared.com/mezz/jei/jei-26.3-common-api/31.16.0.87/jei-26.3-common-api-31.16.0.87.jar",
+      "role": "compile-only",
+      "sha256": "0679856dbdd2fedb90610d5058e4543333a26bd374205cacfd2d70a1bbced8c0"
+    },
+    {
+      "file": "jei-26.3-fabric-api-31.16.0.87.jar",
+      "url": "https://maven.blamejared.com/mezz/jei/jei-26.3-fabric-api/31.16.0.87/jei-26.3-fabric-api-31.16.0.87.jar",
+      "role": "compile-only",
+      "sha256": "e095ee3cf6d53434f82578f32f752ebf187e6522a1377efdde9d6c7aac838d08"
+    },
+    {
+      "file": "NaturesCompass-26.3-2.5.1-fabric.jar",
+      "url": "https://cdn.modrinth.com/data/fPetb5Kh/versions/pHan4UQ9/NaturesCompass-26.3-2.5.1-fabric.jar",
+      "role": "compile-only",
+      "modrinth_version_id": "pHan4UQ9",
+      "published_sha512": "3a6801d74a0427cb4a041b2bc15068e76858ecb0a4aaa221675b40eb2e26b3e20a25dfc00320802af33a0f9cc06e95dfd4b61805452aa33408056f94f664c475",
+      "sha256": "ea2ec4407489fea9662759c1693ca911ed3f6cdf7b558102e6ecbe77d4c97618"
+    },
+    {
+      "file": "ExplorersCompass-26.3-2.5.2-fabric.jar",
+      "url": "https://cdn.modrinth.com/data/RV1qfVQ8/versions/69AbLioc/ExplorersCompass-26.3-2.5.2-fabric.jar",
+      "role": "compile-only",
+      "modrinth_version_id": "69AbLioc",
+      "published_sha512": "83e7b4217fee0eda42bf91ced65ea66135846a03e6cfc353067ccbbfab279e967d3c59887de286c90742d3ed95946398e4362d506092a34d0d99b39b502b6428",
+      "sha256": "0524c71d3da36a249d8cf01745e2c60ebb5b7005515879f9efde9a329b9287cb"
+    },
+    {
+      "file": "jei-26.3-fabric-31.16.0.87.jar",
+      "url": "https://maven.blamejared.com/mezz/jei/jei-26.3-fabric/31.16.0.87/jei-26.3-fabric-31.16.0.87.jar",
+      "role": "plugin-discovery-bytecode-inspection-only",
+      "sha256": "8f6ba3513744af54c4ea8b0b2d10d7e0e0e8820f5cd1b69104c955f0b36a1b10"
+    }
+  ]
+}

@@ -1,15 +1,15 @@
 package dev.simulated_team.simulated.content.blocks.velocity_sensor;
 
 import dev.simulated_team.simulated.index.SimBlockShapes;
-import net.createmod.catnip.math.VoxelShaper;
+import dev.simulated_team.simulated.fabric.block.NativeShapeSet;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.Arrays;
 
-public class VelocitySensorShaper extends VoxelShaper {
-    private VoxelShaper axisFalse, axisTrue;
+public class VelocitySensorShaper extends NativeShapeSet {
+    private NativeShapeSet axisFalse, axisTrue;
 
     static VelocitySensorShaper make() {
         final VelocitySensorShaper shaper = new VelocitySensorShaper();

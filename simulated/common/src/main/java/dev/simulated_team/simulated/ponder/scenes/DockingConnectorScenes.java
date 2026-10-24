@@ -4,7 +4,6 @@ import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.fluids.drain.ItemDrainBlockEntity;
 import com.simibubi.create.content.fluids.tank.FluidTankBlockEntity;
 import com.simibubi.create.content.processing.basin.BasinBlockEntity;
-import com.simibubi.create.foundation.blockEntity.behaviour.fluid.SmartFluidTankBehaviour;
 import com.simibubi.create.foundation.ponder.CreateSceneBuilder;
 import dev.simulated_team.simulated.ponder.SceneScheduler;
 import dev.simulated_team.simulated.ponder.SmoothMovementUtils;
@@ -21,10 +20,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.common.NeoForgeMod;
-import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import com.simibubi.create.foundation.fluid.FluidStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -86,7 +82,7 @@ public class DockingConnectorScenes {
                 .text("Docking Connectors can create rigid connections in pairs");
         scene.idle(70);
         world.toggleRedstonePower(select.fromTo(connector1.below().north(),connector1));
-        effects.indicateRedstone(new BlockPos(connector1.below().north()));
+        effects.indicateRedstone(connector1.below().north());
         scene.idle(15);
         world.toggleRedstonePower(select.fromTo(connector2,connector2.west()));
         effects.indicateRedstone(new BlockPos(3,3,8));
@@ -157,7 +153,7 @@ public class DockingConnectorScenes {
         world.showSection(mainBeltSelection,Direction.DOWN);
 
         scene.world().modifyBlockEntity(new BlockPos(11,1,4), FluidTankBlockEntity.class, be -> be.getTankInventory()
-                .fill(new FluidStack(Fluids.LAVA,12000), IFluidHandler.FluidAction.EXECUTE));
+                .fill(new FluidStack(net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant.of(Fluids.LAVA),12*net.fabricmc.fabric.api.transfer.v1.fluid.FluidConstants.BUCKET)));
         scene.idle(10);
 
         BlockPos entryBeltCart = new BlockPos(3,2,4);
@@ -225,7 +221,7 @@ public class DockingConnectorScenes {
         scene.addInstruction(new ToggleConnectorLockInstruction(connector2,false));
         scene.idle(20);
         overlay.showText(70)
-                .pointAt(connector2.getCenter())
+                .pointAt(net.minecraft.world.phys.Vec3.atCenterOf(connector2))
                 .attachKeyFrame()
                 .placeNearTarget()
                 .text("Either Connector can be retracted to undock");
@@ -245,7 +241,7 @@ public class DockingConnectorScenes {
         effects.indicateRedstone(new BlockPos(10,3,5));
         scene.idle(10);
         overlay.showText(80)
-                .pointAt(new BlockPos(9,3,5).getCenter())
+                .pointAt(net.minecraft.world.phys.Vec3.atCenterOf(new BlockPos(9,3,5)))
                 .attachKeyFrame()
                 .placeNearTarget()
                 .text("Redstone Comparators can be used to read the Docking progress");

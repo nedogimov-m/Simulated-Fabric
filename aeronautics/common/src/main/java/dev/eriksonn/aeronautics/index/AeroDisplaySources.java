@@ -1,18 +1,12 @@
 package dev.eriksonn.aeronautics.index;
 
-import com.simibubi.create.api.behaviour.display.DisplaySource;
-import com.tterrag.registrate.util.entry.RegistryEntry;
-import dev.eriksonn.aeronautics.Aeronautics;
+import com.simibubi.create.api.registry.CreateBuiltInRegistries;
 import dev.eriksonn.aeronautics.content.display_sources.GasDisplaySource;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.Identifier;
 
-import java.util.function.Supplier;
-
-public class AeroDisplaySources {
-
-    public static final RegistryEntry<DisplaySource, GasDisplaySource> GAS_DISPLAY = simple("gas_display", GasDisplaySource::new);
-
-    private static <T extends DisplaySource> RegistryEntry<DisplaySource, T> simple(final String name, final Supplier<T> supplier) {
-        return Aeronautics.getRegistrate().displaySource(name, supplier).register();
-    }
-
+public final class AeroDisplaySources {
+    public static final GasDisplaySource GAS_DISPLAY = Registry.register(CreateBuiltInRegistries.DISPLAY_SOURCE,
+            Identifier.fromNamespaceAndPath("aeronautics", "gas_display"), new GasDisplaySource());
+    private AeroDisplaySources() {}
 }

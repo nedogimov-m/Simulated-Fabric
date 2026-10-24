@@ -2,7 +2,7 @@ package dev.simulated_team.simulated.content.blocks.rope.rope_winch;
 
 import com.simibubi.create.api.contraption.BlockMovementChecks;
 import com.simibubi.create.content.kinetics.base.DirectionalAxisKineticBlock;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import com.simibubi.create.impl.contraption.BlockMovementChecksImpl;
 import dev.ryanhcode.sable.api.block.BlockSubLevelAssemblyListener;
 import dev.ryanhcode.sable.api.block.BlockSubLevelCollisionShape;
@@ -15,7 +15,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -27,7 +27,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class RopeWinchBlock extends DirectionalAxisKineticBlock implements IBE<RopeWinchBlockEntity>, RopeHolderBlock<RopeWinchBlockEntity>, BlockSubLevelAssemblyListener, BlockSubLevelCollisionShape {
+public class RopeWinchBlock extends DirectionalAxisKineticBlock implements NativeEntityBlock<RopeWinchBlockEntity>, RopeHolderBlock<RopeWinchBlockEntity>, BlockSubLevelAssemblyListener, BlockSubLevelCollisionShape {
     private static final DirectionalAxisShaper ROPE_WINCH = DirectionalAxisShaper.make(SimBlockShapes.ROPE_WINCH);
     private static final DirectionalAxisShaper PHYSICS_COLLIDER = DirectionalAxisShaper.make(SimBlockShapes.ROPE_CONNECTOR_COLLIDER);
 
@@ -53,7 +53,7 @@ public class RopeWinchBlock extends DirectionalAxisKineticBlock implements IBE<R
 
     @Override
     public BlockEntityType<? extends RopeWinchBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.ROPE_WINCH.get();
+        return SimBlockEntityTypes.ROPE_WINCH;
     }
 
     @Override
@@ -78,7 +78,7 @@ public class RopeWinchBlock extends DirectionalAxisKineticBlock implements IBE<R
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
+    protected InteractionResult useItemOn(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
         if (!level.isClientSide() && stack.is(SimTags.Items.DESTROYS_ROPE)) {
             return RopeHolderBlock.shearRope(this, level, pos, (ServerPlayer) player);
         }
@@ -89,5 +89,17 @@ public class RopeWinchBlock extends DirectionalAxisKineticBlock implements IBE<R
     @Override
     public VoxelShape getSubLevelCollisionShape(final BlockGetter blockGetter, final BlockState state) {
         return PHYSICS_COLLIDER.get(state.getValue(FACING), state.getValue(AXIS_ALONG_FIRST_COORDINATE));
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

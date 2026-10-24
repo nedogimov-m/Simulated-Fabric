@@ -1,11 +1,26 @@
 package dev.eriksonn.aeronautics.index;
 
-import dev.engine_room.flywheel.lib.model.baked.PartialModel;
-import dev.eriksonn.aeronautics.Aeronautics;
+import net.fabricmc.fabric.api.client.model.loading.v1.ExtraModelKey;
+import net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin;
+import net.fabricmc.fabric.api.client.model.loading.v1.SimpleUnbakedExtraModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
+import net.minecraft.resources.Identifier;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class AeroPartialModels {
+    private static final Map<Identifier, ExtraModelKey<BlockStateModel>> MODELS = new LinkedHashMap<>();
+    private static boolean initialized;
+    private static ExtraModelKey<BlockStateModel> model(String path) {
+        final var id = Identifier.fromNamespaceAndPath("aeronautics", path);
+        final var key = ExtraModelKey.<BlockStateModel>create(id::toString);
+        if (MODELS.putIfAbsent(id, key) != null) throw new IllegalStateException("Duplicate partial model " + id);
+        return key;
+    }
+    public static Map<Identifier, ExtraModelKey<BlockStateModel>> allModels() { return Map.copyOf(MODELS); }
 
-	public static final PartialModel
+
+	public static final ExtraModelKey<BlockStateModel>
 			STEAM_VENT_REDSTONE = block("steam_vent/redstone"),
 			STEAM_VENT_BASE = block("steam_vent/steam_base"),
 			STEAM_VENT_JET = block("steam_vent/steam_jet"),
@@ -25,16 +40,20 @@ public class AeroPartialModels {
 			SMART_PROPELLER_REVERSED = block("smart_propeller/propeller_reversed"),
 			SMART_PROPELLER_HINGE = block("smart_propeller/hinge");
 
-	private static PartialModel block(final String path) {
-		return PartialModel.of(Aeronautics.path("block/" + path));
+	private static ExtraModelKey<BlockStateModel> block(final String path) {
+		return model("block/" + path);
 	}
-	private static PartialModel entity(final String path) {
-		return PartialModel.of(Aeronautics.path("entity/" + path));
+	private static ExtraModelKey<BlockStateModel> entity(final String path) {
+		return model("entity/" + path);
 	}
-	private static PartialModel item(final String path) {
-		return PartialModel.of(Aeronautics.path("item/" + path));
+	private static ExtraModelKey<BlockStateModel> item(final String path) {
+		return model("item/" + path);
 	}
 
-	public static void init() {
-	}
+    public static void init() {
+        if (initialized) return;
+        ModelLoadingPlugin.register(context -> MODELS.forEach((id, key) ->
+                context.addModel(key, SimpleUnbakedExtraModel.blockStateModel(id))));
+        initialized = true;
+    }
 }

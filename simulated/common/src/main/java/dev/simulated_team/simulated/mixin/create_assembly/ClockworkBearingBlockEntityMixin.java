@@ -7,10 +7,16 @@ import org.spongepowered.asm.mixin.Shadow;
 
 @Mixin(value = ClockworkBearingBlockEntity.class, remap = false)
 public abstract class ClockworkBearingBlockEntityMixin implements IControlContraptionExtension  {
-    @Shadow public abstract void disassemble();
+    @Shadow public abstract boolean disassemble();
 
     @Override
-    public void sable$disassemble() {
-        this.disassemble();
+    public boolean sable$disassemble() {
+        return this.disassemble();
+    }
+
+    @Override
+    public com.simibubi.create.content.contraptions.StructureTransform sable$restorationTransform(com.simibubi.create.content.contraptions.ControlledContraptionEntity entity) {
+        // The native clock restores both hands at zero angle, independently of their displayed pose.
+        return new com.simibubi.create.content.contraptions.StructureTransform(entity.blockPosition(), 0, 0, 0);
     }
 }

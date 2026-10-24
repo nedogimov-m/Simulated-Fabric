@@ -2,8 +2,8 @@ package dev.simulated_team.simulated.content.blocks.throttle_lever;
 
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.AllItems;
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.index.SimBlockShapes;
 import dev.simulated_team.simulated.index.SimClickInteractions;
@@ -32,8 +32,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
-public class ThrottleLeverBlock extends FaceAttachedHorizontalDirectionalBlock implements IBE<ThrottleLeverBlockEntity>, IWrenchable, CommonRedstoneBlock {
-    public static MapCodec<ThrottleLeverBlock> CODEC = simpleCodec(ThrottleLeverBlock::new);
+public class ThrottleLeverBlock extends FaceAttachedHorizontalDirectionalBlock implements NativeEntityBlock<ThrottleLeverBlockEntity>, NativeWrenchable, CommonRedstoneBlock {
     public static BooleanProperty INVERTED = BooleanProperty.create("inverted");
 
     public ThrottleLeverBlock(final Properties builder) {
@@ -51,7 +50,7 @@ public class ThrottleLeverBlock extends FaceAttachedHorizontalDirectionalBlock i
                 (double) pos.getY() + 0.5D + 0.1D * (double) direction.getStepY() + 0.2D * (double) direction1.getStepY();
         final double d2 =
                 (double) pos.getZ() + 0.5D + 0.1D * (double) direction.getStepZ() + 0.2D * (double) direction1.getStepZ();
-        level.addParticle(new DustParticleOptions(new Vector3f(1.0F, 0.0F, 0.0F), alpha), d0, d1, d2, 0.0D, 0.0D,
+        level.addParticle(new DustParticleOptions(0xff0000, alpha), d0, d1, d2, 0.0D, 0.0D,
                 0.0D);
     }
 
@@ -61,17 +60,20 @@ public class ThrottleLeverBlock extends FaceAttachedHorizontalDirectionalBlock i
     }
 
     @Override
-    protected MapCodec<? extends FaceAttachedHorizontalDirectionalBlock> codec() {
-        return CODEC;
+    protected void affectNeighborsAfterRemoval(final BlockState state, final net.minecraft.server.level.ServerLevel level,
+                                              final BlockPos pos, final boolean isMoving) {
+        if (!isMoving) updateNeighbors(state, level, pos);
+        super.affectNeighborsAfterRemoval(state, level, pos, isMoving);
     }
+
 
     @Override
     protected InteractionResult useWithoutItem(final BlockState state, final Level level, final BlockPos pos, final Player player, final BlockHitResult hitResult) {
-        if (AllItems.WRENCH.isIn(player.getMainHandItem())) {
+        if (player.getMainHandItem().is(AllItems.WRENCH)) {
             return InteractionResult.PASS;
         }
 
-        if (level.isClientSide && player.isLocalPlayer()) {
+        if (level.isClientSide() && player.isLocalPlayer()) {
             addParticles(state, level, pos, 1.0F);
             return this.onBlockEntityUse(level, pos, be -> {
                 if (!SimClickInteractions.THROTTLE_LEVER_MANAGER.isActive()) {
@@ -93,7 +95,7 @@ public class ThrottleLeverBlock extends FaceAttachedHorizontalDirectionalBlock i
     @Override
     public InteractionResult onWrenched(final BlockState state, final UseOnContext context) {
         final Level level = context.getLevel();
-        if (level.isClientSide)
+        if (level.isClientSide())
             return InteractionResult.SUCCESS;
         final BlockPos pos = context.getClickedPos();
         final int signal = this.getSignal(state, level, pos, context.getClickedFace());
@@ -130,17 +132,6 @@ public class ThrottleLeverBlock extends FaceAttachedHorizontalDirectionalBlock i
         });
     }
 
-    @Override
-    public void onRemove(final BlockState state, final Level level, final BlockPos pos, final BlockState newState, final boolean isMoving) {
-        if (isMoving || state.getBlock() == newState.getBlock())
-            return;
-        this.withBlockEntityDo(level, pos, be -> {
-            if (be.state != 0)
-                updateNeighbors(state, level, pos);
-            level.removeBlockEntity(pos);
-        });
-    }
-
     @SuppressWarnings("deprecation")
     @Override
     public VoxelShape getShape(final BlockState state, final BlockGetter level, final BlockPos pos, final CollisionContext context) {
@@ -167,11 +158,23 @@ public class ThrottleLeverBlock extends FaceAttachedHorizontalDirectionalBlock i
 
     @Override
     public BlockEntityType<? extends ThrottleLeverBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.THROTTLE_LEVER.get();
+        return SimBlockEntityTypes.THROTTLE_LEVER;
     }
 
     @Override
     protected boolean isPathfindable(final BlockState blockState, final PathComputationType pathComputationType) {
         return false;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

@@ -1,8 +1,8 @@
 package dev.simulated_team.simulated.config.server.blocks;
 
-import net.createmod.catnip.config.ConfigBase;
+import com.simibubi.create.infrastructure.config.NativeConfigBase;
 
-public class SimAssembly extends ConfigBase {
+public class SimAssembly extends NativeConfigBase {
 
     public final ConfigInt maxBlocksMoved = this.i(128_000, 1, "maxBlocksMoved", Comments.maxBlocksMoved);
     public final ConfigInt honeyGlueRange = this.i(48, 1, Integer.MAX_VALUE,"honeyGlueRange",Comments.honeyGlueRange);

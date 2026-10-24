@@ -4,6 +4,8 @@ import com.simibubi.create.content.contraptions.Contraption;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
@@ -203,11 +205,11 @@ public class BearingSlowdownController {
     }
 
     public void deserializeFromNBT(final CompoundTag nbt) {
-        this.countdown = nbt.getFloat("CurrentTime");
-        this.maxTime = nbt.getFloat("DisassemblyTimerTotal");
-        this.symmetry = ContraptionSymmetry.values()[nbt.getInt("Symmetry")];
-        this.initialAngle = nbt.getFloat("InitialSlowdownAngle");
-        this.initialVelocity = nbt.getFloat("InitialSlowdownVelocity");
+        this.countdown = nbt.getFloatOr("CurrentTime", 0f);
+        this.maxTime = nbt.getFloatOr("DisassemblyTimerTotal", 0f);
+        this.symmetry = ContraptionSymmetry.values()[nbt.getIntOr("Symmetry", 0)];
+        this.initialAngle = nbt.getFloatOr("InitialSlowdownAngle", 0f);
+        this.initialVelocity = nbt.getFloatOr("InitialSlowdownVelocity", 0f);
         this.generateConstants();
         this.applyVelocityClamping();
     }
@@ -218,6 +220,24 @@ public class BearingSlowdownController {
         nbt.putInt("Symmetry", this.symmetry.ordinal());
         nbt.putFloat("InitialSlowdownAngle", this.initialAngle);
         nbt.putFloat("InitialSlowdownVelocity", this.getInitialVelocity());
+    }
+
+    public void readNative(final ValueInput input) {
+        this.countdown = input.getFloatOr("CurrentTime", 0f);
+        this.maxTime = input.getFloatOr("DisassemblyTimerTotal", 0f);
+        this.symmetry = ContraptionSymmetry.values()[Math.clamp(input.getIntOr("Symmetry", 0), 0, ContraptionSymmetry.values().length - 1)];
+        this.initialAngle = input.getFloatOr("InitialSlowdownAngle", 0f);
+        this.initialVelocity = input.getFloatOr("InitialSlowdownVelocity", 0f);
+        this.generateConstants();
+        this.applyVelocityClamping();
+    }
+
+    public void writeNative(final ValueOutput output) {
+        output.putFloat("CurrentTime", this.countdown);
+        output.putFloat("DisassemblyTimerTotal", this.getMaxTime());
+        output.putInt("Symmetry", this.symmetry.ordinal());
+        output.putFloat("InitialSlowdownAngle", this.initialAngle);
+        output.putFloat("InitialSlowdownVelocity", this.getInitialVelocity());
     }
 
     public float getMaxTime() {

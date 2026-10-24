@@ -31,7 +31,11 @@ import net.createmod.catnip.lang.FontHelper;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import dev.simulated_team.simulated.api.NativeBearingStructureProvider;
+import dev.simulated_team.simulated.mixin.accessor.NativeMechanicalBearingAccessor;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -48,14 +52,16 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
 
-import javax.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity implements MultiMiningSupplier {
+public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity implements MultiMiningSupplier, NativeBearingStructureProvider {
+
+    private NativeMechanicalBearingAccessor nativeState() { return (NativeMechanicalBearingAccessor) (Object) this; }
 
     private static final Vector3dc IMMUT_ZERO = new Vector3d();
 
@@ -98,13 +104,13 @@ public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity imp
 
     public BoreheadBearingBlockEntity(final BlockEntityType<?> type, final BlockPos pos, final BlockState state) {
         super(type, pos, state);
+        this.setMovementMode(RotationMode.ROTATE_NEVER_PLACE);
     }
 
     @Override
     public void addBehaviours(final List<BlockEntityBehaviour> behaviours) {
         super.addBehaviours(behaviours);
-        this.movementMode.setValue(2);
-        behaviours.remove(this.movementMode);
+
     }
 
     @Override
@@ -130,27 +136,24 @@ public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity imp
 
         if (this.isVirtual()) {
             final float angularSpeed = this.getAngularSpeed();
-            final float newAngle = this.angle + angularSpeed;
-            this.angle = newAngle % 360;
+            final float newAngle = nativeState().simulated$getNativeAngle() + angularSpeed;
+            this.setAngle(newAngle % 360);
             return;
         }
 
-        if (this.movedContraption != null && !this.movedContraption.isAlive()) {
-            this.movedContraption = null;
-        }
 
-        if (!this.level.isClientSide) {
+        if (!this.level.isClientSide()) {
             this.visitedPositions.clear();
         }
 
-        if (this.movedContraption == null) {
-            this.angle = 0;
+        if (this.getMovedContraption() == null) {
+            this.setAngle(0);
             this.setRotationSpeed(0);
             this.disassemblySlowdown = false;
             return;
         }
 
-        if (!this.level.isClientSide) {
+        if (!this.level.isClientSide()) {
             this.updateMiningBlocks();
         }
     }
@@ -280,13 +283,13 @@ public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity imp
         assert this.level != null;
 
         if (this.isSlowingDown()) {
-            if (this.slowdownController.stepGoal() && !this.level.isClientSide) {
+            if (this.slowdownController.stepGoal() && !this.level.isClientSide()) {
                 this.disassemble();
                 return;
             }
 
             this.setRotationSpeed(this.slowdownController.getSpeed(0));
-            this.angle = this.slowdownController.getAngle(0);
+            this.setAngle(this.slowdownController.getAngle(0));
         } else {
             float targetSpeed;
             if (this.isVirtual()) {
@@ -318,7 +321,7 @@ public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity imp
 
     private int getRockCuttingAmount(final int minimumRockcuttingWheelAmount) {
         assert this.level != null;
-        int rockCuttingWheelAmount = this.level.isClientSide ? this.clientRockCutters : this.centerMiningPositions.size();
+        int rockCuttingWheelAmount = this.level.isClientSide() ? this.clientRockCutters : this.centerMiningPositions.size();
 
         if (minimumRockcuttingWheelAmount > 0) {
             rockCuttingWheelAmount = Math.max(rockCuttingWheelAmount, minimumRockcuttingWheelAmount);
@@ -335,7 +338,7 @@ public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity imp
 
         if (this.isVirtual()) {
             final float angSpeed = this.getAngularSpeed();
-            return Mth.lerp(partialTicks, this.angle, this.angle + angSpeed);
+            return Mth.lerp(partialTicks, nativeState().simulated$getNativeAngle(), nativeState().simulated$getNativeAngle() + angSpeed);
         }
 
         return super.getInterpolatedAngle(partialTicks);
@@ -347,9 +350,9 @@ public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity imp
         if (this.insideMainTick && this.disassemblySlowdown) {
             float slowDownSpeed = this.slowdownController.getSpeed(1);
 
-            if (this.level.isClientSide) {
+            if (this.level.isClientSide()) {
                 slowDownSpeed *= ServerSpeedProvider.get();
-                slowDownSpeed += this.clientAngleDiff / 3f;
+                slowDownSpeed += nativeState().simulated$getClientAngleDiff() / 3f;
             }
 
             return slowDownSpeed;
@@ -366,7 +369,7 @@ public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity imp
     }
 
     public BoreheadContraptionEntity getContraptionEntity() {
-        if (this.movedContraption instanceof final BoreheadContraptionEntity bce) {
+        if (this.getMovedContraption() instanceof final BoreheadContraptionEntity bce) {
             return bce;
         }
 
@@ -375,7 +378,7 @@ public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity imp
 
     @Nullable
     public InventoryLoaderWrapper getContraptionWrappedInventory() {
-        if (this.movedContraption instanceof final BoreheadContraptionEntity bce) {
+        if (this.getMovedContraption() instanceof final BoreheadContraptionEntity bce) {
             return bce.getContraption().getSimWrappedStorage();
         }
 
@@ -383,88 +386,49 @@ public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity imp
     }
 
     public void setAssembleNextTick(final boolean assembleNextTick) {
-        this.assembleNextTick = assembleNextTick;
+        nativeState().simulated$setAssemblyRequested(assembleNextTick);
     }
 
     /**
      * most of this is copied from the bearing block...
      */
     @Override
-    public void assemble() {
-        if (!(this.level.getBlockState(this.worldPosition).getBlock() instanceof BoreheadBearingBlock)) {
-            return;
-        }
+    public BearingContraption simulated$createBearingStructure(boolean windmill, Direction facing) {
+        return new BoreheadBearingContraption(facing);
+    }
 
-        final Direction direction = this.getBlockState().getValue(BlockStateProperties.FACING);
-        final BoreheadBearingContraption contraption = new BoreheadBearingContraption(direction);
+    @Override
+    protected ControlledContraptionEntity createReservation(ServerLevel level, BearingContraption structure) {
+        return new BoreheadContraptionEntity(dev.ryanhcode.offroad.index.OffroadEntityTypes.BOREHEAD_CONTRAPTION_ENTITY, level);
+    }
 
-        try {
-            if (!contraption.assemble(this.level, this.worldPosition)) {
-                return;
-            }
-
-            this.lastException = null;
-        } catch (final AssemblyException e) {
-            this.lastException = e;
-            this.sendData();
-            return;
-        }
-
-        contraption.removeBlocksFromWorld(this.level, BlockPos.ZERO);
-        this.movedContraption = BoreheadContraptionEntity.create(this.level, this, contraption);
-        final BlockPos anchor = this.worldPosition.relative(direction);
-        this.movedContraption.setPos(anchor.getX(), anchor.getY(), anchor.getZ());
-        this.movedContraption.setRotationAxis(direction.getAxis());
-        this.level.addFreshEntity(this.movedContraption);
-
-        this.running = true;
-        this.angle = 0;
-
+    @Override
+    protected void onAssemblyComplete() {
+        super.onAssemblyComplete();
         this.setRotationSpeed(0);
         this.initializeContraption();
         this.updateGeneratedRotation();
-
         this.sendData();
     }
 
     @Override
     public void attach(final ControlledContraptionEntity contraption) {
-        assert this.level != null;
-
-        // copied from mechanical bearing super class, changed to account for specifically BlockStateProperties.FACING
-        final BlockState blockState = this.getBlockState();
-
-        if (!(contraption.getContraption() instanceof BearingContraption))
-            return;
-
-        if (!blockState.hasProperty(BlockStateProperties.FACING))
-            return;
-
-        this.movedContraption = contraption;
-        this.setChanged();
-        final BlockPos anchor = this.worldPosition.relative(blockState.getValue(BlockStateProperties.FACING));
-        this.movedContraption.setPos(anchor.getX(), anchor.getY(), anchor.getZ());
-        if (!this.level.isClientSide) {
-            this.running = true;
-            this.sendData();
-        }
-
-
-        this.initializeContraption();
+        super.attach(contraption);
+        if (this.getMovedContraption() == contraption) this.initializeContraption();
     }
 
     public void initializeContraption() {
         assert this.level != null;
 
-        if (!this.level.isClientSide && this.movedContraption instanceof final BoreheadContraptionEntity bce) {
+        if (!this.level.isClientSide() && this.getMovedContraption() instanceof final BoreheadContraptionEntity bce) {
             ((BoreheadAttachedStorage) bce.getContraption().getStorage())
                     .attachBlockEntity(this);
         }
 
-        if (!this.initialized && this.movedContraption != null && !this.level.isClientSide) {
+        if (!this.initialized && this.getMovedContraption() != null && !this.level.isClientSide()) {
             this.resetCenterMiningInfo();
 
-            final Map<BlockPos, StructureTemplate.StructureBlockInfo> blocks = this.movedContraption.getContraption().getBlocks();
+            final Map<BlockPos, StructureTemplate.StructureBlockInfo> blocks = this.getMovedContraption().getContraption().getBlocks();
 
             for (final Map.Entry<BlockPos, StructureTemplate.StructureBlockInfo> set : blocks.entrySet()) {
                 if (set.getValue().state().getBlock() instanceof RockCuttingWheelBlock) {
@@ -479,25 +443,19 @@ public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity imp
     }
 
     @Override
-    public void disassemble() {
-        this.assembleNextTick = false;
-
-        if (this.running && this.movedContraption != null) {
-            this.angle = 0;
-            this.applyRotation();
-            super.disassemble();
-        }
-
+    public boolean disassemble() {
+        nativeState().simulated$setAssemblyRequested(false);
+        final float previous = nativeState().simulated$getNativeAngle();
+        this.setAngle(0);
+        if (!super.disassemble()) { this.setAngle(previous); return false; }
         this.resetCenterMiningInfo();
         this.initialized = false;
+        this.disassemblySlowdown = false;
         this.setStalled(false);
-
         final KineticNetwork network = this.getOrCreateNetwork();
-        if (network != null) {
-            network.updateStressFor(this, this.calculateStressApplied());
-        }
-
+        if (network != null) network.updateStressFor(this, this.calculateStressApplied());
         this.sendData();
+        return true;
     }
 
     private void resetCenterMiningInfo() {
@@ -508,7 +466,7 @@ public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity imp
     }
 
     public void startDisassemblySlowdown() {
-        if (!this.isSlowingDown() && this.movedContraption != null) {
+        if (!this.isSlowingDown() && this.getMovedContraption() != null) {
             final int rockCuttingAmount = this.getRockCuttingAmount(12);
 
             this.slowdownController.generate(1 + BearingSlowdownController.TIMER_SCALE * (rockCuttingAmount * rockCuttingAmount),
@@ -552,85 +510,60 @@ public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity imp
     }
 
     @Override
-    public void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(compound, registries, clientPacket);
+    public void write(final ValueOutput compound, final boolean clientPacket) {
+        super.write(compound, clientPacket);
         compound.putFloat("RotationSpeed", this.getRotationSpeed());
-        if (clientPacket) {
-            compound.putInt("BlockBreakingAmount", this.visitedPositions.size());
-        }
-
+        if (clientPacket) compound.putInt("BlockBreakingAmount", this.visitedPositions.size());
         compound.putBoolean("DisassemblySlowdown", this.disassemblySlowdown);
-        if (this.disassemblySlowdown) {
-            this.slowdownController.serializeIntoNBT(compound);
-        }
-
+        if (this.disassemblySlowdown) this.slowdownController.writeNative(compound);
         compound.putBoolean("ContraptionInitialized", this.initialized);
         compound.putBoolean("Stalled", this.stalled);
         compound.putInt("StalledRecoveryTimer", this.stalledRecoveryTimer);
-
         if (this.initialized) {
-            if (clientPacket) {
-                compound.putInt("ClientRockCutterAmount", this.centerMiningPositions.size());
-            } else {
+            if (clientPacket) compound.putInt("ClientRockCutterAmount", this.centerMiningPositions.size());
+            else {
                 compound.putInt("OriginPositionSize", this.centerMiningPositions.size());
-
-                final ListTag originListTag = new ListTag();
-                for (final Vector3d originPos : this.centerMiningPositions) {
-                    final CompoundTag originCompoundTag = new CompoundTag();
-                    originCompoundTag.putDouble("x", originPos.x);
-                    originCompoundTag.putDouble("y", originPos.y);
-                    originCompoundTag.putDouble("z", originPos.z);
-                    originCompoundTag.putInt("indexPosition", this.centerMiningPositions.indexOf(originPos));
-                    originListTag.add(originCompoundTag);
+                final var positions = compound.childrenList("OriginPositions");
+                for (int index = 0; index < this.centerMiningPositions.size(); index++) {
+                    final var source = this.centerMiningPositions.get(index);
+                    final var position = positions.addChild();
+                    position.putDouble("x", source.x); position.putDouble("y", source.y); position.putDouble("z", source.z);
+                    position.putInt("indexPosition", index);
                 }
-
-                compound.put("OriginPositions", originListTag);
                 compound.putInt("NextAvailableIndex", this.nextAvailableIndex);
             }
         }
     }
 
     @Override
-    protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(compound, registries, clientPacket);
-        this.setRotationSpeed(compound.getFloat("RotationSpeed"));
-
-        this.disassemblySlowdown = compound.getBoolean("DisassemblySlowdown");
-        if (this.disassemblySlowdown) {
-            this.slowdownController.deserializeFromNBT(compound);
-        }
-
-        this.initialized = compound.getBoolean("ContraptionInitialized");
-        this.setStalled(compound.getBoolean("Stalled"));
-        this.stalledRecoveryTimer = compound.getInt("StalledRecoveryTimer");
+    protected void read(final ValueInput compound, final boolean clientPacket) {
+        super.read(compound, clientPacket);
+        this.setMovementMode(RotationMode.ROTATE_NEVER_PLACE);
+        this.setRotationSpeed(compound.getFloatOr("RotationSpeed", 0));
+        this.disassemblySlowdown = compound.getBooleanOr("DisassemblySlowdown", false);
+        if (this.disassemblySlowdown) this.slowdownController.readNative(compound);
+        this.initialized = compound.getBooleanOr("ContraptionInitialized", false);
+        this.setStalled(compound.getBooleanOr("Stalled", false));
+        this.stalledRecoveryTimer = compound.getIntOr("StalledRecoveryTimer", 0);
+        if (!clientPacket) this.centerMiningPositions.clear();
         if (this.initialized) {
-            if (clientPacket) {
-                this.clientRockCutters = compound.getInt("ClientRockCutterAmount");
-            } else {
-                for (int i = 0; i < compound.getInt("OriginPositionSize"); i++) {
-                    this.centerMiningPositions.add(new Vector3d()); //populate the correct number of entries
+            if (clientPacket) this.clientRockCutters = compound.getIntOr("ClientRockCutterAmount", 0);
+            else {
+                final int size = Math.max(0, compound.getIntOr("OriginPositionSize", 0));
+                for (int index = 0; index < size; index++) this.centerMiningPositions.add(new Vector3d());
+                for (var position : compound.childrenListOrEmpty("OriginPositions")) {
+                    final int index = position.getIntOr("indexPosition", -1);
+                    if (index >= 0 && index < size) this.centerMiningPositions.get(index).set(
+                            position.getDoubleOr("x", 0), position.getDoubleOr("y", 0), position.getDoubleOr("z", 0));
                 }
-
-                final ListTag originTagList = compound.getList("OriginPositions", CompoundTag.TAG_COMPOUND);
-                for (final Tag tag : originTagList) {
-                    final CompoundTag originCompoundTag = (CompoundTag) tag;
-                    final int indexPos = originCompoundTag.getInt("indexPosition");
-                    final Vector3d originPos = this.centerMiningPositions.get(indexPos);
-                    originPos.set(
-                            originCompoundTag.getDouble("x"),
-                            originCompoundTag.getDouble("y"),
-                            originCompoundTag.getDouble("z")
-                    );
-                }
-
-                this.nextAvailableIndex = compound.getInt("NextAvailableIndex");
+                this.nextAvailableIndex = compound.getIntOr("NextAvailableIndex", 0);
             }
         }
     }
 
     @Override
     public BoreheadContraptionEntity getMovedContraption() {
-        return (BoreheadContraptionEntity) this.movedContraption;
+        return (BoreheadContraptionEntity) super.getMovedContraption();
     }
 
     public float handleAxisModification(final Direction direction) {
@@ -649,8 +582,15 @@ public class BoreheadBearingBlockEntity extends MechanicalBearingBlockEntity imp
     }
 
     @Override
+    public boolean addToGoggleTooltip(List<Component> tooltip, boolean sneaking) {
+        final boolean kinetic = super.addToGoggleTooltip(tooltip, sneaking);
+        return this.addExceptionToTooltip(tooltip) || kinetic;
+    }
+
     public boolean addExceptionToTooltip(final List<Component> tooltip) {
-        final boolean original = super.addExceptionToTooltip(tooltip);
+        final var assembly = this.getLastAssemblyException();
+        final boolean original = assembly != null;
+        if (original) tooltip.add(assembly.component.copy().withStyle(ChatFormatting.RED));
 
         if (!original && this.isStalled()) {
             if (!tooltip.isEmpty()) {

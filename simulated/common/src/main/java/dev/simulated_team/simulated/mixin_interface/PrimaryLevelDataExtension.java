@@ -1,10 +1,8 @@
 package dev.simulated_team.simulated.mixin_interface;
 
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.dimension.end.EndDragonFight;
+import net.minecraft.resources.Identifier;
 
 public interface PrimaryLevelDataExtension {
-	ResourceLocation getPreset();
-	void setPreset(ResourceLocation resourceLocation);
-	void setEndDragonFight(EndDragonFight.Data endDragonFight);
+	Identifier getPreset();
+	void setPreset(Identifier resourceLocation);
 }

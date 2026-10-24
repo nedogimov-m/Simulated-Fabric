@@ -49,12 +49,12 @@ public record PlaceSpringPacket(BlockPos parentPos, BlockPos childPos, Direction
         final BlockPos parentRelative = this.parentPos().relative(this.parentFacing);
         final BlockPos childRelative = this.childPos().relative(this.childFacing);
 
-        if (!player.canInteractWithBlock(childRelative, 4)) {
+        if (!player.isWithinBlockInteractionRange(childRelative, 4)) {
             return;
         }
 
         final ItemStack spring = player.getItemInHand(this.hand);
-        final double distanceSquared = Sable.HELPER.distanceSquaredWithSubLevels(level, parentRelative.getCenter(), childRelative.getCenter());
+        final double distanceSquared = Sable.HELPER.distanceSquaredWithSubLevels(level, net.minecraft.world.phys.Vec3.atCenterOf(parentRelative), net.minecraft.world.phys.Vec3.atCenterOf(childRelative));
         if (!(spring.getItem() instanceof SpringItem) || distanceSquared > (SpringItemHandler.MAX_LENGTH + 1) * (SpringItemHandler.MAX_LENGTH + 1)) {
             return;
         }
@@ -83,7 +83,7 @@ public record PlaceSpringPacket(BlockPos parentPos, BlockPos childPos, Direction
     }
 
     private SpringBlockEntity addSpring(final Level level, final BlockPos placedPos, final BlockPos childPos, final Direction facing, final boolean controller, final float distance) {
-        final BlockState newState = SimBlocks.SPRING.getDefaultState();
+        final BlockState newState = SimBlocks.SPRING.defaultBlockState();
 
         if (level.setBlockAndUpdate(placedPos, newState.setValue(SpringBlock.FACING, facing))) {
             final SpringBlockEntity parentSpring = (SpringBlockEntity) level.getBlockEntity(placedPos);

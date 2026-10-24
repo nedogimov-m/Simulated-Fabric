@@ -7,10 +7,16 @@ import org.spongepowered.asm.mixin.Shadow;
 
 @Mixin(value = MechanicalBearingBlockEntity.class, remap = false)
 public abstract class MechanicalBearingBlockEntityMixin implements IControlContraptionExtension  {
-    @Shadow public abstract void disassemble();
+    @Shadow public abstract boolean disassemble();
+    @Shadow protected abstract boolean isWindmill();
 
     @Override
-    public void sable$disassemble() {
-        this.disassemble();
+    public boolean sable$disassemble() {
+        return this.disassemble();
+    }
+
+    @Override
+    public com.simibubi.create.content.contraptions.StructureTransform sable$restorationTransform(com.simibubi.create.content.contraptions.ControlledContraptionEntity entity) {
+        return isWindmill() ? new com.simibubi.create.content.contraptions.StructureTransform(entity.blockPosition(), 0, 0, 0) : entity.getRestorationTransform();
     }
 }

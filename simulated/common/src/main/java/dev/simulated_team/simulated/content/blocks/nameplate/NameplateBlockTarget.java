@@ -4,8 +4,9 @@ import com.simibubi.create.api.behaviour.display.DisplayTarget;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
 import com.simibubi.create.foundation.utility.CreateLang;
-import com.tterrag.registrate.util.entry.RegistryEntry;
-import dev.simulated_team.simulated.Simulated;
+import com.simibubi.create.api.registry.CreateBuiltInRegistries;
+import net.minecraft.core.Registry;
+import net.minecraft.resources.Identifier;
 import dev.simulated_team.simulated.api.ConditionalDisplayTarget;
 import dev.simulated_team.simulated.data.SimLang;
 import net.createmod.catnip.theme.Color;
@@ -15,7 +16,8 @@ import net.minecraft.network.chat.MutableComponent;
 import java.util.List;
 
 public class NameplateBlockTarget extends ConditionalDisplayTarget {
-    public static final RegistryEntry<DisplayTarget, NameplateBlockTarget> NAMEPLATE = Simulated.getRegistrate().displayTarget("nameplate", NameplateBlockTarget::new).register();
+    public static final NameplateBlockTarget NAMEPLATE = Registry.register(CreateBuiltInRegistries.DISPLAY_TARGET,
+            Identifier.fromNamespaceAndPath("simulated", "nameplate"), new NameplateBlockTarget());
 
     @Override
     public boolean allowsWriting(final DisplayLinkContext context) {

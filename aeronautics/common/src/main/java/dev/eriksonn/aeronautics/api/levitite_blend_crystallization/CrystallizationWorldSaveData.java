@@ -1,41 +1,41 @@
 package dev.eriksonn.aeronautics.api.levitite_blend_crystallization;
 
-import net.minecraft.core.HolderLookup;
+import dev.ryanhcode.sable.sublevel.storage.SableSavedDataStorage;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 
-public class CrystallizationWorldSaveData extends SavedData {
-	public static final String ID = "aeronautics_levitite_data";
-	
-	Level level;
-	
-	@Override
-	public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
-		ListTag list = new ListTag();
-		LevititeCrystallizerManager.saveData(list, level);
-		tag.put("Levitite Manager Data", list);
-		
-		return tag;
-	}
+/** Per-world crystallization state, retaining the original NBT layout and legacy file. */
+public final class CrystallizationWorldSaveData extends SavedData {
+    public static final String ID = "aeronautics_levitite_data";
+    public static final Identifier STORAGE_ID = Identifier.parse("aeronautics:crystallization");
+    private final ServerLevel level;
 
-	public static CrystallizationWorldSaveData load(ServerLevel level, CompoundTag tag, final HolderLookup.Provider registries) {
-		CrystallizationWorldSaveData data = new CrystallizationWorldSaveData();
-		data.level = level;
+    private CrystallizationWorldSaveData(final ServerLevel level) {
+        this.level = level;
+    }
 
-		LevititeCrystallizerManager.loadData(tag, level);
+    public CompoundTag save() {
+        final CompoundTag tag = new CompoundTag();
+        final ListTag list = new ListTag();
+        LevititeCrystallizerManager.saveData(list, level);
+        tag.put("Levitite Manager Data", list);
+        return tag;
+    }
 
-		return data;
-	}
+    public static CrystallizationWorldSaveData load(final ServerLevel level, final CompoundTag tag) {
+        final var data = new CrystallizationWorldSaveData(level);
+        LevititeCrystallizerManager.loadData(tag, level);
+        return data;
+    }
 
-	public static CrystallizationWorldSaveData get(ServerLevel level) {
-		CrystallizationWorldSaveData data = level.getChunkSource().getDataStorage().computeIfAbsent(
-				new SavedData.Factory<>(CrystallizationWorldSaveData::new, (nbt, lookup) -> load(level, nbt, lookup), null),
-				CrystallizationWorldSaveData.ID);
-
-		data.level = level;
-		return data;
-	}
+    public static CrystallizationWorldSaveData get(final ServerLevel level) {
+        final var storage = level.getDataStorage();
+        // Sable exposes the native storage folder through its production access widener.
+        return SableSavedDataStorage.getOrLoad(storage, storage.dataFolder, STORAGE_ID, ID,
+                () -> new CrystallizationWorldSaveData(level), tag -> load(level, tag),
+                CrystallizationWorldSaveData::save, null);
+    }
 }

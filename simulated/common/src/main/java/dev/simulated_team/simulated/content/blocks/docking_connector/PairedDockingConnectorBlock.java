@@ -24,7 +24,6 @@ import org.jetbrains.annotations.Nullable;
 
 public class PairedDockingConnectorBlock extends DirectionalBlock {
 
-    public static final MapCodec<PairedDockingConnectorBlock> CODEC = simpleCodec(PairedDockingConnectorBlock::new);
 
     private static final VoxelShape[] SHAPES = {
             box(0.0, -16.0, 0.0, 16.0, 16.0, 16.0),
@@ -56,14 +55,14 @@ public class PairedDockingConnectorBlock extends DirectionalBlock {
     }
 
     @Override
-    protected @NotNull BlockState updateShape(final BlockState state, final @NotNull Direction direction, final @NotNull BlockState neighborState, final @NotNull LevelAccessor level, final @NotNull BlockPos pos, final @NotNull BlockPos neighborPos) {
+    protected @NotNull BlockState updateShape(final BlockState state, final net.minecraft.world.level.LevelReader level, final net.minecraft.world.level.ScheduledTickAccess tickAccess, final BlockPos pos, final Direction direction, final BlockPos neighborPos, final BlockState neighborState, final net.minecraft.util.RandomSource random) {
         final Direction facing = state.getValue(FACING);
         if (facing != direction) {
-            return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
+            return super.updateShape(state, level, tickAccess, pos, direction, neighborPos, neighborState, random);
         }
 
         if (neighborState.is(SimBlocks.DOCKING_CONNECTOR) && neighborState.getValue(BlockStateProperties.FACING) == facing.getOpposite()) {
-            return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
+            return super.updateShape(state, level, tickAccess, pos, direction, neighborPos, neighborState, random);
         }
 
         return Blocks.AIR.defaultBlockState();
@@ -87,7 +86,7 @@ public class PairedDockingConnectorBlock extends DirectionalBlock {
     }
 
     @Override
-    public void playerDestroy(final @NotNull Level level, final @NotNull Player player, final @NotNull BlockPos pos, final @NotNull BlockState state, @Nullable final BlockEntity blockEntity, final @NotNull ItemStack tool) {
+    public void playerDestroy(final @NotNull net.minecraft.server.level.ServerLevel level, final @NotNull net.minecraft.server.level.ServerPlayer player, final @NotNull BlockPos pos, final @NotNull BlockState state, @Nullable final BlockEntity blockEntity, final @NotNull ItemStack tool) {
         super.playerDestroy(level, player, pos, Blocks.AIR.defaultBlockState(), blockEntity, tool);
     }
 
@@ -119,12 +118,7 @@ public class PairedDockingConnectorBlock extends DirectionalBlock {
     }
 
     @Override
-    public @NotNull ItemStack getCloneItemStack(final @NotNull LevelReader level, final @NotNull BlockPos pos, final @NotNull BlockState state) {
-        return SimBlocks.DOCKING_CONNECTOR.asStack();
-    }
-
-    @Override
-    protected @NotNull MapCodec<? extends DirectionalBlock> codec() {
-        return CODEC;
+    public @NotNull ItemStack getCloneItemStack(final @NotNull LevelReader level, final @NotNull BlockPos pos, final @NotNull BlockState state, final boolean includeData) {
+        return new net.minecraft.world.item.ItemStack(SimBlocks.DOCKING_CONNECTOR);
     }
 }

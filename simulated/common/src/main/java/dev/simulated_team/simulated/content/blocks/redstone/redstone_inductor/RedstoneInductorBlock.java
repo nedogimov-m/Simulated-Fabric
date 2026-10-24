@@ -3,7 +3,7 @@ package dev.simulated_team.simulated.content.blocks.redstone.redstone_inductor;
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.redstone.diodes.AbstractDiodeBlock;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.index.SimBlockShapes;
 import dev.simulated_team.simulated.multiloader.CommonRedstoneBlock;
@@ -14,7 +14,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
@@ -23,7 +23,7 @@ import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DiodeBlock;
-import net.minecraft.world.level.block.RedStoneWireBlock;
+import net.minecraft.world.level.block.RedstoneWireBlock;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -33,8 +33,8 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.joml.Vector3f;
 
-public class RedstoneInductorBlock extends AbstractDiodeBlock implements IBE<RedstoneInductorBlockEntity>, CommonRedstoneBlock {
-    public static final MapCodec<RedstoneInductorBlock> CODEC = simpleCodec(RedstoneInductorBlock::new);
+public class RedstoneInductorBlock extends AbstractDiodeBlock implements NativeEntityBlock<RedstoneInductorBlockEntity>, CommonRedstoneBlock {
+
     public static final BooleanProperty INVERTED = BooleanProperty.create("inverted");
 
     public RedstoneInductorBlock(final Properties builder) {
@@ -45,27 +45,22 @@ public class RedstoneInductorBlock extends AbstractDiodeBlock implements IBE<Red
     }
 
     @Override
-    protected MapCodec<? extends DiodeBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
-    protected ItemInteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
+    protected InteractionResult useItemOn(final ItemStack itemStack, final BlockState blockState, final Level level, final BlockPos blockPos, final Player player, final InteractionHand interactionHand, final BlockHitResult blockHitResult) {
         return this.toggle(level,blockPos, blockState, player, interactionHand);
     }
 
-    public ItemInteractionResult toggle(final Level pLevel, final BlockPos pPos, final BlockState pState, final Player player,
+    public InteractionResult toggle(final Level pLevel, final BlockPos pPos, final BlockState pState, final Player player,
                                     final InteractionHand pHand) {
         if (!player.mayBuild())
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
         if (player.isShiftKeyDown())
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        if (AllItems.WRENCH.isIn(player.getItemInHand(pHand)))
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
+        if (player.getItemInHand(pHand).is(AllItems.WRENCH))
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
 
-        if (pLevel.isClientSide) {
+        if (pLevel.isClientSide()) {
             addParticles(pState, pLevel, pPos, 1f);
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
 
         pLevel.setBlock(pPos, pState.cycle(INVERTED), 3);
@@ -78,7 +73,7 @@ public class RedstoneInductorBlock extends AbstractDiodeBlock implements IBE<Red
             final float f = !pState.getValue(INVERTED) ? 0.6F : 0.5F;
             pLevel.playSound(null, pPos, SoundEvents.LEVER_CLICK, SoundSource.BLOCKS, 0.3F, f);
 
-            return ItemInteractionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         });
     }
 
@@ -92,7 +87,7 @@ public class RedstoneInductorBlock extends AbstractDiodeBlock implements IBE<Red
     }
 
     private static void addParticles(final BlockState state, final LevelAccessor level, final BlockPos pos, final float alpha) {
-        level.addParticle(new DustParticleOptions(new Vector3f(1.0F, 0.0F, 0.0F), alpha), pos.getX() + 0.5f, pos.getY() + 0.5f, pos.getZ() + 0.5f, 0.0D, 0.0D,
+        level.addParticle(new DustParticleOptions(0xff0000, alpha), pos.getX() + 0.5f, pos.getY() + 0.5f, pos.getZ() + 0.5f, 0.0D, 0.0D,
                 0.0D);
     }
 
@@ -116,7 +111,7 @@ public class RedstoneInductorBlock extends AbstractDiodeBlock implements IBE<Red
     public int getBackSignal(final Level level, final BlockPos pos, final BlockState state){
         final Direction direction = state.getValue(FACING);
         final BlockPos blockpos = pos.relative(direction);
-            return Math.max(level.getSignal(blockpos, direction), state.is(Blocks.REDSTONE_WIRE) ? state.getValue(RedStoneWireBlock.POWER) : 0);
+            return Math.max(level.getSignal(blockpos, direction), state.is(Blocks.REDSTONE_WIRE) ? state.getValue(RedstoneWireBlock.POWER) : 0);
     }
 
     @Override
@@ -146,6 +141,18 @@ public class RedstoneInductorBlock extends AbstractDiodeBlock implements IBE<Red
 
     @Override
     public BlockEntityType<? extends RedstoneInductorBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.REDSTONE_INDUCTOR.get();
+        return SimBlockEntityTypes.REDSTONE_INDUCTOR;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

@@ -13,7 +13,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
-import net.minecraft.util.FastColor;
+
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -85,7 +85,7 @@ public class NameplateBlockEntity extends SmartBlockEntity implements ClipboardC
     public void tick() {
         super.tick();
 
-        if (!this.level.isClientSide) {
+        if (!this.level.isClientSide()) {
             final DyeColor color = this.getColor();
             final Direction facing = this.getBlockState().getValue(NameplateBlock.FACING);
 
@@ -98,7 +98,7 @@ public class NameplateBlockEntity extends SmartBlockEntity implements ClipboardC
     @Override
     public void lazyTick() {
         super.lazyTick();
-        if (!this.level.isClientSide && this.controller && this.allowsEditing()
+        if (!this.level.isClientSide() && this.controller && this.allowsEditing()
                     && this.connectedSubLevel != null && !Objects.equals(this.connectedSubLevel.getName(), this.name)) {
             this.setName(this.connectedSubLevel.getName(), true, null);
         }
@@ -109,7 +109,7 @@ public class NameplateBlockEntity extends SmartBlockEntity implements ClipboardC
      * this method is only called on the server. Data is synced to the client when data is sent afterwards
      */
     public void checkAndUpdateController(final DyeColor color, final Direction facing) {
-        final BlockPos leftPos = this.getBlockPos().offset(facing.getClockWise(Direction.Axis.Y).getNormal());
+        final BlockPos leftPos = this.getBlockPos().offset(facing.getClockWise(Direction.Axis.Y).getUnitVec3i());
 
         final boolean wasController = this.controller;
         final BlockState leftState = this.getLevel().getBlockState(leftPos);
@@ -177,8 +177,8 @@ public class NameplateBlockEntity extends SmartBlockEntity implements ClipboardC
             return getClosestDistance(nbe.findController(), point);
         }
 
-        final Vec3i dir = nbe.getBlockState().getValue(NameplateBlock.FACING).getCounterClockWise().getNormal();
-        Vec3 A = nbe.getBlockPos().getCenter();
+        final Vec3i dir = nbe.getBlockState().getValue(NameplateBlock.FACING).getCounterClockWise().getUnitVec3i();
+        Vec3 A = net.minecraft.world.phys.Vec3.atCenterOf(nbe.getBlockPos());
         Vec3 B = A.add(dir.getX() * nbe.controllerWidth, dir.getY() * nbe.controllerWidth, dir.getZ() * nbe.controllerWidth);
         final SubLevel subLevel = Sable.HELPER.getContaining(nbe);
         if (subLevel != null) {
@@ -227,10 +227,10 @@ public class NameplateBlockEntity extends SmartBlockEntity implements ClipboardC
             return -988212;
         } else {
             final double d = 0.4;
-            final int j = (int) ((double) FastColor.ARGB32.red(i) * 0.4);
-            final int k = (int) ((double) FastColor.ARGB32.green(i) * 0.4);
-            final int l = (int) ((double) FastColor.ARGB32.blue(i) * 0.4);
-            return FastColor.ARGB32.color(0, j, k, l);
+            final int j = (int) ((double) net.minecraft.util.ARGB.red(i) * 0.4);
+            final int k = (int) ((double) net.minecraft.util.ARGB.green(i) * 0.4);
+            final int l = (int) ((double) net.minecraft.util.ARGB.blue(i) * 0.4);
+            return net.minecraft.util.ARGB.color(0, j, k, l);
         }
     }
 
@@ -313,8 +313,8 @@ public class NameplateBlockEntity extends SmartBlockEntity implements ClipboardC
     }
 
     @Override
-    protected void write(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(tag, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput tag, final boolean clientPacket) {
+        super.write(tag, clientPacket);
 
         tag.putInt("TextColor", this.textColor.getId());
         tag.putBoolean("Glow", this.glowing);
@@ -326,28 +326,26 @@ public class NameplateBlockEntity extends SmartBlockEntity implements ClipboardC
         if (this.controller) {
             tag.putInt("Width", this.controllerWidth);
         } else {
-            tag.put("ControllerPos", NbtUtils.writeBlockPos(this.controllerPos));
+            tag.store("ControllerPos", dev.simulated_team.simulated.api.SimBlockEntityCodecs.BLOCK_POS, this.controllerPos);
         }
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(tag, registries, clientPacket);
+    protected void read(final net.minecraft.world.level.storage.ValueInput tag, final boolean clientPacket) {
+        super.read(tag, clientPacket);
 
-        this.textColor = DyeColor.byId(tag.getInt("TextColor"));
-        this.glowing = tag.getBoolean("Glow");
-        this.waxed = tag.getBoolean("Waxed");
-        if (tag.contains("Name")) {
-            this.name = tag.getString("Name");
-        }
+        this.textColor = DyeColor.byId(tag.getIntOr("TextColor", 0));
+        this.glowing = tag.getBooleanOr("Glow", false);
+        this.waxed = tag.getBooleanOr("Waxed", false);
+        this.name = tag.getString("Name").orElse(null);
 
-        if (tag.contains("ControllerPos")) {
+        if (tag.read("ControllerPos", dev.simulated_team.simulated.api.SimBlockEntityCodecs.BLOCK_POS).isPresent()) {
             this.controller = false;
-            this.controllerPos = NbtUtils.readBlockPos(tag, "ControllerPos").get();
+            this.controllerPos = tag.read("ControllerPos", dev.simulated_team.simulated.api.SimBlockEntityCodecs.BLOCK_POS).orElseThrow();
         } else {
             this.controller = true;
             this.controllerPos = this.getBlockPos();
-            this.controllerWidth = tag.getInt("Width");
+            this.controllerWidth = tag.getIntOr("Width", 0);
         }
 
         if (clientPacket) {
@@ -362,7 +360,7 @@ public class NameplateBlockEntity extends SmartBlockEntity implements ClipboardC
         }
 
         final Direction facing = this.getBlockState().getValue(NameplateBlock.FACING);
-        final Vec3i off = facing.getCounterClockWise(Direction.Axis.Y).getNormal();
+        final Vec3i off = facing.getCounterClockWise(Direction.Axis.Y).getUnitVec3i();
 
         final AABB bounds = AABB.encapsulatingFullBlocks(this.getBlockPos(), this.getBlockPos().offset(off.multiply(this.controllerWidth - 1)));
         return bounds;
@@ -398,8 +396,8 @@ public class NameplateBlockEntity extends SmartBlockEntity implements ClipboardC
             return true;
         }
 
-        controller.setName(tag.getString("StoredName"), true, player);
-        controller.textColor = DyeColor.byId(tag.getInt("TextColor"));
+        controller.setName(tag.getStringOr("StoredName", ""), true, player);
+        controller.textColor = DyeColor.byId(tag.getIntOr("TextColor", 0));
         this.sendData();
 
         return true;

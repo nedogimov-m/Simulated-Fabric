@@ -1,39 +1,29 @@
 package dev.eriksonn.aeronautics.index;
 
-import com.simibubi.create.content.contraptions.render.ContraptionEntityRenderer;
-import com.simibubi.create.content.contraptions.render.ContraptionVisual;
-import dev.simulated_team.simulated.registrate.SimulatedRegistrate;
-import com.tterrag.registrate.util.entry.EntityEntry;
-import dev.eriksonn.aeronautics.Aeronautics;
 import dev.eriksonn.aeronautics.content.blocks.hot_air.gust.GustEntity;
 import dev.eriksonn.aeronautics.content.blocks.propeller.bearing.contraption.PropellerBearingContraptionEntity;
-import net.minecraft.client.renderer.entity.NoopRenderer;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 
-public class AeroEntityTypes {
-	private static final SimulatedRegistrate REGISTRATE = Aeronautics.getRegistrate();
+/** Common native entity types; both original entity eye heights are explicitly zero. */
+public final class AeroEntityTypes {
+    public static final EntityType<PropellerBearingContraptionEntity> PROPELLER_CONTROLLED_CONTRAPTION = register(
+            "propeller_bearing_contraption", EntityType.Builder.of(PropellerBearingContraptionEntity::new, MobCategory.MISC)
+                    .clientTrackingRange(20).updateInterval(40).sized(1, 1).eyeHeight(0).fireImmune());
+    public static final EntityType<GustEntity> GUST = register("gust", EntityType.Builder.<GustEntity>of(GustEntity::new, MobCategory.MISC)
+            .clientTrackingRange(20).sized(1, 1).eyeHeight(0).fireImmune());
 
-	public static final EntityEntry<PropellerBearingContraptionEntity> PROPELLER_CONTROLLED_CONTRAPTION =
-			REGISTRATE.entity("propeller_bearing_contraption", PropellerBearingContraptionEntity::new, MobCategory.MISC)
-					.visual(() -> ContraptionVisual::new)
-					.renderer(() -> ContraptionEntityRenderer::new)
-					.transform((builder) -> builder.properties(b -> b
-										.clientTrackingRange(20)
-										.updateInterval(40)
-										.sized(1, 1)
-										.eyeHeight(0)
-										.fireImmune()))
-					.register();
-
-    public static final EntityEntry<GustEntity> GUST =
-            REGISTRATE.<GustEntity>entity("gust", GustEntity::new, MobCategory.MISC)
-                    .renderer(() -> NoopRenderer::new)
-                    .transform((builder) -> builder.properties(b -> b
-                            .clientTrackingRange(20)
-                            .sized(1, 1)
-                            .eyeHeight(0)
-                            .fireImmune()))
-                    .register();
-
-	public static void init() {}
+    private static <E extends Entity> EntityType<E> register(String path, EntityType.Builder<E> builder) {
+        final ResourceKey<EntityType<?>> key = ResourceKey.create(Registries.ENTITY_TYPE,
+                Identifier.fromNamespaceAndPath("aeronautics", path));
+        return Registry.register(BuiltInRegistries.ENTITY_TYPE, key, builder.noLootTable().build(key));
+    }
+    public static void init() {}
+    private AeroEntityTypes() {}
 }

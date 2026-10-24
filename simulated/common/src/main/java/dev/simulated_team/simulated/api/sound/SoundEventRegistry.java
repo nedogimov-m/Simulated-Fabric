@@ -1,11 +1,8 @@
 package dev.simulated_team.simulated.api.sound;
 
-import com.simibubi.create.AllSoundEvents;
-import foundry.veil.platform.registry.RegistrationProvider;
-import foundry.veil.platform.registry.RegistryObject;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.PackOutput;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 
@@ -16,19 +13,17 @@ import java.util.function.UnaryOperator;
 public class SoundEventRegistry {
 	private final Map<String, SoundDefinition> definitions = new LinkedHashMap<>();
 	private final Map<String, String> subtitles = new LinkedHashMap<>();
-	private final RegistrationProvider<SoundEvent> registry;
 	private final String modId;
 
 	public SoundEventRegistry(final String modId) {
 		this.modId = modId;
-		this.registry = RegistrationProvider.get(BuiltInRegistries.SOUND_EVENT, this.modId);
 	}
 
 	public SimSoundEntry create(final String name, final SoundSource category, final UnaryOperator<DefinitionBuilder> operator) {
-		final ResourceLocation location = this.path(name);
+		final Identifier location = this.path(name);
 		this.definitions.put(name, operator.apply(new DefinitionBuilder(name)).build());
-		final RegistryObject<SoundEvent> registryObject = this.registry.register(name, () -> SoundEvent.createVariableRangeEvent(location));
-		return new SimSoundEntry(location, registryObject, category);
+		final SoundEvent event = net.minecraft.core.Registry.register(BuiltInRegistries.SOUND_EVENT, location, SoundEvent.createVariableRangeEvent(location));
+		return new SimSoundEntry(location, event, category);
 	}
 
 	public SimSoundEntry create(final String name, final UnaryOperator<DefinitionBuilder> operator) {
@@ -36,12 +31,14 @@ public class SoundEventRegistry {
 	}
 
 
+    public Map<String, SoundDefinition> definitions() { return Collections.unmodifiableMap(this.definitions); }
+
 	public SoundsProvider getProvider(final PackOutput output) {
 		return new SoundsProvider(this.modId, output, this.definitions);
 	}
 
-	private ResourceLocation path(final String path) {
-		return ResourceLocation.fromNamespaceAndPath(this.modId, path);
+	private Identifier path(final String path) {
+		return Identifier.fromNamespaceAndPath(this.modId, path);
 	}
 
 	public void provideLang(final BiConsumer<String, String> consumer) {
@@ -71,7 +68,7 @@ public class SoundEventRegistry {
 			return this.defaultSubtitle(subtitle, id);
 		}
 
-		public DefinitionBuilder addFileVariant(final ResourceLocation path, final UnaryOperator<SoundBuilder> operator) {
+		public DefinitionBuilder addFileVariant(final Identifier path, final UnaryOperator<SoundBuilder> operator) {
 			final SoundBuilder builder = SoundEventRegistry.this.new SoundBuilder(path);
 			operator.apply(builder);
 			this.sounds.add(builder.build());
@@ -95,7 +92,7 @@ public class SoundEventRegistry {
 		}
 
 		public DefinitionBuilder addEventVariant(final SoundEvent event, final UnaryOperator<SoundBuilder> operator) {
-			final SoundBuilder builder = SoundEventRegistry.this.new SoundBuilder(event.getLocation())
+			final SoundBuilder builder = SoundEventRegistry.this.new SoundBuilder(event.location())
 					.setType(SoundFile.Type.EVENT);
 			operator.apply(builder);
 			this.sounds.add(builder.build());
@@ -110,14 +107,6 @@ public class SoundEventRegistry {
 			return this;
 		}
 
-		public DefinitionBuilder addEventVariant(final AllSoundEvents.SoundEntry soundEntry, final UnaryOperator<SoundBuilder> operator) {
-			final SoundBuilder builder = SoundEventRegistry.this.new SoundBuilder(soundEntry.getId())
-					.setType(SoundFile.Type.EVENT);
-			operator.apply(builder);
-			this.sounds.add(builder.build());
-			return this;
-		}
-
 		public DefinitionBuilder addEventVariant(final SoundEvent event) {
 			return this.addEventVariant(event, UnaryOperator.identity());
 		}
@@ -126,17 +115,13 @@ public class SoundEventRegistry {
 			return this.addEventVariant(entry, UnaryOperator.identity());
 		}
 
-		public DefinitionBuilder addEventVariant(final AllSoundEvents.SoundEntry soundEntry) {
-			return this.addEventVariant(soundEntry, UnaryOperator.identity());
-		}
-
 		public SoundDefinition build() {
 			return new SoundDefinition(false, Optional.ofNullable(this.subtitle), this.sounds);
 		}
 	}
 
 	public class SoundBuilder {
-		private final ResourceLocation name;
+		private final Identifier name;
 		private float volume = 1.0f;
 		private float pitch = 1.0f;
 		private int weight = 1;
@@ -145,7 +130,7 @@ public class SoundEventRegistry {
 		private boolean preload = false;
 		private SoundFile.Type type = SoundFile.Type.FILE;
 
-		private SoundBuilder(final ResourceLocation name) {
+		private SoundBuilder(final Identifier name) {
 			this.name = name;
 		}
 

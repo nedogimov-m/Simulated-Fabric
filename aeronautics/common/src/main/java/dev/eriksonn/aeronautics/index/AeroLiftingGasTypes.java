@@ -1,20 +1,15 @@
 package dev.eriksonn.aeronautics.index;
 
-import com.tterrag.registrate.util.entry.RegistryEntry;
 import dev.eriksonn.aeronautics.Aeronautics;
 import dev.eriksonn.aeronautics.content.blocks.hot_air.lifting_gas.DefaultLiftingGas;
-import dev.eriksonn.aeronautics.content.blocks.hot_air.lifting_gas.LiftingGasType;
 import dev.eriksonn.aeronautics.content.blocks.hot_air.lifting_gas.SteamLiftingGas;
-import dev.eriksonn.aeronautics.registry.AeroRegistrate;
+import net.minecraft.core.Registry;
 
-public class AeroLiftingGasTypes {
-
-    public static final AeroRegistrate REGISTRATE = Aeronautics.getRegistrate();
-
-    public static RegistryEntry<LiftingGasType, DefaultLiftingGas> DEFAULT_GAS = REGISTRATE.liftingGasType("default", DefaultLiftingGas::new);
-    public static RegistryEntry<LiftingGasType, SteamLiftingGas> STEAM = REGISTRATE.liftingGasType("steam", SteamLiftingGas::new);
-
-    public static void init() {
-        // no-op
-    }
+public final class AeroLiftingGasTypes {
+    public static final DefaultLiftingGas DEFAULT_GAS = Registry.register(AeroRegistries.LIFTING_GAS_TYPE,
+            Aeronautics.path("default"), new DefaultLiftingGas());
+    public static final SteamLiftingGas STEAM = Registry.register(AeroRegistries.LIFTING_GAS_TYPE,
+            Aeronautics.path("steam"), new SteamLiftingGas());
+    public static void init() {}
+    private AeroLiftingGasTypes() {}
 }

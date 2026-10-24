@@ -3,22 +3,20 @@ package dev.eriksonn.aeronautics.content.particle;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import com.simibubi.create.foundation.particle.ICustomParticleDataWithSprite;
 import dev.eriksonn.aeronautics.index.AeroParticleTypes;
-import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 
-public class HotAirEmberParticleData implements ParticleOptions, ICustomParticleDataWithSprite<HotAirEmberParticleData> {
+public class HotAirEmberParticleData implements ParticleOptions {
 
-    private static final MapCodec<HotAirEmberParticleData> CODEC = RecordCodecBuilder.mapCodec((i) -> i.group(
+    public static final MapCodec<HotAirEmberParticleData> CODEC = RecordCodecBuilder.mapCodec((i) -> i.group(
                     Codec.BOOL.fieldOf("isSoul").forGetter((p) -> p.isSoul)
     ).apply(i, HotAirEmberParticleData::new));
 
-    private static final StreamCodec<RegistryFriendlyByteBuf, HotAirEmberParticleData> STREAM_CODEC = StreamCodec.composite(
+    public static final StreamCodec<RegistryFriendlyByteBuf, HotAirEmberParticleData> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.BOOL, (p) -> p.isSoul,
             HotAirEmberParticleData::new);
 
@@ -34,21 +32,7 @@ public class HotAirEmberParticleData implements ParticleOptions, ICustomParticle
 
     @Override
     public ParticleType<?> getType() {
-        return AeroParticleTypes.HOT_AIR_EMBER.get();
+        return AeroParticleTypes.HOT_AIR_EMBER;
     }
 
-    @Override
-    public ParticleEngine.SpriteParticleRegistration<HotAirEmberParticleData> getMetaFactory() {
-        return HotAirEmberParticle.Factory::new;
-    }
-
-    @Override
-    public MapCodec<HotAirEmberParticleData> getCodec(final ParticleType<HotAirEmberParticleData> particleType) {
-        return CODEC;
-    }
-
-    @Override
-    public StreamCodec<? super RegistryFriendlyByteBuf, HotAirEmberParticleData> getStreamCodec() {
-        return STREAM_CODEC;
-    }
 }

@@ -56,7 +56,7 @@ public abstract class ChangePropellerRotateInstruction extends PonderInstruction
             super(instruction, (i,s) -> {
                 i.particleSpeedScale = particleSpeed;
                 i.particleAmountScale = particleAmount;
-                i.spawner = new PropellerParticleSpawningInstruction.ParticleSpawner(link, i.pos.offset(i.direction.getNormal()), i.direction, 0, 0, radius, hasCollision);
+                i.spawner = new PropellerParticleSpawningInstruction.ParticleSpawner(link, i.pos.offset(i.direction.getUnitVec3i()), i.direction, 0, 0, radius, hasCollision);
             });
         }
         public SetParticles(PropellerRotateInstruction instruction,BlockPos location, @Nullable final ElementLink<WorldSectionElement> link, final float particleAmount, final float particleSpeed, final float radius, final boolean hasCollision) {

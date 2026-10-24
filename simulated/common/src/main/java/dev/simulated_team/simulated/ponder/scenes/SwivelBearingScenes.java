@@ -14,7 +14,7 @@ import net.createmod.ponder.api.element.WorldSectionElement;
 import net.createmod.ponder.api.scene.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.RedStoneWireBlock;
+import net.minecraft.world.level.block.RedstoneWireBlock;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -28,7 +28,7 @@ public class SwivelBearingScenes {
                 s -> s.setValue(SwivelBearingBlock.ASSEMBLED, true), false);
 
         scene.world().modifyBlockEntityNBT(util.select().position(swivelPos), SwivelBearingBlockEntity.class, nbt -> {
-            nbt.getCompound("SwivelCog").putFloat("Speed", rpm);
+            nbt.getCompoundOrEmpty("SwivelCog").putFloat("Speed", rpm);
         });
     }
 
@@ -91,7 +91,7 @@ public class SwivelBearingScenes {
         scene.idle(10);
 
         scene.overlay().showControls(util.vector().centerOf(4, 2, 2), Pointing.RIGHT, 40)
-                .withItem(SimItems.HONEY_GLUE.asStack())
+                .withItem(new net.minecraft.world.item.ItemStack(SimItems.HONEY_GLUE))
                 .rightClick();
         scene.idle(5);
         final AABB bb2 = new AABB(util.grid().at(4, 2, 2));
@@ -130,7 +130,7 @@ public class SwivelBearingScenes {
         for (int i = 0; i < 3; i++) {
             final int finalI = i;
             scene.world().modifyBlock(new BlockPos(1 + finalI, 4, 2),
-                    s -> s.setValue(RedStoneWireBlock.POWER, 15 - finalI), false);
+                    s -> s.setValue(RedstoneWireBlock.POWER, 15 - finalI), false);
         }
 
         world.rotateSection(contraption, 0, 565, 0, 235);
@@ -317,7 +317,7 @@ public class SwivelBearingScenes {
 
         scene.idle(87);
 
-//        world.setBlock(thatOneShaftThatIHate.above(), AllBlocks.ANDESITE_SCAFFOLD.getDefaultState(), false);
+//        world.setBlock(thatOneShaftThatIHate.above(), AllBlocks.ANDESITE_SCAFFOLD.defaultBlockState(), false);
 //        world.showSectionAndMerge(select.position(thatOneShaftThatIHate.above()), Direction.UP, swivelLink);
 
         scene.idle(13);
@@ -333,7 +333,7 @@ public class SwivelBearingScenes {
         scene.idle(5);
 
         world.moveSection(world.showIndependentSection(cogShaft, Direction.NORTH), vector.of(0, -1, 0), 0);
-        world.setBlock(thatOneShaftThatIHate, AllBlocks.ANDESITE_SCAFFOLD.getDefaultState(), false);
+        world.setBlock(thatOneShaftThatIHate, AllBlocks.ANDESITE_SCAFFOLD.defaultBlockState(), false);
         world.showIndependentSection(select.position(thatOneShaftThatIHate), Direction.SOUTH);
 
         scene.idle(10);
@@ -350,7 +350,7 @@ public class SwivelBearingScenes {
         }
 
         scene.overlay().showControls(util.vector().centerOf(1, 2, 0), Pointing.RIGHT, 40)
-                .withItem(SimItems.HONEY_GLUE.asStack())
+                .withItem(new net.minecraft.world.item.ItemStack(SimItems.HONEY_GLUE))
                 .rightClick();
         scene.idle(5);
         final AABB bb2 = new AABB(util.grid().at(1, 2, 0));

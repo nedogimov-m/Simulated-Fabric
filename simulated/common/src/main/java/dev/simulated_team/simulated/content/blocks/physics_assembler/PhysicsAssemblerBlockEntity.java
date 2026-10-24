@@ -1,7 +1,7 @@
 package dev.simulated_team.simulated.content.blocks.physics_assembler;
 
 import com.simibubi.create.content.contraptions.AssemblyException;
-import com.simibubi.create.content.contraptions.IDisplayAssemblyExceptions;
+import dev.simulated_team.simulated.util.assembly.SimAssemblyException.Provider;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import dev.ryanhcode.sable.Sable;
@@ -51,7 +51,7 @@ import org.joml.Vector3d;
 
 import java.util.List;
 
-public class PhysicsAssemblerBlockEntity extends SmartBlockEntity implements IDisplayAssemblyExceptions {
+public class PhysicsAssemblerBlockEntity extends SmartBlockEntity implements Provider {
     private static final float FLICKED_ANGLE_DEGREES = 45.0f;
     private static final double LEVER_CHASE_SPEED = 0.75f;
 
@@ -191,14 +191,14 @@ public class PhysicsAssemblerBlockEntity extends SmartBlockEntity implements IDi
 
         final BlockPos goal = BlockPos.containing(subLevel.logicalPose().transformPosition(Vec3.atCenterOf(this.getBlockPos())));
         final Rotation rotation = SimAssemblyHelper.rotationFrom90DegRots(this.disassemblyAngle);
-        SimAssemblyHelper.disassembleSubLevel(this.level, subLevel, this.getBlockPos(), goal, rotation, true);
+        if (!SimAssemblyHelper.disassembleSubLevel(this.level, subLevel, this.getBlockPos(), goal, rotation, true)) return;
         this.stopDisassembling();
     }
 
     private void throwDisassemblyExceptions(final ServerSubLevel subLevel) throws AssemblyException {
         final BoundingBox3dc bounds = subLevel.boundingBox();
-        if (bounds.maxY() > this.level.getMaxBuildHeight()
-                || bounds.minY() < this.level.getMinBuildHeight()) {
+        if (bounds.maxY() > this.level.getMaxY() + 1.0
+                || bounds.minY() < this.level.getMinY()) {
             throw SimAssemblyException.outOfWorld();
         }
 
@@ -285,6 +285,8 @@ public class PhysicsAssemblerBlockEntity extends SmartBlockEntity implements IDi
     }
 
     public void assembleOrDisassemble() {
+        // A second interaction must not install another alignment constraint and lose its handle.
+        if (this.disassembling) return;
         final SubLevel subLevel = Sable.HELPER.getContaining(this);
 
         final Level level = this.getLevel();
@@ -302,7 +304,9 @@ public class PhysicsAssemblerBlockEntity extends SmartBlockEntity implements IDi
                 this.primaryAssembler = true;
 
                 final BlockPos toAssemble = this.getBlockPos().relative(PhysicsAssemblerBlock.getStickyFacing(this.getBlockState()));
-                SimAssemblyHelper.assembleFromSingleBlock(level, this.getBlockPos(), toAssemble, true, true);
+                if (SimAssemblyHelper.assembleFromSingleBlock(level, this.getBlockPos(), toAssemble, true, true) == null) {
+                    throw AssemblyException.structureChanged(toAssemble);
+                }
 
                 this.lastException = null;
                 this.sendData();
@@ -358,7 +362,7 @@ public class PhysicsAssemblerBlockEntity extends SmartBlockEntity implements IDi
     public void remove() {
         //if we're the primary assembler, set the parent's primary assembler to null to ensure any assembler can disassemble
         if (this.primaryAssembler) {
-            if (!this.level.isClientSide) {
+            if (!this.level.isClientSide()) {
                 final SubLevel subLevel = this.getSubLevel();
                 if (subLevel instanceof final ServerSubLevel ssb) {
                     ((PrimaryAssemblerExtension) ssb).simulated$setPrimaryAssembler(null);
@@ -372,19 +376,19 @@ public class PhysicsAssemblerBlockEntity extends SmartBlockEntity implements IDi
     }
 
     @Override
-    public void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(compound, registries, clientPacket);
+    public void write(final net.minecraft.world.level.storage.ValueOutput compound, final boolean clientPacket) {
+        super.write(compound, clientPacket);
 
-        AssemblyException.write(compound, registries, this.lastException);
+        SimAssemblyException.write(compound, this.lastException);
         compound.putBoolean("IsPrimary", this.primaryAssembler);
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(tag, registries, clientPacket);
+    protected void read(final net.minecraft.world.level.storage.ValueInput tag, final boolean clientPacket) {
+        super.read(tag, clientPacket);
 
-        this.lastException = AssemblyException.read(tag, registries);
-        this.primaryAssembler = tag.getBoolean("IsPrimary");
+        this.lastException = SimAssemblyException.read(tag);
+        this.primaryAssembler = tag.getBooleanOr("IsPrimary", false);
     }
 
     @Override
@@ -400,7 +404,7 @@ public class PhysicsAssemblerBlockEntity extends SmartBlockEntity implements IDi
         this.lastException = null;
 
         final SubLevel subLevel = Sable.HELPER.getContaining(level, this.getBlockPos());
-        if (!level.isClientSide && this.primaryAssembler && subLevel instanceof ServerSubLevel) {
+        if (!level.isClientSide() && this.primaryAssembler && subLevel instanceof ServerSubLevel) {
             final PrimaryAssemblerExtension duck = (PrimaryAssemblerExtension) subLevel;
             if (duck.simulated$getPrimaryAssembler() == null) {
                 duck.simulated$setPrimaryAssembler(this.getBlockPos());

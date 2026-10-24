@@ -1,11 +1,28 @@
 package dev.simulated_team.simulated.index;
 
-import dev.engine_room.flywheel.lib.model.baked.PartialModel;
-import dev.simulated_team.simulated.Simulated;
+import net.fabricmc.fabric.api.client.model.loading.v1.ExtraModelKey;
+import net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin;
+import net.fabricmc.fabric.api.client.model.loading.v1.SimpleUnbakedExtraModel;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
+import net.minecraft.resources.Identifier;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class SimPartialModels {
+    private static final Map<Identifier, ExtraModelKey<BlockStateModel>> MODELS = new LinkedHashMap<>();
+    private static boolean initialized;
 
-    public static final PartialModel
+    private static ExtraModelKey<BlockStateModel> model(String path) {
+        var id = Identifier.fromNamespaceAndPath("simulated", path);
+        var key = ExtraModelKey.<BlockStateModel>create(id::toString);
+        if (MODELS.putIfAbsent(id, key) != null) throw new IllegalStateException("Duplicate partial model " + id);
+        return key;
+    }
+
+    public static Map<Identifier, ExtraModelKey<BlockStateModel>> allModels() { return Map.copyOf(MODELS); }
+
+
+    public static final ExtraModelKey<BlockStateModel>
             QUARTER_SHAFT = block("quarter_shaft"),
             SWIVEL_BEARING_COG = block("swivel_bearing/ironcog"),
             MODULATING_RECEIVER_PLATE = block("modulating_linked_receiver/gold_plate"),
@@ -77,20 +94,20 @@ public class SimPartialModels {
             ENGINE_PARTS_HEATED = new EngineParts("heated/"),
             ENGINE_PARTS_SUPERHEATED = new EngineParts("superheated/");
 
-    private static PartialModel block(final String path) {
-        return PartialModel.of(Simulated.path("block/" + path));
+    private static ExtraModelKey<BlockStateModel> block(final String path) {
+        return model("block/" + path);
     }
 
-    private static PartialModel entity(final String path) {
-        return PartialModel.of(Simulated.path("entity/" + path));
+    private static ExtraModelKey<BlockStateModel> entity(final String path) {
+        return model("entity/" + path);
     }
 
-    private static PartialModel item(final String path) {
-        return PartialModel.of(Simulated.path("item/" + path));
+    private static ExtraModelKey<BlockStateModel> item(final String path) {
+        return model("item/" + path);
     }
 
     public static class EngineParts {
-        public final PartialModel pipeLeft, pipeRight, outletLeft, outletRight, hatchBottom, hatchTop, mouth;
+        public final ExtraModelKey<BlockStateModel> pipeLeft, pipeRight, outletLeft, outletRight, hatchBottom, hatchTop, mouth;
 
         public EngineParts(final String prefix) {
             this.pipeLeft = block("portable_engine/" + prefix + "exhaust_pipe_left");
@@ -104,6 +121,9 @@ public class SimPartialModels {
     }
 
     public static void init() {
-        // init static fields
+        if (initialized) return;
+        ModelLoadingPlugin.register(context -> MODELS.forEach((id, key) ->
+                context.addModel(key, SimpleUnbakedExtraModel.blockStateModel(id))));
+        initialized = true;
     }
 }

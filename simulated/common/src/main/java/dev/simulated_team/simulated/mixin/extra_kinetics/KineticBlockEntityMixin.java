@@ -1,188 +1,85 @@
 package dev.simulated_team.simulated.mixin.extra_kinetics;
 
-import com.llamalad7.mixinextras.sugar.Local;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
+import com.simibubi.create.foundation.utility.LoadedLevelAccess;
 import dev.simulated_team.simulated.mixin_interface.extra_kinetics.KineticBlockEntityExtension;
-import dev.simulated_team.simulated.util.extra_kinetics.ExtraBlockPos;
-import dev.simulated_team.simulated.util.extra_kinetics.ExtraKinetics;
+import dev.simulated_team.simulated.util.extra_kinetics.*;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.*;
+import org.spongepowered.asm.mixin.injection.*;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import com.llamalad7.mixinextras.injector.wrapoperation.*;
 
-@Mixin(KineticBlockEntity.class)
-//TODO: fix contraptions moving ExtraKinetic BlockEntities and creating a timestamp-space split, allowing wireless networks to exist
-public abstract class KineticBlockEntityMixin extends SmartBlockEntity implements KineticBlockEntityExtension {
-
-    public KineticBlockEntityMixin(final BlockEntityType<?> type, final BlockPos pos, final BlockState state) {
-        super(type, pos, state);
-    }
-
-    @Shadow
-    public abstract boolean hasSource();
-
-    @Shadow
-    protected float speed;
-
-    @Shadow
-    public abstract void initialize();
-
+/** Preserve native owner lifecycle, graph invalidation and actual ValueInput/Output for the stored child. */
+@Mixin(value=KineticBlockEntity.class,remap=false)
+public abstract class KineticBlockEntityMixin extends SmartBlockEntity implements KineticBlockEntityExtension, NativeKineticChannelState {
     @Shadow private int validationCountdown;
-    @Unique
-    private boolean simulated$extraKineticsConnected = false;
+    @Shadow public BlockPos source;
+    @Shadow private BlockPos generatingSource;
+    @Unique private boolean simulated$extraKineticsConnected;
+    @Unique private long simulated$secondaryNetworkId;
+    protected KineticBlockEntityMixin(BlockEntityType<?> type,BlockPos pos,BlockState state){super(type,pos,state);}
+    @Override public void simulated$setValidationCountdown(int value){validationCountdown=value;}
+    @Override public void simulated$setConnectedToExtraKinetics(boolean value){simulated$extraKineticsConnected=value;}
+    @Override public boolean simulated$getConnectedToExtraKinetics(){return simulated$extraKineticsConnected;}
+    @Override public long simulated$virtualNetworkId(){return simulated$secondaryNetworkId;}
+    @Override public void simulated$virtualNetworkId(long value){simulated$secondaryNetworkId=value;}
 
-    @Override
-    public void simulated$setConnectedToExtraKinetics(final boolean connectedToExtraKinetics) {
-        this.simulated$extraKineticsConnected = connectedToExtraKinetics;
-    }
-
-    @Override
-    public boolean simulated$getConnectedToExtraKinetics() {
-        return this.simulated$extraKineticsConnected;
-    }
-
-    @Inject(method = "switchToBlockState", at = @At("TAIL"))
-    private static void simulated$switchExtraKinetics(final Level world, final BlockPos pos, final BlockState state, final CallbackInfo ci, @Local final BlockEntity be) {
-        if (be instanceof final ExtraKinetics ek) {
-            final KineticBlockEntity extraKinetics = ek.getExtraKinetics();
-            if (extraKinetics != null) {
-                if (extraKinetics.hasNetwork()) {
-                    extraKinetics.getOrCreateNetwork().remove(extraKinetics);
-
-                    extraKinetics.detachKinetics();
-                    extraKinetics.removeSource();
-
-                    if (extraKinetics instanceof final GeneratingKineticBlockEntity gbe) {
-                        gbe.reActivateSource = true;
-                    }
-                }
-            }
+    @Inject(method="switchToBlockState",at=@At("HEAD"),require=1)
+    private static void simulated$detachStoredBeforeStateChange(Level level,BlockPos pos,BlockState next,CallbackInfo callback){
+        if(!(level instanceof net.minecraft.server.level.ServerLevel)||!LoadedLevelAccess.isLoaded(level,pos)||LoadedLevelAccess.blockState(level,pos)==next)return;
+        if(LoadedLevelAccess.blockEntity(level,pos) instanceof ExtraKinetics owner){
+            final var extra=owner.getExtraKinetics();
+            if(extra!=null){extra.detachKinetics();extra.removeSource();if(extra instanceof GeneratingKineticBlockEntity generator)generator.reActivateSource=true;}
         }
     }
-
-    @Redirect(method = "validateKinetics", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getBlockEntity(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/entity/BlockEntity;"))
-    public BlockEntity simulated$useProperSource(final Level instance, final BlockPos blockPos) {
-        BlockEntity be = instance.getBlockEntity(blockPos);
-        if (be instanceof final ExtraKinetics ek && this.simulated$extraKineticsConnected) {
-            be = ek.getExtraKinetics();
-        }
-
-        return be;
+    @Inject(method="setKineticProvenance",at=@At("HEAD"),require=1)
+    private void simulated$sourceChannel(BlockPos generator,BlockPos upstream,net.minecraft.core.Direction face,CallbackInfo callback){
+        simulated$extraKineticsConnected=upstream instanceof ExtraBlockPos;
     }
-
-    @Redirect(method = "setSource", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getBlockEntity(Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/entity/BlockEntity;"))
-    public BlockEntity simulated$useProperSource2(final Level instance, final BlockPos blockPos) {
-        BlockEntity be = instance.getBlockEntity(blockPos);
-        if (be instanceof final ExtraKinetics ek && blockPos instanceof final ExtraBlockPos exp) {
-            this.simulated$extraKineticsConnected = true;
-            be = ek.getExtraKinetics();
-        }
-
-        return be;
+    @WrapOperation(method="setKineticProvenance",at=@At(value="INVOKE",target="Ljava/util/Objects;equals(Ljava/lang/Object;Ljava/lang/Object;)Z"),require=2)
+    private boolean simulated$sourceIdentity(Object left,Object right,Operation<Boolean> original){
+        return left instanceof BlockPos position && right instanceof BlockPos
+                ?NativeKineticPositions.same(position,right):original.call(left,right);
     }
-
-    @Override
-    public void setLevel(final Level level) {
+    @Override public void setLevel(Level level){
         super.setLevel(level);
-        if (this instanceof final ExtraKinetics ek) {
-            final KineticBlockEntity extraKinetics = ek.getExtraKinetics();
-            if (extraKinetics != null) {
-                extraKinetics.setLevel(level);
-            }
-        }
+        if(this instanceof ExtraKinetics owner && owner.getExtraKinetics()!=null)owner.getExtraKinetics().setLevel(level);
     }
-
-    @Override
-    public void setBlockState(final BlockState blockState) {
-        super.setBlockState(blockState);
-        if (this instanceof final ExtraKinetics ek) {
-            final KineticBlockEntity extraKinetics = ek.getExtraKinetics();
-            if (extraKinetics != null) {
-                extraKinetics.setBlockState(blockState);
-            }
-        }
+    @Inject(method="setBlockState",at=@At("TAIL"),require=1)
+    private void simulated$storedState(BlockState state,CallbackInfo callback){
+        if(this instanceof ExtraKinetics owner && owner.getExtraKinetics()!=null)owner.getExtraKinetics().setBlockState(state);
     }
-
-    @Override
-    public void invalidate() {
-        super.invalidate();
-        if (this instanceof final ExtraKinetics ek) {
-            final KineticBlockEntity extraKinetics = ek.getExtraKinetics();
-            if (extraKinetics != null) {
-                extraKinetics.invalidate();
-            }
-        }
+    @Inject(method="invalidate",at=@At("TAIL"),require=1)
+    private void simulated$invalidateStored(CallbackInfo callback){
+        if(this instanceof ExtraKinetics owner && owner.getExtraKinetics()!=null)owner.getExtraKinetics().invalidate();
     }
-
-    @Inject(method = "remove", at = @At("TAIL"), remap = false)
-    public void simulated$injectRemove(final CallbackInfo ci) {
-        if (this instanceof final ExtraKinetics ek) {
-            final KineticBlockEntity extraKinetics = ek.getExtraKinetics();
-            if (extraKinetics != null) {
-                extraKinetics.remove();
-            }
-        }
+    @Inject(method="remove",at=@At("TAIL"),require=1)
+    private void simulated$removeStored(CallbackInfo callback){
+        if(this instanceof ExtraKinetics owner && owner.getExtraKinetics()!=null)owner.getExtraKinetics().remove();
     }
-
-    @Inject(method = "removeSource", at = @At("TAIL"), remap = false)
-    public void simulated$removeConnected(final CallbackInfo ci) {
-        this.simulated$extraKineticsConnected = false;
+    @Inject(method="removeSource",at=@At("TAIL"),require=1)
+    private void simulated$forgetSourceChannel(CallbackInfo callback){simulated$extraKineticsConnected=false;}
+    @Inject(method="write",at=@At("TAIL"),require=1)
+    private void simulated$saveStored(net.minecraft.world.level.storage.ValueOutput output,boolean clientPacket,CallbackInfo callback){
+        if(this instanceof ExtraKinetics owner && owner.getExtraKinetics()!=null)
+            ((NativeKineticDataAccessor)owner.getExtraKinetics()).simulated$writeKinetics(output.child(owner.getExtraKineticsSaveName()),clientPacket);
+        output.putBoolean("ConnectedToExtraKinetics",simulated$extraKineticsConnected);
+        output.putBoolean("GeneratorIsExtraKinetics",generatingSource instanceof ExtraBlockPos);
+        if(simulated$secondaryNetworkId!=0)output.putLong("SimulatedSecondaryNetworkId",simulated$secondaryNetworkId);
     }
-
-    @Inject(method = "write", at = @At("TAIL"), remap = false)
-    public void simulated$saveConnected(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket, final CallbackInfo ci) {
-        if (this instanceof final ExtraKinetics ek) {
-            final KineticBlockEntity extraKinetics = ek.getExtraKinetics();
-            if (extraKinetics != null) {
-                final CompoundTag internalTag = new CompoundTag();
-                if (clientPacket) {
-                    extraKinetics.writeClient(internalTag, registries);
-                } else {
-                    extraKinetics.saveAdditional(internalTag, registries);
-                }
-
-                compound.put(ek.getExtraKineticsSaveName(), internalTag);
-            }
-        }
-
-        if (this.hasSource()) {
-            compound.putBoolean("ConnectedToExtraKinetics", this.simulated$extraKineticsConnected);
-        }
-    }
-
-    @Inject(method = "read", at = @At("TAIL"), remap = false)
-    public void simulated$readConnected(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket, final CallbackInfo ci) {
-        if (this instanceof final ExtraKinetics ek) {
-            final KineticBlockEntity extraKinetics = ek.getExtraKinetics();
-            if (extraKinetics != null) {
-                final CompoundTag extraKineticsTag = compound.getCompound(ek.getExtraKineticsSaveName());
-                if (clientPacket) {
-                    extraKinetics.readClient(extraKineticsTag, registries);
-                } else {
-                    extraKinetics.loadCustomOnly(extraKineticsTag, registries);
-                }
-            }
-        }
-
-        if (compound.contains("ConnectedToExtraKinetics")) {
-            this.simulated$extraKineticsConnected = compound.getBoolean("ConnectedToExtraKinetics");
-        }
-    }
-
-    @Override
-    public void simulated$setValidationCountdown(final int validationCountdown) {
-        this.validationCountdown = validationCountdown;
+    @Inject(method="read",at=@At("TAIL"),require=1)
+    private void simulated$readStored(net.minecraft.world.level.storage.ValueInput input,boolean clientPacket,CallbackInfo callback){
+        if(this instanceof ExtraKinetics owner && owner.getExtraKinetics()!=null)
+            ((NativeKineticDataAccessor)owner.getExtraKinetics()).simulated$readKinetics(input.childOrEmpty(owner.getExtraKineticsSaveName()),clientPacket);
+        simulated$extraKineticsConnected=input.getBooleanOr("ConnectedToExtraKinetics",false);
+        simulated$secondaryNetworkId=input.getLongOr("SimulatedSecondaryNetworkId",0L);
+        if(simulated$extraKineticsConnected && source!=null)source=new ExtraBlockPos(source);
+        if(input.getBooleanOr("GeneratorIsExtraKinetics",false) && generatingSource!=null)generatingSource=new ExtraBlockPos(generatingSource);
     }
 }

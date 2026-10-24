@@ -11,8 +11,8 @@ import java.util.List;
 
 public class GimbalSensorDisplaySource extends AbstractNumericDisplaysource {
     @Override
-    List<Component> getOptions() {
-        return SimLang.translatedOptions("display_source.gimbal_sensor", "x_angle", "z_angle");
+    List<String> getOptions() {
+        return List.of("simulated.display_source.gimbal_sensor.x_angle", "simulated.display_source.gimbal_sensor.z_angle");
     }
 
     @Override
@@ -36,7 +36,7 @@ public class GimbalSensorDisplaySource extends AbstractNumericDisplaysource {
             return ZERO.copy();
         }
 
-        switch (displayLinkContext.sourceConfig().getInt(this.getSelectionKey())) {
+        switch (displayLinkContext.sourceConfig().getIntOr(this.getSelectionKey(), 0)) {
             case (0) -> {
                 return SimLang.number(Math.toDegrees(be.getXAngle())).component();
             }

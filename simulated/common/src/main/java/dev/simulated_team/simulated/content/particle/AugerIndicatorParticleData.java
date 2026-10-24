@@ -3,23 +3,19 @@ package dev.simulated_team.simulated.content.particle;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import com.simibubi.create.foundation.particle.ICustomParticleDataWithSprite;
 import dev.simulated_team.simulated.index.SimParticleTypes;
 import io.netty.buffer.ByteBuf;
-import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
 
 /**
  * Stolen shamelessly from {@link com.simibubi.create.content.kinetics.base.RotationIndicatorParticleData}
  */
-public class AugerIndicatorParticleData implements ParticleOptions, ICustomParticleDataWithSprite<AugerIndicatorParticleData> {
+public class AugerIndicatorParticleData implements ParticleOptions {
     public static final MapCodec<AugerIndicatorParticleData> CODEC = RecordCodecBuilder.mapCodec(i -> i
             .group(Codec.INT.fieldOf("color")
                             .forGetter(p -> p.color),
@@ -67,22 +63,7 @@ public class AugerIndicatorParticleData implements ParticleOptions, ICustomParti
 
     @Override
     public ParticleType<?> getType() {
-        return SimParticleTypes.AUGER_INDICATOR.get();
+        return SimParticleTypes.AUGER_INDICATOR;
     }
 
-    @Override
-    public MapCodec<AugerIndicatorParticleData> getCodec(final ParticleType<AugerIndicatorParticleData> type) {
-        return CODEC;
-    }
-
-    @Override
-    public StreamCodec<? super RegistryFriendlyByteBuf, AugerIndicatorParticleData> getStreamCodec() {
-        return STREAM_CODEC;
-    }
-
-    @Override
-    @OnlyIn(Dist.CLIENT)
-    public ParticleEngine.SpriteParticleRegistration<AugerIndicatorParticleData> getMetaFactory() {
-        return AugerIndicatorParticle.Factory::new;
-    }
 }

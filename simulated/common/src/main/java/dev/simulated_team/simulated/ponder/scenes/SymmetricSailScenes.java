@@ -96,7 +96,7 @@ public class SymmetricSailScenes {
         scene.idle(19);
 
         scene.overlay().showControls(vector.of(9 + offset, 3.5, 4.5), Pointing.UP, 70)
-                .withItem(SimBlocks.WHITE_SYMMETRIC_SAIL.asStack());
+                .withItem(new net.minecraft.world.item.ItemStack(SimBlocks.WHITE_SYMMETRIC_SAIL));
 
         scene.idle(2);
 
@@ -109,7 +109,7 @@ public class SymmetricSailScenes {
         scene.idle(20);
 
         scene.overlay().showControls(vector.centerOf(5 + offset, 2, 2), Pointing.DOWN, 48)
-                .withItem(AllBlocks.SAIL.asStack());
+                .withItem(new net.minecraft.world.item.ItemStack(AllBlocks.SAIL));
 
         scene.idle(2);
 
@@ -134,7 +134,7 @@ public class SymmetricSailScenes {
         scene.idle(12);
 
         scene.overlay().showControls(vector.topOf(portableEngine), Pointing.DOWN, 20)
-                .withItem(AllItems.BLAZE_CAKE.asStack());
+                .withItem(new net.minecraft.world.item.ItemStack(AllItems.BLAZE_CAKE));
         scene.world().modifyBlockEntity(portableEngine, PortableEngineBlockEntity.class, be -> {
             be.openHatchOverride = true;
             be.hatchOpenTime = 1.0f;
@@ -547,7 +547,7 @@ public class SymmetricSailScenes {
     public static void setSymSailKinetics(final CreateSceneBuilder scene, final SceneBuildingUtil util, final float rpm) {
         for (int i = 0; i < 2; i++) {
             scene.world().modifyBlockEntityNBT(util.select().position(93, 2, 3 + (2 * i)), AnalogTransmissionBlockEntity.class, nbt -> {
-                nbt.getCompound("ExtraCogwheel").putFloat("Speed", rpm);
+                nbt.getCompoundOrEmpty("ExtraCogwheel").putFloat("Speed", rpm);
             });
         }
 
@@ -651,10 +651,10 @@ public class SymmetricSailScenes {
         scene.rotateCameraY(-30);
         scene.idle(10);
         scene.overlay().showControls(util.vector().blockSurface(util.grid().at(2, 3, 1), Direction.NORTH), Pointing.RIGHT, 30)
-                .withItem(new ItemStack(Items.BLUE_DYE));
+                .withItem(new ItemStack(Items.DYE.blue()));
         scene.idle(7);
         scene.world().setBlock(util.grid().at(2, 3, 3), SimBlocks.DYED_SYMMETRIC_SAILS.get(DyeColor.BLUE)
-                .getDefaultState()
+                .defaultBlockState()
                 .setValue(SymmetricSailBlock.AXIS, Direction.Axis.X), false);
         scene.idle(10);
         scene.overlay().showText(40)
@@ -665,10 +665,10 @@ public class SymmetricSailScenes {
                 .placeNearTarget();
         scene.idle(20);
         scene.overlay().showControls(util.vector().blockSurface(util.grid().at(2, 3, 1), Direction.NORTH), Pointing.RIGHT, 30)
-                .withItem(new ItemStack(Items.BLUE_DYE));
+                .withItem(new ItemStack(Items.DYE.blue()));
         scene.idle(7);
         scene.world().replaceBlocks(util.select().fromTo(2, 2, 3, 2, 4, 3), SimBlocks.DYED_SYMMETRIC_SAILS.get(DyeColor.BLUE)
-                .getDefaultState()
+                .defaultBlockState()
                 .setValue(SymmetricSailBlock.AXIS, Direction.Axis.X), false);
 
         scene.idle(20);

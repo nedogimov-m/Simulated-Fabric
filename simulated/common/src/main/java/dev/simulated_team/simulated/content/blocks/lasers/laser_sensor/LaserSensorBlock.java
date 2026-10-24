@@ -1,7 +1,7 @@
 package dev.simulated_team.simulated.content.blocks.lasers.laser_sensor;
 
 import com.simibubi.create.content.redstone.DirectedDirectionalBlock;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.simulated_team.simulated.index.SimBlockEntityTypes;
 import dev.simulated_team.simulated.multiloader.CommonRedstoneBlock;
 import net.minecraft.core.BlockPos;
@@ -18,7 +18,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import org.jetbrains.annotations.Nullable;
 
-public class LaserSensorBlock extends DirectedDirectionalBlock implements IBE<LaserSensorBlockEntity>, CommonRedstoneBlock {
+public class LaserSensorBlock extends DirectedDirectionalBlock implements NativeEntityBlock<LaserSensorBlockEntity>, CommonRedstoneBlock {
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
     public LaserSensorBlock(final Properties props) {
@@ -85,6 +85,18 @@ public class LaserSensorBlock extends DirectedDirectionalBlock implements IBE<La
 
     @Override
     public BlockEntityType<? extends LaserSensorBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.LASER_SENSOR.get();
+        return SimBlockEntityTypes.LASER_SENSOR;
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

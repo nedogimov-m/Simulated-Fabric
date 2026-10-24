@@ -3,7 +3,6 @@ package dev.simulated_team.simulated.content.display_sources;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.source.SingleLineDisplaySource;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
-import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
 import dev.simulated_team.simulated.content.blocks.nav_table.NavTableBlockEntity;
 import dev.simulated_team.simulated.content.blocks.nav_table.navigation_target.NavigationTarget;
 import dev.simulated_team.simulated.data.SimLang;
@@ -19,7 +18,7 @@ public class NavigationTableDisplaySource extends SingleLineDisplaySource {
 			return EMPTY_LINE.copy();
 		}
 
-		switch (context.sourceConfig().getInt("NavTableSelection")) {
+		switch (context.sourceConfig().getIntOr("NavTableSelection", 0)) {
 			case 0 -> {
 				final NavigationTarget navigationTarget = be.getNavTableItem();
 				if(navigationTarget == null) return EMPTY_LINE.copy();
@@ -52,18 +51,14 @@ public class NavigationTableDisplaySource extends SingleLineDisplaySource {
 		return EMPTY_LINE.copy();
 	}
 
-	@Override
-	public void initConfigurationWidgets(final DisplayLinkContext context, final ModularGuiLineBuilder builder, final boolean isFirstLine) {
-		super.initConfigurationWidgets(context, builder, isFirstLine);
-		if (isFirstLine) {
-			return;
-		}
-
-		builder.addSelectionScrollInput(0, 95, (selectionScrollInput, label) -> {
-			selectionScrollInput.forOptions(SimLang.translatedOptions("display_source.navigation_table",
-					"distance", "eta_real"));
-		}, "NavTableSelection");
-	}
+    @Override
+    public java.util.List<com.simibubi.create.content.redstone.displayLink.DisplaySourceConfiguration> configuration(final DisplayLinkContext context) {
+        var options = new java.util.ArrayList<>(super.configuration(context));
+        options.add(new com.simibubi.create.content.redstone.displayLink.DisplaySourceConfiguration(
+                "NavTableSelection", java.util.List.of("simulated.display_source.navigation_table.distance", "simulated.display_source.navigation_table.eta_real"), 0,
+                0, 0, 1, 0, 1, 0, 95, "", ""));
+        return java.util.List.copyOf(options);
+    }
 
 	@Override
 	protected String getTranslationKey() {

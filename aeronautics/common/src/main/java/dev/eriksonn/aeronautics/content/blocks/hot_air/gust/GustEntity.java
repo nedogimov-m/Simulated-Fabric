@@ -9,12 +9,12 @@ import dev.ryanhcode.sable.api.physics.handle.RigidBodyHandle;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.SubLevel;
-import dev.ryanhcode.sable.util.SableBufferUtils;
 import dev.ryanhcode.sable.util.SableNBTUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
@@ -23,40 +23,61 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.entity.IEntityWithComplexSpawn;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Quaterniond;
 import org.joml.Quaterniondc;
 import org.joml.Quaternionf;
+import org.joml.Quaternionfc;
 import org.joml.Vector3d;
 
-public class GustEntity extends Entity implements IEntityWithComplexSpawn {
+public class GustEntity extends Entity {
+    private static final EntityDataAccessor<Quaternionfc> ORIENTATION =
+            SynchedEntityData.defineId(GustEntity.class, EntityDataSerializers.QUATERNION);
     private final Quaterniond orientation = new Quaterniond();
     private boolean spawnedInitialBurst = false;
 
     public static void addGust(final Level level, final BlockPos pos, final Direction direction) {
         final Quaterniond orientation = new Quaterniond(direction.getRotation());
 
-        final GustEntity gust = new GustEntity(AeroEntityTypes.GUST.get(), level, orientation);
-        gust.setPos(pos.getCenter());
+        final GustEntity gust = new GustEntity(AeroEntityTypes.GUST, level, orientation);
+        gust.setPos(net.minecraft.world.phys.Vec3.atCenterOf(pos));
 
         level.addFreshEntity(gust);
     }
 
-    public GustEntity(final EntityType<?> entityType, final Level level) {
+    public GustEntity(final EntityType<? extends GustEntity> entityType, final Level level) {
         this(entityType, level, JOMLConversion.QUAT_IDENTITY);
     }
 
-    public GustEntity(final EntityType<?> entityType, final Level level, final Quaterniondc orientation) {
+    public GustEntity(final EntityType<? extends GustEntity> entityType, final Level level, final Quaterniondc orientation) {
         super(entityType, level);
+        this.setOrientation(orientation);
+    }
+
+    private void setOrientation(final Quaterniondc orientation) {
+        // Physics and persisted saves retain the original double precision.
         this.orientation.set(orientation);
+        this.entityData.set(ORIENTATION, new Quaternionf(orientation));
+    }
+
+    @Override
+    public void onSyncedDataUpdated(final EntityDataAccessor<?> accessor) {
+        super.onSyncedDataUpdated(accessor);
+        if (ORIENTATION.equals(accessor) && this.level().isClientSide()) {
+            this.orientation.set(this.entityData.get(ORIENTATION));
+        }
+    }
+
+    @Override
+    public boolean hurtServer(net.minecraft.server.level.ServerLevel level, net.minecraft.world.damagesource.DamageSource source, float amount) {
+        return false;
     }
 
     @Override
     public void tick() {
         super.tick();
 
-        if (this.level().isClientSide) {
+        if (this.level().isClientSide()) {
             this.spawnClientEffects();
         } else {
             final SubLevel subLevel = Sable.HELPER.getContaining(this);
@@ -89,7 +110,7 @@ public class GustEntity extends Entity implements IEntityWithComplexSpawn {
 
             for (int i = 0; i < 3; i++) {
                 // 10% chance no gustuous action
-                if (level.random.nextFloat() < 0.1) {
+                if (level.getRandom().nextFloat() < 0.1) {
                     continue;
                 }
 
@@ -133,37 +154,28 @@ public class GustEntity extends Entity implements IEntityWithComplexSpawn {
 
     @Override
     public @NotNull PushReaction getPistonPushReaction() {
-        return PushReaction.IGNORE;
+        return PushReaction.IGNORE_ENTITY;
     }
 
     @Override
-    protected @NotNull AABB makeBoundingBox() {
-        final AABB boundingBox = this.getDimensions(this.getPose()).makeBoundingBox(this.position());
+    protected @NotNull AABB makeBoundingBox(Vec3 position) {
+        final AABB boundingBox = this.getDimensions(this.getPose()).makeBoundingBox(position);
         return boundingBox.move(0, -boundingBox.getYsize() / 2.0, 0);
     }
 
     @Override
     protected void defineSynchedData(final @NotNull SynchedEntityData.Builder builder) {
-
+        builder.define(ORIENTATION, new Quaternionf());
     }
 
     @Override
-    protected void readAdditionalSaveData(final CompoundTag compoundTag) {
-        compoundTag.put("GustOrientation", SableNBTUtils.writeQuaternion(this.orientation));
+    protected void readAdditionalSaveData(final net.minecraft.world.level.storage.ValueInput input) {
+        input.read("GustOrientation", CompoundTag.CODEC).ifPresent(tag -> this.setOrientation(SableNBTUtils.readQuaternion(tag)));
     }
 
     @Override
-    protected void addAdditionalSaveData(final @NotNull CompoundTag compoundTag) {
-        this.orientation.set(SableNBTUtils.readQuaternion(compoundTag));
+    protected void addAdditionalSaveData(final net.minecraft.world.level.storage.ValueOutput output) {
+        output.store("GustOrientation", CompoundTag.CODEC, SableNBTUtils.writeQuaternion(this.orientation));
     }
 
-    @Override
-    public void writeSpawnData(final @NotNull RegistryFriendlyByteBuf buffer) {
-        SableBufferUtils.write(buffer, this.orientation);
-    }
-
-    @Override
-    public void readSpawnData(final @NotNull RegistryFriendlyByteBuf buffer) {
-        SableBufferUtils.read(buffer, this.orientation);
-    }
 }

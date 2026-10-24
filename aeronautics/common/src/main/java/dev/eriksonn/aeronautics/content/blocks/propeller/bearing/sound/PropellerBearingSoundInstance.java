@@ -42,7 +42,7 @@ public class PropellerBearingSoundInstance extends AbstractTickableSoundInstance
         if (weight > 0) {
             total /= weight;
 
-            final Vec3i normal = be.getBlockDirection().getNormal();
+            final Vec3i normal = be.getBlockDirection().getUnitVec3i();
 
             this.x += total * normal.getX();
             this.y += total * normal.getY();

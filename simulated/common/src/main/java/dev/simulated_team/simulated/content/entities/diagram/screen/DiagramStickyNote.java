@@ -1,22 +1,19 @@
 package dev.simulated_team.simulated.content.entities.diagram.screen;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import dev.engine_room.flywheel.lib.transform.TransformStack;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.renderpearl.api.GpuFormat;
 import dev.ryanhcode.sable.companion.math.BoundingBox3i;
 import dev.ryanhcode.sable.companion.math.BoundingBox3ic;
 import dev.ryanhcode.sable.companion.math.Pose3dc;
 import dev.ryanhcode.sable.sublevel.plot.LevelPlot;
 import dev.simulated_team.simulated.content.entities.diagram.DiagramConfig;
 import dev.simulated_team.simulated.index.SimGUITextures;
-import dev.simulated_team.simulated.index.SimSoundEvents;
-import foundry.veil.api.client.render.VeilLevelPerspectiveRenderer;
-import foundry.veil.api.client.render.framebuffer.AdvancedFbo;
+import dev.simulated_team.simulated.util.SimpleSubLevelGroupRenderer;
+import foundry.veil.api.client.render.gpu.GpuFramebuffer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.sounds.SoundManager;
-import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
@@ -37,19 +34,19 @@ public class DiagramStickyNote extends DiagramButton {
     public static final int MAX_OFFSET = NOTE_TEXTURE.width;
     public static final int MIN_OFFSET = 9;
 
-    private static final Vector3d NOTE_LOCAL_CAM_POS = new Vector3d();
-    private static final Vector3d NOTE_CAMERA_POS = new Vector3d();
-    private static final Matrix4f NOTE_PROJ_MAT = new Matrix4f();
+    private final Vector3d NOTE_LOCAL_CAM_POS = new Vector3d();
+    private final Vector3d NOTE_CAMERA_POS = new Vector3d();
+    private final Matrix4f NOTE_PROJ_MAT = new Matrix4f();
 
-    private static final Quaternionf NOTE_ORIENTATION = new Quaternionf();
+    private final Quaternionf NOTE_ORIENTATION = new Quaternionf();
     private DiagramScreen parent;
 
     private float lastOffset = MIN_OFFSET;
     private float currentOffset = MIN_OFFSET;
 
-    private AdvancedFbo fbo;
-    private AdvancedFbo outlineFbo;
-    private AdvancedFbo finalFbo;
+    private GpuFramebuffer fbo;
+    private GpuFramebuffer outlineFbo;
+    private GpuFramebuffer finalFbo;
 
     private float renderTime = 0;
     private final int renderXStart;
@@ -92,9 +89,13 @@ public class DiagramStickyNote extends DiagramButton {
     }
 
     public void create(final DiagramConfig.NoteConfigs noteConfigs) {
-        this.fbo = AdvancedFbo.withSize(SUBLEVEL_RENDER_WIDTH_PIXELS, SUBLEVEL_RENDER_HEIGHT_PIXELS).addColorTextureBuffer().setDepthTextureBuffer().build(true);
-        this.outlineFbo = AdvancedFbo.withSize(SUBLEVEL_RENDER_WIDTH_PIXELS, SUBLEVEL_RENDER_HEIGHT_PIXELS).addColorTextureBuffer().build(true);
-        this.finalFbo = AdvancedFbo.withSize(SUBLEVEL_RENDER_WIDTH_PIXELS, SUBLEVEL_RENDER_HEIGHT_PIXELS).addColorTextureBuffer().build(true);
+        closeTargets();
+        final var device=RenderSystem.getDevice();
+        try {
+            this.fbo=GpuFramebuffer.builder("Simulated note scene",SUBLEVEL_RENDER_WIDTH_PIXELS,SUBLEVEL_RENDER_HEIGHT_PIXELS).color(GpuFormat.RGBA8_UNORM).depth(GpuFormat.D32_FLOAT).build(device);
+            this.outlineFbo=GpuFramebuffer.builder("Simulated note outline",SUBLEVEL_RENDER_WIDTH_PIXELS,SUBLEVEL_RENDER_HEIGHT_PIXELS).color(GpuFormat.RGBA8_UNORM).build(device);
+            this.finalFbo=GpuFramebuffer.builder("Simulated note final",SUBLEVEL_RENDER_WIDTH_PIXELS,SUBLEVEL_RENDER_HEIGHT_PIXELS).color(GpuFormat.RGBA8_UNORM).build(device);
+        } catch(Throwable failure) {closeTargets();throw failure;}
 
         this.active = noteConfigs.isActive();
         this.updateOrientation();
@@ -110,19 +111,17 @@ public class DiagramStickyNote extends DiagramButton {
     public void free() {
         this.deactivate();
 
-        NOTE_ORIENTATION.set(0, 0, 0, 0);
-        if (this.fbo != null) {
-            this.fbo.free();
-            this.fbo = null;
-
-            this.outlineFbo.free();
-            this.outlineFbo = null;
-
-            this.finalFbo.free();
-            this.finalFbo = null;
-        }
+        NOTE_ORIENTATION.identity();
+        closeTargets();
+        this.visible=false;
 
         this.parent = null;
+    }
+
+    private void closeTargets() {
+        if(this.fbo!=null){this.fbo.close();this.fbo=null;}
+        if(this.outlineFbo!=null){this.outlineFbo.close();this.outlineFbo=null;}
+        if(this.finalFbo!=null){this.finalFbo.close();this.finalFbo=null;}
     }
 
     public void updateCurrentScope(final Vector2dc start, final Vector2dc end, final Vector3dc localPosition, final Matrix4fc projMatrix) {
@@ -180,19 +179,19 @@ public class DiagramStickyNote extends DiagramButton {
     }
 
     @Override
-    protected void renderWidget(final GuiGraphics guiGraphics, final int mouseX, final int mouseY, final float partialTicks) {
-        final PoseStack ps = guiGraphics.pose();
-        ps.pushPose();
+    protected void extractWidgetRenderState(final GuiGraphicsExtractor guiGraphics, final int mouseX, final int mouseY, final float partialTicks) {
+        final var ps = guiGraphics.pose();
+        ps.pushMatrix();
 
         final float currentX = this.renderXStart + this.lerpedOffset(partialTicks);
         final int currentY = this.getY();
-        ps.translate(currentX, currentY, 0);
+        ps.translate(currentX, currentY);
         SimGUITextures.DIAGRAM_STICKY_NOTE.render(guiGraphics, 0, 0);
 
         if (this.active) {
-            ps.pushPose();
-            ps.translate(SUBLEVEL_RENDER_X_OFFSET, SUBLEVEL_RENDER_Y_OFFSET, 0);
-            if (!VeilLevelPerspectiveRenderer.isRenderingPerspective() && this.fbo != null) {
+            ps.pushMatrix();
+            ps.translate(SUBLEVEL_RENDER_X_OFFSET, SUBLEVEL_RENDER_Y_OFFSET);
+            if (!SimpleSubLevelGroupRenderer.isRendering() && this.fbo != null) {
                 this.populateFBO(partialTicks);
                 DiagramScreen.renderFBO(guiGraphics, this.finalFbo, SUBLEVEL_RENDER_WIDTH_PIXELS, SUBLEVEL_RENDER_HEIGHT_PIXELS);
             }
@@ -208,15 +207,12 @@ public class DiagramStickyNote extends DiagramButton {
                     SUBLEVEL_RENDER_WIDTH_PIXELS,
                     SUBLEVEL_RENDER_HEIGHT_PIXELS);
 
-            final MultiBufferSource.BufferSource bufferSource = guiGraphics.bufferSource();
-            bufferSource.endBatch();
-
             this.renderCustomCOM(guiGraphics, ps);
-            ps.popPose();
+            ps.popMatrix();
 
         }
 
-        ps.popPose();
+        ps.popMatrix();
 
     }
 
@@ -224,7 +220,7 @@ public class DiagramStickyNote extends DiagramButton {
         if (this.renderTime >= 20.0f / DiagramScreen.FPS) {
             this.renderTime = 0.0f;
         } else {
-            this.renderTime += Minecraft.getInstance().getTimer().getRealtimeDeltaTicks();
+            this.renderTime += Minecraft.getInstance().getDeltaTracker().getRealtimeDeltaTicks();
             return;
         }
 
@@ -257,9 +253,9 @@ public class DiagramStickyNote extends DiagramButton {
 
     }
 
-    private void renderCustomCOM(final GuiGraphics guiGraphics, final PoseStack stack) {
+    private void renderCustomCOM(final GuiGraphicsExtractor guiGraphics, final Matrix3x2fStack stack) {
         if (this.parent.config.displayCenterOfMass()) {
-            stack.pushPose();
+            stack.pushMatrix();
             final Vector3d centerOfMass = new Vector3d(this.parent.subLevel.logicalPose().rotationPoint());
             final Vector2d screenCoords = DiagramScreen.getScreenCoords(centerOfMass, NOTE_ORIENTATION, NOTE_LOCAL_CAM_POS, NOTE_PROJ_MAT, SUBLEVEL_RENDER_WIDTH_PIXELS, SUBLEVEL_RENDER_HEIGHT_PIXELS);
 
@@ -268,23 +264,19 @@ public class DiagramStickyNote extends DiagramButton {
             final double comOffsetY = (screenCoords.y) - 8;
 
             if (comOffsetY > 0 && comOffsetX > 0 && comOffsetY < SUBLEVEL_RENDER_HEIGHT_PIXELS && comOffsetX < SUBLEVEL_RENDER_WIDTH_PIXELS) {
-                stack.translate(comOffsetX, comOffsetY, 0);
-                guiGraphics.blit(tex.location, 0, 0, 5, tex.startX, tex.startY, tex.width, tex.height, tex.texWidth, tex.texHeight);
+                stack.translate((float)comOffsetX, (float)comOffsetY);
+                tex.render(guiGraphics,0,0);
             } else {
                 final float centerX = SUBLEVEL_RENDER_WIDTH_PIXELS / 2f;
                 final float centerY = SUBLEVEL_RENDER_HEIGHT_PIXELS / 2f;
 
                 final Vector2d target = new Vector2d(screenCoords.x() - centerX, screenCoords.y - centerY).normalize();
-                TransformStack.of(stack)
-                        .translate(centerX, centerY, 0)
-                        .rotate((float) Math.atan2(target.x, -target.y), Direction.Axis.Z)
-                        .translate(-8, -8, 0)
-                        .translate(0, -40, 0);
+                stack.translate(centerX,centerY).rotate((float)Math.atan2(target.x,-target.y)).translate(-8,-8).translate(0,-40);
 
                 tex = SimGUITextures.DIAGRAM_ICON_COM_ARROW;
-                guiGraphics.blit(tex.location, 0, 0, 5, tex.startX, tex.startY, tex.width, tex.height, tex.texWidth, tex.texHeight);
+                tex.render(guiGraphics,0,0);
             }
-            stack.popPose();
+            stack.popMatrix();
         }
     }
 }

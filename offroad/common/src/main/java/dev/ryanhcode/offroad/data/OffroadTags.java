@@ -1,20 +1,21 @@
 package dev.ryanhcode.offroad.data;
 
-import com.simibubi.create.AllTags;
-import com.simibubi.create.foundation.data.TagGen;
-import com.tterrag.registrate.providers.ProviderType;
-import com.tterrag.registrate.providers.RegistrateTagsProvider;
 import dev.ryanhcode.offroad.Offroad;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.BuiltInRegistries;
+import dev.simulated_team.simulated.fabric.registry.NativeTagDefinitions;
+import net.minecraft.tags.TagFile;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 
 public class OffroadTags {
-
-    public static void addGenerators() {
-        OffroadTags.Blocks.addGenerators();
+    private static TagKey<net.minecraft.world.item.Item> commonItemTag(String path) {
+        return TagKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath("c", path));
+    }
+    private static TagKey<Block> commonBlockTag(String path) {
+        return TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath("c", path));
     }
 
     public static class Blocks {
@@ -27,19 +28,17 @@ public class OffroadTags {
         }
 
         private static TagKey<Block> create(final String namespace, final String path) {
-            return TagKey.create(Registries.BLOCK, ResourceLocation.fromNamespaceAndPath(namespace, path));
+            return TagKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(namespace, path));
         }
 
-        protected static void addGenerators() {
-            Offroad.getRegistrate().addDataGenerator(ProviderType.BLOCK_TAGS, OffroadTags.Blocks::genBlockTags);
-        }
-
-        private static void genBlockTags(final RegistrateTagsProvider<Block> provIn) {
-            final TagGen.CreateTagsProvider<Block> prov = new TagGen.CreateTagsProvider<>(provIn, Block::builtInRegistryHolder);
+        public static java.util.Map<Identifier, TagFile> blockDefinitions() {
+            final NativeTagDefinitions<Block> prov = new NativeTagDefinitions<>(BuiltInRegistries.BLOCK);
             prov.tag(BOREHEAD_EFFECTIVE)
-                    .addTag(AllTags.commonBlockTag("ores"));
+                    .addTag(commonBlockTag("ores"));
             prov.tag(BOREHEAD_SUPER_EFFECTIVE)
                     .add(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS);
+
+            return prov.definitions();
         }
     }
 }

@@ -1,57 +1,34 @@
 package dev.eriksonn.aeronautics.index;
 
-import com.simibubi.create.AllItems;
-import dev.simulated_team.simulated.registrate.SimulatedRegistrate;
-import com.tterrag.registrate.providers.RegistrateRecipeProvider;
-import com.tterrag.registrate.util.entry.ItemEntry;
-import com.tterrag.registrate.util.nullness.NonNullUnaryOperator;
-import dev.eriksonn.aeronautics.Aeronautics;
 import dev.eriksonn.aeronautics.content.components.Levitating;
 import dev.eriksonn.aeronautics.content.items.AviatorsGogglesItem;
+import dev.simulated_team.simulated.fabric.registry.NativeItemCatalog;
+import dev.simulated_team.simulated.fabric.registry.NativeRegistrations;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.data.recipes.RecipeCategory;
-import net.minecraft.data.recipes.ShapelessRecipeBuilder;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Rarity;
 
-public class AeroItems {
-	private static final SimulatedRegistrate REGISTRATE = Aeronautics.getRegistrate();
+import java.util.function.Function;
 
-	public static final ItemEntry<AviatorsGogglesItem> AVIATORS_GOGGLES = REGISTRATE
-					.item("aviators_goggles", AviatorsGogglesItem::new)
-					.lang("Aviator's Goggles")
-					.recipe((c, p) -> ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, c.get(), 1)
-							.requires(AeroTags.ItemTags.LEATHERS)
-							.requires(AllItems.GOGGLES)
-							.unlockedBy("has_ingredient", RegistrateRecipeProvider.has(AllItems.GOGGLES))
-							.save(p))
-					.tag(AeroTags.ItemTags.ARMORS)
-					.tag(AeroTags.ItemTags.HEAD_ARMOR)
-					.tag(ItemTags.FREEZE_IMMUNE_WEARABLES)
-					.register();
+/** Native items with the original item defaults and creative ordering. */
+public final class AeroItems {
+    private static final Identifier SECTION = id("aeronautics");
+    public static final AviatorsGogglesItem AVIATORS_GOGGLES = item("aviators_goggles", AviatorsGogglesItem::new, new Item.Properties());
+    public static final Item MUSIC_DISC_CLOUD_SKIPPER = item("music_disc_cloud_skipper", Item::new,
+            new Item.Properties().stacksTo(1).rarity(Rarity.RARE)
+                    .jukeboxPlayable(ResourceKey.create(Registries.JUKEBOX_SONG, id("cloud_skipper")))
+                    .component(AeroDataComponents.LEVITATING, Levitating.DEFAULT));
+    public static final Item ENDSTONE_POWDER = item("end_stone_powder", Item::new,
+            new Item.Properties().component(AeroDataComponents.LEVITATING, Levitating.END_STONE));
 
-	public static ItemEntry<Item> MUSIC_DISC_CLOUD_SKIPPER =
-			REGISTRATE.item("music_disc_cloud_skipper", Item::new)
-					.properties(p -> p
-							.stacksTo(1)
-							.rarity(Rarity.RARE)
-							.jukeboxPlayable(ResourceKey.create(Registries.JUKEBOX_SONG, Aeronautics.path("cloud_skipper")))
-							.component(AeroDataComponents.LEVITATING, Levitating.DEFAULT)
-					)
-					.tag(AeroTags.ItemTags.MUSIC_DISCS)
-					.lang("Music Disc")
-					.register();
-
-	public static ItemEntry<Item> ENDSTONE_POWDER = ingredient("end_stone_powder", p -> p
-			.component(AeroDataComponents.LEVITATING, Levitating.END_STONE));
-
-	private static ItemEntry<Item> ingredient(final String name, NonNullUnaryOperator<Item.Properties> poperator) {
-		return REGISTRATE.item(name, Item::new)
-				.properties(poperator)
-				.register();
-	}
-
-	public static void init() {}
+    private static <I extends Item> I item(String name, Function<Item.Properties, I> factory, Item.Properties properties) {
+        final I item = NativeRegistrations.item(id(name), factory, properties);
+        NativeItemCatalog.add(item, SECTION, NativeItemCatalog.Visibility.MAIN);
+        return item;
+    }
+    public static void init() {}
+    private static Identifier id(String path) { return Identifier.fromNamespaceAndPath("aeronautics", path); }
+    private AeroItems() {}
 }

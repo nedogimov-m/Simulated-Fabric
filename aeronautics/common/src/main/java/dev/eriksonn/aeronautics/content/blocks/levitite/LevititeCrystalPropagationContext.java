@@ -30,7 +30,7 @@ public class LevititeCrystalPropagationContext implements CrystalPropagationCont
     public void onCrystallize(final Level level, final BlockPos pos) {
         this.onDefaultCrystallize(level, pos);
 
-        if (!level.isClientSide) {
+        if (!level.isClientSide()) {
             AeroSoundEvents.LEVITITE_BLEND_CRYSTALLIZE.play(level, null, pos, 1.0f, 1.0f);
             LevititeBlendHelper.spawnParticles(level, pos, ParticleTypes.FLAME, 30);
             AeroAdvancements.UNIDENTIFIED_FLOATING_OBJECT.awardToNearby(pos, level);
@@ -44,7 +44,7 @@ public class LevititeCrystalPropagationContext implements CrystalPropagationCont
 
     @Override
     public BlockState getCrystalBlockState(final Level level, final BlockPos pos) {
-        return AeroBlocks.LEVITITE.getDefaultState();
+        return AeroBlocks.LEVITITE.defaultBlockState();
     }
 
     public boolean canSpreadTo(final FluidState state) {
@@ -69,9 +69,9 @@ public class LevititeCrystalPropagationContext implements CrystalPropagationCont
         final int sum = Arrays.stream(weights).sum();
         if (sum == 0) return self;
         if (weights[0] > 0 && (weights[1] == 0 || level.getRandom().nextInt(sum) < weights[0])) {
-            return AeroLevititeBlendPropagationContexts.STANDARD_CONTEXT.get();
+            return AeroLevititeBlendPropagationContexts.STANDARD_CONTEXT;
         } else {
-            return AeroLevititeBlendPropagationContexts.SOUL_CONTEXT.get();
+            return AeroLevititeBlendPropagationContexts.SOUL_CONTEXT;
         }
     }
 

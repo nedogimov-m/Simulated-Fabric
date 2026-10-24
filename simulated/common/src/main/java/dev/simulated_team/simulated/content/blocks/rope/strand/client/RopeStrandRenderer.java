@@ -1,29 +1,24 @@
 package dev.simulated_team.simulated.content.blocks.rope.strand.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.simibubi.create.AllBlocks;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import dev.ryanhcode.sable.Sable;
-import dev.ryanhcode.sable.api.SubLevelHelper;
 import dev.ryanhcode.sable.api.math.OrientedBoundingBox3d;
 import dev.ryanhcode.sable.companion.math.Pose3dc;
 import dev.ryanhcode.sable.sublevel.ClientSubLevel;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.simulated_team.simulated.content.blocks.rope.RopeStrandHolderBehavior;
 import dev.simulated_team.simulated.index.SimPartialModels;
+import dev.simulated_team.simulated.fabric.registry.NativePartsRenderer;
+import dev.simulated_team.simulated.fabric.registry.NativePartTransforms;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.util.LightCoordsUtil;
 import dev.simulated_team.simulated.util.SimMathUtils;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import net.createmod.catnip.render.CachedBuffers;
-import net.createmod.catnip.render.SuperByteBuffer;
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.NotNull;
-import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
@@ -34,132 +29,75 @@ import java.util.Objects;
 public class RopeStrandRenderer {
     public record RopeRenderPoint(Quaternionf orientation, Vector3d position) { }
 
-    public static void render(final SmartBlockEntity be, final RopeStrandHolderBehavior ropeHolder, final float partialTick, final PoseStack ps, final MultiBufferSource buffer) {
-
+    public static void extract(final SmartBlockEntity be, final RopeStrandHolderBehavior holder, final float partial, final NativePartsRenderer.Parts parts) {
         final Level level = be.getLevel();
-        assert level != null;
-
-        final BlockPos ownerPos = be.getBlockPos();
-
-        final SuperByteBuffer middle = CachedBuffers.partialFacing(SimPartialModels.ROPE, AllBlocks.ROPE.getDefaultState(), Direction.NORTH);
-        final SuperByteBuffer knot = CachedBuffers.partialFacing(SimPartialModels.ROPE_KNOT, AllBlocks.ROPE.getDefaultState(), Direction.NORTH);
-        final VertexConsumer vb = buffer.getBuffer(RenderType.solid());
-
+        final ClientRopeStrand strand = holder.getClientStrand();
+        if (level == null || !holder.ownsRope() || strand == null || strand.getPoints().size() <= 1) return;
+        final var global = buildRenderPoints(partial, strand.getPoints());
+        if (global.isEmpty()) return;
+        final BlockPos owner = be.getBlockPos();
         final SubLevel subLevel = Sable.HELPER.getContaining(be);
-        Pose3dc containingPose = null;
-
-        if (subLevel instanceof final ClientSubLevel clientSubLevel) {
-            containingPose = clientSubLevel.renderPose();
+        final Pose3dc containing = subLevel instanceof ClientSubLevel client ? client.renderPose() : null;
+        final var local = new ObjectArrayList<RopeRenderPoint>(global.size());
+        for (final var point : global) {
+            final var position = new Vector3d(point.position());
+            final var orientation = new Quaternionf(point.orientation());
+            if (containing != null) {
+                containing.transformPositionInverse(position);
+                orientation.premul(new Quaternionf(containing.orientation()).conjugate());
+            }
+            local.add(new RopeRenderPoint(orientation, position));
         }
-
-        final ClientRopeStrand rope = ropeHolder.getClientStrand();
-
-        final float rad = 3.0f / 16.0f;
-
-        if (ropeHolder.ownsRope() && rope != null && ropeHolder.getClientStrand() != null) {
-            final ClientRopeStrand clientStrand = ropeHolder.getClientStrand();
-
-            final List<ClientRopePoint> points = clientStrand.getPoints();
-
-            if (points.size() <= 1) {
-                return;
+        for (int i = 1; i < local.size(); i++) {
+            final var point = local.get(i - 1);
+            final var worldPosition = global.get(i - 1).position();
+            final double length = worldPosition.distance(global.get(i).position());
+            final int light = LightCoordsUtil.getLightCoords(level, BlockPos.containing(worldPosition.x, worldPosition.y, worldPosition.z));
+            final var pose = new PoseStack();
+            pose.translate(point.position().x - owner.getX(), point.position().y - owner.getY(), point.position().z - owner.getZ());
+            pose.rotate(point.orientation());
+            pose.translate(-.5, -.5, -.5);
+            if (i > 1) {
+                pose.pushPose();
+                NativePartTransforms.partialFacing(pose, Direction.NORTH);
+                parts.add(SimPartialModels.ROPE_KNOT, pose, -1, null, false, light);
+                pose.popPose();
             }
-
-            final ObjectArrayList<RopeRenderPoint> ropeRenderPoints = buildRenderPoints(partialTick, points);
-
-            if (ropeRenderPoints.isEmpty()) return;
-
-            ps.pushPose();
-            for (int i = 1; i < ropeRenderPoints.size(); i++) {
-                final RopeRenderPoint renderPoint0 = ropeRenderPoints.get(i - 1);
-                final RopeRenderPoint renderPoint1 = ropeRenderPoints.get(i);
-                final Vector3d globalRenderPos = new Vector3d(renderPoint0.position());
-                final Vector3d renderPos = renderPoint0.position();
-                final Quaternionf orientation = renderPoint0.orientation();
-
-                final double length = renderPoint1.position().distance(renderPoint0.position());
-
-                if (containingPose != null) {
-                    containingPose.transformPositionInverse(renderPos);
-                    orientation.premul(new Quaternionf(containingPose.orientation()).conjugate());
-                }
-
-                ps.pushPose();
-                ps.translate(renderPos.x - (ownerPos.getX()), renderPos.y - (ownerPos.getY()), renderPos.z - (ownerPos.getZ()));
-                ps.mulPose(orientation);
-                ps.translate(-0.5, -0.5, -0.5);
-                final BlockPos pos = BlockPos.containing(globalRenderPos.x, globalRenderPos.y, globalRenderPos.z);
-                final int worldLight = LevelRenderer.getLightColor(level, pos);
-
-                if (i > 1) {
-                    knot.light(worldLight)
-                            .renderInto(ps, vb);
-                }
-                ps.translate(0.0, 0.5, 0.0);
-                ps.scale(1.0f, (float) length, 1.0f);
-
-                middle.light(worldLight)
-                        .renderInto(ps, vb);
-                ps.popPose();
-            }
-            ps.popPose();
-
-            final RopeRenderPoint last = ropeRenderPoints.getLast();
-            if (containingPose != null) {
-                final Vector3d renderPos = last.position();
-                final Quaternionf orientation = last.orientation();
-
-                containingPose.transformPositionInverse(renderPos);
-                orientation.premul(new Quaternionf(containingPose.orientation()).conjugate());
-            }
-
-            if (Objects.equals(ZiplineClientManager.hoveringRope, clientStrand.getUuid())) {
-                renderOutline(ps, buffer, rad, ropeRenderPoints, ownerPos);
-            }
+            pose.translate(0, .5, 0);
+            pose.scale(1, (float) length, 1);
+            NativePartTransforms.partialFacing(pose, Direction.NORTH);
+            parts.add(SimPartialModels.ROPE, pose, -1, null, false, light);
         }
+        if (Objects.equals(ZiplineClientManager.hoveringRope, strand.getUuid())) extractOutline(parts, 3f / 16, local, owner);
     }
 
-    private static void renderOutline(final PoseStack ps, final MultiBufferSource buffer, final float rad, final ObjectArrayList<RopeRenderPoint> ropeRenderPoints, final BlockPos ownerPos) {
-        final Vector3d previousCorner = new Vector3d();
-        final Vector3d currentCorner = new Vector3d();
-        final Vector3d cornerDiff = new Vector3d();
-
-        final Vector3d[] ropeCorners = {
-                new Vector3d(-rad, 0, -rad),
-                new Vector3d(-rad, 0, rad),
-                new Vector3d(rad, 0, rad),
-                new Vector3d(rad, 0, -rad),
-        };
-
-        final VertexConsumer linesVB = buffer.getBuffer(RenderType.lines());
-        final Matrix4f pose = ps.last().pose();
-
-        for (int i = 0; i < ropeRenderPoints.size() + 1; i++) {
-            final RopeRenderPoint renderPoint0 = ropeRenderPoints.get(Math.max(0, i - 1));
-            final RopeRenderPoint renderPoint1 = ropeRenderPoints.get(Math.min(ropeRenderPoints.size() - 1, i));
-                final boolean start = i == 0;
-                final boolean end = i == ropeRenderPoints.size();
-
-            for (final Vector3d ropeCorner : ropeCorners) {
-                renderPoint0.orientation().transform(start ? ropeCorner.rotateY(Math.PI / 2.0, previousCorner) : ropeCorner, previousCorner)
-                        .add(renderPoint0.position())
-                        .sub(ownerPos.getX(), ownerPos.getY(), ownerPos.getZ());
-
-                renderPoint1.orientation().transform(end ? ropeCorner.rotateY(Math.PI / 2.0, ropeCorner) : ropeCorner, currentCorner)
-                        .add(renderPoint1.position())
-                        .sub(ownerPos.getX(), ownerPos.getY(), ownerPos.getZ());
-
-                currentCorner.sub(previousCorner, cornerDiff).normalize();
-
-                linesVB.addVertex(pose, (float) previousCorner.x, (float) previousCorner.y, (float) previousCorner.z)
-                        .setColor(0f, 0f, 0f, .4f)
-                        .setNormal(ps.last(), (float) cornerDiff.x, (float) cornerDiff.y, (float) cornerDiff.z);
-
-                linesVB.addVertex(pose, (float) currentCorner.x, (float) currentCorner.y, (float) currentCorner.z)
-                        .setColor(0f, 0f, 0f, .4f)
-                        .setNormal(ps.last(), (float) cornerDiff.x, (float) cornerDiff.y, (float) cornerDiff.z);
+    private record OutlineLine(org.joml.Vector3fc start, org.joml.Vector3fc end) {
+        private OutlineLine { start = new org.joml.Vector3f(start); end = new org.joml.Vector3f(end); }
+    }
+    private static void extractOutline(NativePartsRenderer.Parts parts, float radius, List<RopeRenderPoint> points, BlockPos owner) {
+        final var lines = new java.util.ArrayList<OutlineLine>();
+        final Vector3d[] corners = {new Vector3d(-radius, 0, -radius), new Vector3d(-radius, 0, radius),
+                new Vector3d(radius, 0, radius), new Vector3d(radius, 0, -radius)};
+        for (int i = 0; i <= points.size(); i++) {
+            final var first = points.get(Math.max(0, i - 1));
+            final var second = points.get(Math.min(points.size() - 1, i));
+            for (final var corner : corners) {
+                final var a = new Vector3d(corner);
+                final var b = new Vector3d(corner);
+                if (i == 0) a.rotateY(Math.PI / 2);
+                if (i == points.size()) b.rotateY(Math.PI / 2);
+                first.orientation().transform(a).add(first.position()).sub(owner.getX(), owner.getY(), owner.getZ());
+                second.orientation().transform(b).add(second.position()).sub(owner.getX(), owner.getY(), owner.getZ());
+                lines.add(new OutlineLine(new org.joml.Vector3f(a), new org.joml.Vector3f(b)));
             }
         }
+        final var captured = List.copyOf(lines);
+        parts.addGeometry(RenderTypes.lines(), (pose, vertices) -> {
+            for (final var line : captured) {
+                vertices.addVertex(pose, line.start()).setColor(0f, 0f, 0f, .4f).setLineWidth(1);
+                vertices.addVertex(pose, line.end()).setColor(0f, 0f, 0f, .4f).setLineWidth(1);
+            }
+        }, new PoseStack());
     }
 
     private static @NotNull ObjectArrayList<RopeRenderPoint> buildRenderPoints(final float partialTick, final List<ClientRopePoint> inputPoints) {

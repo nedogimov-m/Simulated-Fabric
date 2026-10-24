@@ -1,9 +1,9 @@
 package dev.eriksonn.aeronautics.content.blocks.hot_air.steam_vent;
 
-import com.simibubi.create.content.equipment.wrench.IWrenchable;
+import dev.simulated_team.simulated.fabric.block.NativeWrenchable;
 import com.simibubi.create.content.fluids.tank.FluidTankBlock;
 import com.simibubi.create.content.kinetics.steamEngine.SteamEngineBlock;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import dev.eriksonn.aeronautics.index.AeroBlockEntityTypes;
 import dev.eriksonn.aeronautics.index.AeroBlockShapes;
 import dev.eriksonn.aeronautics.index.AeroTags;
@@ -14,7 +14,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -29,7 +29,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
@@ -42,9 +42,9 @@ import java.util.Locale;
 
 import static net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED;
 
-public class SteamVentBlock extends Block implements IBE<SteamVentBlockEntity>, SimpleWaterloggedBlock, IWrenchable {
+public class SteamVentBlock extends Block implements NativeEntityBlock<SteamVentBlockEntity>, SimpleWaterloggedBlock, NativeWrenchable {
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
-    public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
+    public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final EnumProperty<Variant> VARIANT = EnumProperty.create("variant", Variant.class);
 
 
@@ -59,7 +59,7 @@ public class SteamVentBlock extends Block implements IBE<SteamVentBlockEntity>, 
     }
 
     @Override
-    protected @NotNull ItemInteractionResult useItemOn(final ItemStack itemStack,
+    protected @NotNull InteractionResult useItemOn(final ItemStack itemStack,
                                                        final @NotNull BlockState blockState,
                                                        final @NotNull Level level,
                                                        final @NotNull BlockPos blockPos,
@@ -73,16 +73,16 @@ public class SteamVentBlock extends Block implements IBE<SteamVentBlockEntity>, 
             if (conversion != current) {
                 level.setBlockAndUpdate(blockPos, blockState.setValue(VARIANT, conversion));
                 level.playLocalSound(blockPos.getX(), blockPos.getY(), blockPos.getZ(), SoundEvents.COPPER_PLACE, SoundSource.BLOCKS, 1, 1, false);
-                return ItemInteractionResult.SUCCESS;
+                return InteractionResult.SUCCESS;
             }
         }
 
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
     @Override
     public void onPlace(final @NotNull BlockState pState, final @NotNull Level pLevel, final BlockPos pPos, final @NotNull BlockState pOldState, final boolean pIsMoving) {
-        FluidTankBlock.updateBoilerState(pState, pLevel, pPos.relative(Direction.DOWN));
+        updateBoiler(pLevel, pPos.below());
 
         this.withBlockEntityDo(pLevel, pPos, SteamVentBlockEntity::getAndCacheTank);
         this.withBlockEntityDo(pLevel, pPos, x -> {
@@ -93,17 +93,17 @@ public class SteamVentBlock extends Block implements IBE<SteamVentBlockEntity>, 
     }
 
     @Override
-    public void onRemove(final BlockState pState, final @NotNull Level level, final @NotNull BlockPos pos, final @NotNull BlockState newState, final boolean pIsMoving) {
-        this.withBlockEntityDo(level, pos, x -> x.rawSignalStrength = 0);
-        if (pState.hasBlockEntity() && (!pState.is(newState.getBlock()) || !newState.hasBlockEntity()))
-            level.removeBlockEntity(pos);
+    protected void affectNeighborsAfterRemoval(final BlockState state, final net.minecraft.server.level.ServerLevel level, final BlockPos pos, final boolean moving) {
+        for (Direction direction : Iterate.directions)
+            if (level.getBlockEntity(pos.relative(direction)) instanceof SteamVentBlockEntity vent) vent.signalSync();
+        updateBoiler(level, pos.below());
+        super.affectNeighborsAfterRemoval(state, level, pos, moving);
+    }
 
-        for (Direction dir : Iterate.directions) {
-            if (level.getBlockEntity(pos.relative(dir)) instanceof SteamVentBlockEntity vent) {
-                vent.signalSync();
-            }
+    private static void updateBoiler(Level level, BlockPos pos) {
+        if (level.getBlockEntity(pos) instanceof com.simibubi.create.content.fluids.tank.FluidTankBlockEntity tank) {
+            tank.updateBoilerState(); tank.updateBoilerTemperature();
         }
-        FluidTankBlock.updateBoilerState(pState, level, pos.relative(Direction.DOWN));
     }
 
     @Override
@@ -119,8 +119,8 @@ public class SteamVentBlock extends Block implements IBE<SteamVentBlockEntity>, 
     }
 
     @Override
-    public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block blockIn, final BlockPos fromPos, final boolean isMoving) {
-        if (level.isClientSide)
+    public void neighborChanged(final BlockState state, final Level level, final BlockPos pos, final Block blockIn, final net.minecraft.world.level.redstone.Orientation orientation, final boolean isMoving) {
+        if (level.isClientSide())
             return;
 
         this.withBlockEntityDo(level, pos, SteamVentBlockEntity::updateRawSignal);
@@ -149,7 +149,7 @@ public class SteamVentBlock extends Block implements IBE<SteamVentBlockEntity>, 
 
     @Override
     public BlockEntityType<? extends SteamVentBlockEntity> getBlockEntityType() {
-        return AeroBlockEntityTypes.STEAM_VENT.get();
+        return AeroBlockEntityTypes.STEAM_VENT;
     }
 
     public enum Variant implements StringRepresentable {
@@ -167,5 +167,17 @@ public class SteamVentBlock extends Block implements IBE<SteamVentBlockEntity>, 
         public String getSerializedName() {
             return this.toString().toLowerCase(Locale.ROOT);
         }
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

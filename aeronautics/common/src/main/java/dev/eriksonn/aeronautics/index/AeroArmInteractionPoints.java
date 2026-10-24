@@ -28,7 +28,7 @@ public class AeroArmInteractionPoints {
 
         @Override
         public boolean canCreatePoint(final Level var1, final BlockPos var2, final BlockState var3) {
-            return AeroBlocks.MOUNTED_POTATO_CANNON.has(var1.getBlockState(var2));
+            return var1.getBlockState(var2).is(AeroBlocks.MOUNTED_POTATO_CANNON);
         }
 
         @Override

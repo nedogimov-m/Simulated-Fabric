@@ -3,8 +3,7 @@ package dev.eriksonn.aeronautics.index;
 import com.simibubi.create.AllSoundEvents;
 import dev.simulated_team.simulated.api.sound.SimSoundEntry;
 import dev.simulated_team.simulated.api.sound.SoundEventRegistry;
-import dev.eriksonn.aeronautics.Aeronautics;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 
@@ -12,7 +11,7 @@ import java.util.function.UnaryOperator;
 
 public class AeroSoundEvents {
 
-    public static final SoundEventRegistry REGISTRY = new SoundEventRegistry(Aeronautics.MOD_ID);
+    public static final SoundEventRegistry REGISTRY = new SoundEventRegistry("aeronautics");
 
     public static final String BLOCK_BROKEN = "subtitles.block.generic.break";
     public static final String BLOCK_PLACED = "subtitles.block.generic.place";
@@ -125,8 +124,8 @@ public class AeroSoundEvents {
                 .addFileVariant(mc("music/game/water/axolotl"), UnaryOperator.identity())
         );
 
-    private static ResourceLocation mc(String path) {
-        return ResourceLocation.withDefaultNamespace(path);
+    private static Identifier mc(String path) {
+        return Identifier.withDefaultNamespace(path);
     }
 
     private static SimSoundEntry song(String id, String path) {

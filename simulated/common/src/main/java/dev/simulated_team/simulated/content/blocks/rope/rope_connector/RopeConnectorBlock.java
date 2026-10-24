@@ -2,7 +2,7 @@ package dev.simulated_team.simulated.content.blocks.rope.rope_connector;
 
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.api.contraption.BlockMovementChecks;
-import com.simibubi.create.foundation.block.IBE;
+import dev.simulated_team.simulated.fabric.block.NativeEntityBlock;
 import com.simibubi.create.impl.contraption.BlockMovementChecksImpl;
 import dev.ryanhcode.sable.api.block.BlockSubLevelAssemblyListener;
 import dev.ryanhcode.sable.api.block.BlockSubLevelCollisionShape;
@@ -16,7 +16,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -29,8 +29,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class RopeConnectorBlock extends AbstractDirectionalAxisBlock implements IBE<RopeConnectorBlockEntity>, RopeHolderBlock<RopeConnectorBlockEntity>, BlockSubLevelAssemblyListener, BlockSubLevelCollisionShape {
-    public static final MapCodec<RopeConnectorBlock> CODEC = simpleCodec(RopeConnectorBlock::new);
+public class RopeConnectorBlock extends AbstractDirectionalAxisBlock implements NativeEntityBlock<RopeConnectorBlockEntity>, RopeHolderBlock<RopeConnectorBlockEntity>, BlockSubLevelAssemblyListener, BlockSubLevelCollisionShape {
+
     private static final DirectionalAxisShaper SHAPE = DirectionalAxisShaper.make(SimBlockShapes.ROPE_CONNECTOR);
     private static final DirectionalAxisShaper PHYSICS_COLLIDER = DirectionalAxisShaper.make(SimBlockShapes.ROPE_CONNECTOR_COLLIDER);
 
@@ -55,18 +55,8 @@ public class RopeConnectorBlock extends AbstractDirectionalAxisBlock implements 
     }
 
     @Override
-    protected MapCodec<? extends DirectionalBlock> codec() {
-        return CODEC;
-    }
-
-    @Override
     public VoxelShape getSubLevelCollisionShape(final BlockGetter blockGetter, final BlockState state) {
         return PHYSICS_COLLIDER.get(state.getValue(FACING), state.getValue(AXIS_ALONG_FIRST_COORDINATE));
-    }
-
-    @Override
-    public void onRemove(final BlockState pState, final Level pLevel, final BlockPos pPos, final BlockState pNewState, final boolean pIsMoving) {
-        IBE.onRemove(pState, pLevel, pPos, pNewState);
     }
 
     @Override
@@ -76,7 +66,7 @@ public class RopeConnectorBlock extends AbstractDirectionalAxisBlock implements 
 
     @Override
     public BlockEntityType<? extends RopeConnectorBlockEntity> getBlockEntityType() {
-        return SimBlockEntityTypes.ROPE_CONNECTOR.get();
+        return SimBlockEntityTypes.ROPE_CONNECTOR;
     }
 
     @Override
@@ -96,11 +86,23 @@ public class RopeConnectorBlock extends AbstractDirectionalAxisBlock implements 
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
+    protected InteractionResult useItemOn(final ItemStack stack, final BlockState state, final Level level, final BlockPos pos, final Player player, final InteractionHand hand, final BlockHitResult hitResult) {
         if (!level.isClientSide() && stack.is(SimTags.Items.DESTROYS_ROPE)) {
             return RopeHolderBlock.shearRope(this, level, pos, (ServerPlayer) player);
         }
 
         return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+    }
+
+    @Override
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        return NativeEntityBlock.create(this, pos, state);
+    }
+
+    @Override
+    public <S extends net.minecraft.world.level.block.entity.BlockEntity> net.minecraft.world.level.block.entity.BlockEntityTicker<S> getTicker(
+            net.minecraft.world.level.Level level, net.minecraft.world.level.block.state.BlockState state,
+            net.minecraft.world.level.block.entity.BlockEntityType<S> type) {
+        return NativeEntityBlock.ticker(this, level, state, type);
     }
 }

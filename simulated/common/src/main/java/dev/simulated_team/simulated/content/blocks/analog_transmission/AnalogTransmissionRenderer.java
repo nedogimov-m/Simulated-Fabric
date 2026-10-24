@@ -1,51 +1,26 @@
 package dev.simulated_team.simulated.content.blocks.analog_transmission;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.simibubi.create.content.kinetics.base.IRotate;
-import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
-import dev.engine_room.flywheel.api.visualization.VisualizationManager;
+import com.mojang.math.Axis;
+import com.simibubi.create.AllBlocks;
+import com.simibubi.create.content.kinetics.simpleRelays.ShaftBlock;
+import dev.simulated_team.simulated.fabric.registry.NativePartsRenderer;
 import dev.simulated_team.simulated.index.SimPartialModels;
-import net.createmod.catnip.render.CachedBuffers;
-import net.createmod.catnip.render.SuperByteBuffer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.createmod.catnip.math.AngleHelper;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.state.BlockState;
 
-public class AnalogTransmissionRenderer extends KineticBlockEntityRenderer<AnalogTransmissionBlockEntity> {
-
-    public AnalogTransmissionRenderer(final BlockEntityRendererProvider.Context context) {
-        super(context);
-    }
-
-    @Override
-    protected void renderSafe(final AnalogTransmissionBlockEntity be, final float partialTicks, final PoseStack ms, final MultiBufferSource buffer, final int light, final int overlay) {
-        if (VisualizationManager.supportsVisualization(be.getLevel())) {
-            return;
-        }
-
-        super.renderSafe(be, partialTicks, ms, buffer, light, overlay);
-
-        final BlockState state = be.getBlockState();
-        final Direction.Axis axis = ((IRotate) state.getBlock()).getRotationAxis(state);
-
-        final SuperByteBuffer cogwheel = kineticRotationTransform(
-                CachedBuffers.partialFacingVertical(SimPartialModels.ANALOG_TRANSMISSION_COG, state, Direction.fromAxisAndDirection(state.getValue(AnalogTransmissionBlock.AXIS), Direction.AxisDirection.POSITIVE)),
-                be.getExtraKinetics(),
-                axis,
-                getAngleForBe(be.getExtraKinetics(), be.getBlockPos(), axis),
-                light);
-
-        cogwheel.renderInto(ms, buffer.getBuffer(RenderType.solid()));
-
-        final VertexConsumer vb = buffer.getBuffer(RenderType.solid());
-        KineticBlockEntityRenderer.renderRotatingKineticBlock(be, shaft(getRotationAxisOf(be)), ms, vb, light);
-    }
-
-    @Override
-    protected BlockState getRenderedBlockState(final AnalogTransmissionBlockEntity be) {
-        return shaft(getRotationAxisOf(be));
+/** Both independent kinetic owners are sampled during extraction. */
+public final class AnalogTransmissionRenderer extends NativePartsRenderer<AnalogTransmissionBlockEntity> {
+    public AnalogTransmissionRenderer(BlockEntityRendererProvider.Context context) {}
+    @Override protected void extractParts(AnalogTransmissionBlockEntity entity, float partial, Parts parts) {
+        final Direction.Axis axis = rotationAxis(entity);
+        final var cog = rotating(entity.getExtraKinetics(), partial, axis);
+        final Direction facing = Direction.get(Direction.AxisDirection.POSITIVE, axis);
+        cog.translate(.5, .5, .5);
+        cog.rotate(Axis.YP.rotationDegrees(AngleHelper.horizontalAngle(facing)));
+        cog.rotate(Axis.XP.rotationDegrees(AngleHelper.verticalAngle(facing) + 90));
+        cog.translate(-.5, -.5, -.5);
+        parts.add(SimPartialModels.ANALOG_TRANSMISSION_COG, cog);
+        parts.add(AllBlocks.SHAFT.defaultBlockState().setValue(ShaftBlock.AXIS, axis), rotating(entity, partial, axis));
     }
 }

@@ -2,15 +2,9 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "B": {
-      "item": "create:brass_casing"
-    },
-    "G": {
-      "item": "simulated:gyroscopic_mechanism"
-    },
-    "P": {
-      "item": "create:propeller"
-    }
+    "B": "create:brass_casing",
+    "G": "simulated:gyroscopic_mechanism",
+    "P": "create:propeller"
   },
   "pattern": [
     "P",

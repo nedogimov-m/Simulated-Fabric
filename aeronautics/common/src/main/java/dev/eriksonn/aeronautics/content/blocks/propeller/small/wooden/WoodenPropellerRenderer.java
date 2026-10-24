@@ -1,6 +1,7 @@
 package dev.eriksonn.aeronautics.content.blocks.propeller.small.wooden;
 
-import dev.engine_room.flywheel.lib.model.baked.PartialModel;
+import net.fabricmc.fabric.api.client.model.loading.v1.ExtraModelKey;
+import net.minecraft.client.renderer.block.dispatch.BlockStateModel;
 import dev.eriksonn.aeronautics.content.blocks.propeller.small.SimplePropellerRenderer;
 import dev.eriksonn.aeronautics.index.AeroPartialModels;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -15,12 +16,12 @@ public class WoodenPropellerRenderer extends SimplePropellerRenderer<WoodenPrope
     }
 
     @Override
-    public PartialModel getCurrentModel(final WoodenPropellerBlockEntity be) {
+    public ExtraModelKey<BlockStateModel> getCurrentModel(final WoodenPropellerBlockEntity be) {
         return be.getBlockState().getValue(REVERSED) ? AeroPartialModels.WOODEN_PROPELLER_REVERSED : AeroPartialModels.WOODEN_PROPELLER;
     }
 
     @Override
     public float getAngle(final float partialTicks, final Direction dir, final WoodenPropellerBlockEntity be) {
-        return super.getAngle(partialTicks, dir, be) + getRotationOffsetForPosition(be, be.getBlockPos(), dir.getAxis());
+        return super.getAngle(partialTicks, dir, be) + (float) Math.toRadians(rotationOffset(be, dir.getAxis()));
     }
 }

@@ -2,15 +2,9 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "A": {
-      "item": "create:transmitter"
-    },
-    "B": {
-      "tag": "c:plates/gold"
-    },
-    "C": {
-      "item": "create:brass_casing"
-    }
+    "A": "create:transmitter",
+    "B": "#c:plates/gold",
+    "C": "create:brass_casing"
   },
   "pattern": [
     "A",

@@ -30,7 +30,7 @@ public class PotatoProjectileEntityMixin implements PotatoProjectileEntityExtens
 		this.additionalDamageMult = value;
 	}
 
-	@Inject(method = "onHitEntity", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;hurt(Lnet/minecraft/world/damagesource/DamageSource;F)Z", shift = At.Shift.AFTER))
+	@Inject(method = "onHitEntity", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;hurtServer(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;F)Z", shift = At.Shift.AFTER))
 	private void onHitEntity(final EntityHitResult ray, final CallbackInfo ci) {
 		if(this.aeronautics$isFromMountedPotatoCannon && !ray.getEntity().isAlive() && ray.getEntity() instanceof final Phantom phantom) {
 			AeroAdvancements.GHOSTBUSTER.awardToNearby(BlockPos.containing(phantom.position()), phantom.level(), 30);

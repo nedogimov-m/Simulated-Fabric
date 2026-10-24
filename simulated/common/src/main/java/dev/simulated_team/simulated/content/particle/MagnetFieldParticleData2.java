@@ -3,19 +3,15 @@ package dev.simulated_team.simulated.content.particle;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import com.simibubi.create.foundation.particle.ICustomParticleDataWithSprite;
 import dev.simulated_team.simulated.index.SimParticleTypes;
 import io.netty.buffer.ByteBuf;
-import net.createmod.catnip.codecs.stream.CatnipStreamCodecs;
-import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.phys.Vec3;
 
-public class MagnetFieldParticleData2 implements ParticleOptions, ICustomParticleDataWithSprite<MagnetFieldParticleData2> {
+public class MagnetFieldParticleData2 implements ParticleOptions {
     //public static final MapCodec<MagnetFieldParticleData2> CODEC = RecordCodecBuilder.mapCodec((i) -> {
     //    return i.group(Codec.BOOL.fieldOf("negative").forGetter((p) -> {
     //        return p.negative;
@@ -47,25 +43,13 @@ public class MagnetFieldParticleData2 implements ParticleOptions, ICustomParticl
     }
 
     public ParticleType<?> getType() {
-        return SimParticleTypes.MAGNET_FIELD2.get();
-    }
-
-    public MapCodec<MagnetFieldParticleData2> getCodec(final ParticleType<MagnetFieldParticleData2> type) {
-        return CODEC;
-    }
-
-    public ParticleEngine.SpriteParticleRegistration<MagnetFieldParticleData2> getMetaFactory() {
-        return MagnetFieldParticle2.Factory::new;
-    }
-
-    public StreamCodec<? super RegistryFriendlyByteBuf, MagnetFieldParticleData2> getStreamCodec() {
-        return STREAM_CODEC;
+        return SimParticleTypes.MAGNET_FIELD2;
     }
 
     static {
         STREAM_CODEC = StreamCodec.composite(
-                CatnipStreamCodecs.VEC3, p -> p.previousOffset,
-                CatnipStreamCodecs.VEC3, p -> p.nextOffset,
+                Vec3.STREAM_CODEC, p -> p.previousOffset,
+                Vec3.STREAM_CODEC, p -> p.nextOffset,
                 ByteBufCodecs.BOOL, p -> p.negative,
                 ByteBufCodecs.INT,p -> p.timeUntilEnd,
                 MagnetFieldParticleData2::new);

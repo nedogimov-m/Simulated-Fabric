@@ -1,8 +1,8 @@
 package dev.simulated_team.simulated.content.entities.honey_glue;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.simibubi.create.AllKeys;
 import com.simibubi.create.foundation.utility.CreateLang;
-import com.simibubi.create.foundation.utility.RaycastHelper;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.sublevel.ClientSubLevel;
 import dev.ryanhcode.sable.sublevel.SubLevel;
@@ -42,7 +42,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
+
 
 import java.util.List;
 import java.util.Optional;
@@ -80,7 +80,7 @@ public class HoneyGlueClientHandler implements InteractCallback {
 
     @Override
     public Result onUse(final int modifiers, final int action, final KeyMapping rightKey) {
-        if (action == GLFW.GLFW_PRESS) {
+        if (action == InputConstants.PRESS) {
             final Player player = SimDistUtil.getClientPlayer();
             final InteractionHand hand = this.getHoneyGlueHand(player);
             if (hand == null) {
@@ -96,7 +96,7 @@ public class HoneyGlueClientHandler implements InteractCallback {
             if (AllKeys.altDown() && bhr.getType() == HitResult.Type.MISS) {
                 final boolean success = this.selectPos(bhr.getBlockPos(), player, player.getItemInHand(hand));
                 if (success) {
-                    player.swing(InteractionHand.MAIN_HAND);
+                    player.swing(InteractionHand.MAIN_HAND,net.minecraft.world.item.component.SwingAnimation.DEFAULT,false);
                     return new Result(true);
                 } else {
                     return Result.empty();
@@ -109,7 +109,7 @@ public class HoneyGlueClientHandler implements InteractCallback {
 
     @Override
     public Result onAttack(final int modifiers, final int action, final KeyMapping leftKey) {
-        if (action == GLFW.GLFW_PRESS) {
+        if (action == InputConstants.PRESS) {
             final Player player = SimDistUtil.getClientPlayer();
             if (this.getHoneyGlueHand(player) == null) {
                 return Result.empty();
@@ -207,7 +207,7 @@ public class HoneyGlueClientHandler implements InteractCallback {
     public void updateHovered() {
         final Player player = SimDistUtil.getClientPlayer();
         final Vec3 baseOrigin = player.getEyePosition();
-        final Vec3 baseTarget = RaycastHelper.getTraceTarget(player, player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) * 5, baseOrigin);
+        final Vec3 baseTarget = baseOrigin.add(player.getViewVector(1).scale(player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE)*5));
 
         HoneyGlueEntity closestGlue = null;
         double distance = Double.MAX_VALUE;
@@ -359,7 +359,7 @@ public class HoneyGlueClientHandler implements InteractCallback {
     }
 
     private static @NotNull List<HoneyGlueEntity> getHoneyGlue(final Player player) {
-        return player.level().getEntities(SimEntityTypes.HONEY_GLUE.get(), player.getBoundingBox().inflate(SimConfigService.INSTANCE.server().assembly.honeyGlueRange.get()), e -> true);
+        return player.level().getEntities(SimEntityTypes.HONEY_GLUE, player.getBoundingBox().inflate(SimConfigService.INSTANCE.server().assembly.honeyGlueRange.get()), e -> true);
     }
 
     @Nullable
@@ -372,7 +372,7 @@ public class HoneyGlueClientHandler implements InteractCallback {
     private void clearAndSwing(final Player player) {
         this.selectedPos = null;
         this.currentState = State.UNBOUND;
-        player.swing(InteractionHand.MAIN_HAND);
+        player.swing(InteractionHand.MAIN_HAND,net.minecraft.world.item.component.SwingAnimation.DEFAULT,false);
     }
 
     public enum State {

@@ -1,6 +1,6 @@
 package dev.eriksonn.aeronautics.content.blocks.propeller.bearing.gyroscopic_propeller_bearing;
 
-import com.simibubi.create.content.contraptions.DirectionalExtenderScrollOptionSlot;
+import dev.eriksonn.aeronautics.util.AeroDirectionalScrollSlot;
 import com.simibubi.create.content.contraptions.bearing.BearingBlock;
 import com.simibubi.create.foundation.blockEntity.behaviour.ValueBoxTransform;
 import dev.ryanhcode.sable.Sable;
@@ -15,9 +15,10 @@ import dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
@@ -53,16 +54,16 @@ public class GyroscopicPropellerBearingBlockEntity extends PropellerBearingBlock
     }
 
     @Override
-    public void write(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
+    public void write(final ValueOutput compound, final boolean clientPacket) {
         compound.putBoolean("IsPowered", this.powered);
-        super.write(compound, registries, clientPacket);
+        super.write(compound, clientPacket);
     }
 
     @Override
-    protected void read(final CompoundTag compound, final HolderLookup.Provider registries, final boolean clientPacket) {
-        this.powered = compound.getBoolean("IsPowered");
+    protected void read(final ValueInput compound, final boolean clientPacket) {
+        this.powered = compound.getBooleanOr("IsPowered", false);
 
-        super.read(compound, registries, clientPacket);
+        super.read(compound, clientPacket);
     }
 
     public void tick() {
@@ -213,7 +214,7 @@ public class GyroscopicPropellerBearingBlockEntity extends PropellerBearingBlock
         return new GyroscopicPropellerValueBoxTransform();
     }
 
-    private static class GyroscopicPropellerValueBoxTransform extends DirectionalExtenderScrollOptionSlot {
+    private static class GyroscopicPropellerValueBoxTransform extends AeroDirectionalScrollSlot {
 
         public GyroscopicPropellerValueBoxTransform() {
             super((state, d) -> {
@@ -225,7 +226,7 @@ public class GyroscopicPropellerBearingBlockEntity extends PropellerBearingBlock
 
         @Override
         public Vec3 getLocalOffset(final LevelAccessor level, final BlockPos pos, final BlockState state) {
-            return super.getLocalOffset(level, pos, state).add(Vec3.atLowerCornerOf((state.getValue(BlockStateProperties.FACING)).getNormal()).scale(-0.125));
+            return super.getLocalOffset(level, pos, state).add(Vec3.atLowerCornerOf((state.getValue(BlockStateProperties.FACING)).getUnitVec3i()).scale(-0.125));
         }
     }
 }

@@ -3,14 +3,13 @@ package dev.simulated_team.simulated.content.blocks.lasers.laser_pointer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.simulated_team.simulated.content.blocks.lasers.AbstractLaserRenderer;
 import dev.simulated_team.simulated.content.blocks.lasers.LaserBehaviour;
+import dev.simulated_team.simulated.fabric.registry.NativePartTransforms;
+import dev.simulated_team.simulated.fabric.registry.NativePartialGeometry;
 import dev.simulated_team.simulated.index.SimPartialModels;
 import dev.simulated_team.simulated.index.SimRenderTypes;
 import dev.simulated_team.simulated.util.SimColors;
-import net.createmod.catnip.render.CachedBuffers;
-import net.createmod.catnip.render.SuperByteBuffer;
-import net.minecraft.Util;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.util.Util;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import org.joml.Vector3d;
 import org.joml.Vector4f;
@@ -24,31 +23,18 @@ public class LaserPointerRenderer extends AbstractLaserRenderer<LaserPointerBloc
     }
 
     @Override
-    protected void renderSafe(final LaserPointerBlockEntity blockEntity, final float partialTicks, final PoseStack pose, final MultiBufferSource buffer, final int light, final int overlay) {
-        final SuperByteBuffer superBuffer;
-
+    protected void extractParts(final LaserPointerBlockEntity blockEntity, final float partialTicks, final Parts parts) {
         final Vector4f colors = this.getColors(blockEntity, partialTicks);
         final boolean isDarkerThanDark = colors.x == 0 && colors.y == 0 && colors.z == 0;
-        if (blockEntity.shouldCast() && !isDarkerThanDark) {
-            superBuffer = CachedBuffers.partial(SimPartialModels.LASER_POINTER_LENS_ON, blockEntity.getBlockState());
-        } else {
-            superBuffer = CachedBuffers.partial(SimPartialModels.LASER_POINTER_LENS_OFF, blockEntity.getBlockState());
-        }
-        superBuffer.translate(0.5, 0.5, 0.5);
-        superBuffer.rotateToFace(blockEntity.getBlockState().getValue(LaserPointerBlock.FACING));
-        superBuffer.translate(-0.5, -0.5, -0.5);
-        if (blockEntity.shouldCast()) {
-            superBuffer.light(LightTexture.FULL_BRIGHT);
-        } else {
-            superBuffer.light(light);
-        }
-        superBuffer.disableDiffuse();
-        superBuffer.color((int) (colors.x * 255), (int) (colors.z * 255), (int) (colors.y * 255), 255);
-        superBuffer.renderInto(pose, buffer.getBuffer(SimRenderTypes.lens()));
+        final var key=blockEntity.shouldCast()&&!isDarkerThanDark?SimPartialModels.LASER_POINTER_LENS_ON:SimPartialModels.LASER_POINTER_LENS_OFF;
+        final int color=0xff000000|((int)(colors.x*255)<<16)|((int)(colors.z*255)<<8)|(int)(colors.y*255);
+        final var lens=NativePartialGeometry.extract(key,color,blockEntity.shouldCast()?LightCoordsUtil.FULL_BRIGHT:parts.light());
+        final var pose=new PoseStack();NativePartTransforms.faceNorth(pose,blockEntity.getBlockState().getValue(LaserPointerBlock.FACING));
+        parts.addGeometry(SimRenderTypes.lens(),lens,pose);
 
         // only draw non-black lasers
         if (!isDarkerThanDark) {
-            super.renderSafe(blockEntity, partialTicks, pose, buffer, light, overlay);
+            super.extractParts(blockEntity, partialTicks, parts);
         }
     }
 

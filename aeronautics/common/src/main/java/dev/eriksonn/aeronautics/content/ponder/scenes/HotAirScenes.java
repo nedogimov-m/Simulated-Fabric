@@ -11,7 +11,6 @@ import dev.simulated_team.simulated.ponder.SmoothMovementUtils;
 import dev.simulated_team.simulated.ponder.instructions.ChaseAABBWithLinkInstruction;
 import dev.simulated_team.simulated.ponder.instructions.CustomAnimateWorldSectionInstruction;
 import dev.simulated_team.simulated.ponder.instructions.PullTheAssemblerKronkInstruction;
-import com.tterrag.registrate.util.entry.BlockEntry;
 import dev.eriksonn.aeronautics.content.blocks.hot_air.envelope.EnvelopeEncasedShaftBlock;
 import dev.eriksonn.aeronautics.content.blocks.hot_air.hot_air_burner.HotAirBurnerBlock;
 import dev.eriksonn.aeronautics.content.blocks.hot_air.steam_vent.SteamVentBlock;
@@ -238,7 +237,7 @@ public class HotAirScenes {
             scene.idle(20);
 
             final Selection centerBlaze = util.select().position(4, 1, 3);
-            world.setBlocks(blazeSelection.substract(centerBlaze), AllBlocks.BLAZE_BURNER.getDefaultState()
+            world.setBlocks(blazeSelection.substract(centerBlaze), AllBlocks.BLAZE_BURNER.defaultBlockState()
                             .setValue(BlazeBurnerBlock.HEAT_LEVEL, BlazeBurnerBlock.HeatLevel.KINDLED),
                     false);
 
@@ -296,10 +295,10 @@ public class HotAirScenes {
         }
         if (isVent) {
             scene.overlay().showControls(util.vector().blockSurface(burnerPos.west(), Direction.NORTH).add(0, shipOffset, 0), Pointing.RIGHT, 30)
-                    .withItem(new ItemStack(AllItems.IRON_SHEET.get()));
+                    .withItem(new ItemStack(AllItems.IRON_SHEET));
             scene.idle(5);
             scene.world().setBlock(burnerPos,
-                    AeroBlocks.STEAM_VENT.getDefaultState()
+                    AeroBlocks.STEAM_VENT.defaultBlockState()
                             .setValue(SteamVentBlock.VARIANT, SteamVentBlock.Variant.IRON)
                             .setValue(SteamVentBlock.FACING, Direction.WEST),
                     true);
@@ -314,7 +313,7 @@ public class HotAirScenes {
                     .withItem(new ItemStack(Blocks.SOUL_SAND.asItem()));
             scene.idle(5);
             scene.world().setBlock(burnerPos,
-                    AeroBlocks.HOT_AIR_BURNER.getDefaultState().setValue(HotAirBurnerBlock.VARIANT, HotAirBurnerBlock.Variant.SOUL_FIRE),
+                    AeroBlocks.HOT_AIR_BURNER.defaultBlockState().setValue(HotAirBurnerBlock.VARIANT, HotAirBurnerBlock.Variant.SOUL_FIRE),
                     true);
             scene.idle(5);
             scene.overlay().showText(80)
@@ -451,13 +450,13 @@ public class HotAirScenes {
 
         scene.idle(10);
 
-        final BlockEntry<EnvelopeEncasedShaftBlock> envelopeEncased = AeroBlocks.ENVELOPE_ENCASED_SHAFTS.get(DyeColor.WHITE);
-        final ItemStack envelopeItem = AeroBlocks.WHITE_ENVELOPE_BLOCK.asStack();
+        final EnvelopeEncasedShaftBlock envelopeEncased = AeroBlocks.ENVELOPE_ENCASED_SHAFTS.get(DyeColor.WHITE);
+        final ItemStack envelopeItem = new ItemStack(AeroBlocks.WHITE_ENVELOPE_BLOCK);
 
         scene.overlay().showControls(util.vector().topOf(shaftPos), Pointing.DOWN, 20).rightClick()
                 .withItem(envelopeItem);
         scene.idle(7);
-        scene.world().setBlocks(util.select().position(shaftPos), envelopeEncased.getDefaultState()
+        scene.world().setBlocks(util.select().position(shaftPos), envelopeEncased.defaultBlockState()
                 .setValue(EncasedShaftBlock.AXIS, Direction.Axis.X), true);
         final CreateSceneBuilder createScene = new CreateSceneBuilder(scene.getScene().builder());
         createScene.world().setKineticSpeed(util.select().position(shaftPos), 32);
@@ -492,9 +491,9 @@ public class HotAirScenes {
         scene.world().showSectionAndMerge(util.select().fromTo(2, 5, 2, 6, 7, 2), Direction.SOUTH, shipLink);
         scene.idle(20);
         scene.overlay().showControls(util.vector().blockSurface(util.grid().at(4, 7, 2), Direction.NORTH), Pointing.RIGHT, 30)
-                .withItem(new ItemStack(Items.BLUE_DYE));
+                .withItem(new ItemStack(Items.DYE.blue()));
         scene.idle(7);
-        scene.world().setBlock(new BlockPos(4, 6, 2), AeroBlocks.DYED_ENVELOPE_BLOCKS.get(DyeColor.BLUE).getDefaultState(), false);
+        scene.world().setBlock(new BlockPos(4, 6, 2), AeroBlocks.DYED_ENVELOPE_BLOCKS.get(DyeColor.BLUE).defaultBlockState(), false);
         scene.idle(10);
         scene.overlay().showText(40)
                 .colored(PonderPalette.BLUE)
@@ -505,21 +504,21 @@ public class HotAirScenes {
         scene.idle(20);
 
         scene.overlay().showControls(util.vector().blockSurface(util.grid().at(4, 7, 2), Direction.NORTH), Pointing.RIGHT, 20)
-                .withItem(new ItemStack(Items.BLUE_DYE));
+                .withItem(new ItemStack(Items.DYE.blue()));
         scene.idle(7);
         scene.world().setBlocks(
                 util.select().fromTo(5, 6, 2, 3, 6, 2).add(util.select().fromTo(4, 5, 2, 4, 7, 2)),
-                AeroBlocks.DYED_ENVELOPE_BLOCKS.get(DyeColor.BLUE).getDefaultState(), false
+                AeroBlocks.DYED_ENVELOPE_BLOCKS.get(DyeColor.BLUE).defaultBlockState(), false
         );
 
         scene.idle(20);
         scene.overlay().showControls(util.vector().blockSurface(util.grid().at(4, 7, 2), Direction.NORTH), Pointing.RIGHT, 20)
-                .withItem(new ItemStack(Items.BLUE_DYE));
+                .withItem(new ItemStack(Items.DYE.blue()));
         scene.idle(7);
         scene.world().modifyBlocks(util.select().layers(5, 4),
                 state -> {
                     if (state.is(AeroBlocks.WHITE_ENVELOPE_BLOCK)) {
-                        return AeroBlocks.DYED_ENVELOPE_BLOCKS.get(DyeColor.BLUE).getDefaultState();
+                        return AeroBlocks.DYED_ENVELOPE_BLOCKS.get(DyeColor.BLUE).defaultBlockState();
                     }
                     return state;
                 }, false);

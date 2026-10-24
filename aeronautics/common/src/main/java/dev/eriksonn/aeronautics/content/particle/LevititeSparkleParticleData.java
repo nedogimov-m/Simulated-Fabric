@@ -3,16 +3,14 @@ package dev.eriksonn.aeronautics.content.particle;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import com.simibubi.create.foundation.particle.ICustomParticleDataWithSprite;
 import dev.eriksonn.aeronautics.index.AeroParticleTypes;
-import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleType;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 
-public class LevititeSparkleParticleData implements ParticleOptions, ICustomParticleDataWithSprite<LevititeSparkleParticleData> {
+public class LevititeSparkleParticleData implements ParticleOptions {
     public static final int LEVITITE_GREEN = 9424022;
     public static final int LEVITITE_PINK = 15521489;
 
@@ -37,22 +35,7 @@ public class LevititeSparkleParticleData implements ParticleOptions, ICustomPart
     }
 
     @Override
-    public ParticleEngine.SpriteParticleRegistration<LevititeSparkleParticleData> getMetaFactory() {
-        return LevititeSparkleParticle.Factory::new;
-    }
-
-    @Override
-    public MapCodec<LevititeSparkleParticleData> getCodec(final ParticleType<LevititeSparkleParticleData> type) {
-        return CODEC;
-    }
-
-    @Override
-    public StreamCodec<? super RegistryFriendlyByteBuf, LevititeSparkleParticleData> getStreamCodec() {
-        return STREAM_CODEC;
-    }
-
-    @Override
     public ParticleType<?> getType() {
-        return AeroParticleTypes.LEVITITE_SPARKLE.get();
+        return AeroParticleTypes.LEVITITE_SPARKLE;
     }
 }

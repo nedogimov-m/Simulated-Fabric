@@ -2,9 +2,7 @@ package dev.simulated_team.simulated.content.blocks.merging_glue;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.simibubi.create.foundation.blockEntity.renderer.SmartBlockEntityRenderer;
 import dev.ryanhcode.sable.Sable;
-import dev.ryanhcode.sable.api.SubLevelHelper;
 import dev.ryanhcode.sable.api.math.OrientedBoundingBox3d;
 import dev.ryanhcode.sable.companion.math.Pose3dc;
 import dev.ryanhcode.sable.sublevel.ClientSubLevel;
@@ -12,8 +10,8 @@ import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.ryanhcode.sable.companion.math.JOMLConversion;
 import dev.simulated_team.simulated.Simulated;
 import dev.simulated_team.simulated.content.blocks.spring.SpringBlock;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import dev.simulated_team.simulated.fabric.registry.NativePartsRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
@@ -24,13 +22,13 @@ import org.joml.Vector2d;
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
 
-public class MergingGlueRenderer extends SmartBlockEntityRenderer<MergingGlueBlockEntity> {
+public class MergingGlueRenderer extends NativePartsRenderer<MergingGlueBlockEntity> {
     public MergingGlueRenderer(final BlockEntityRendererProvider.Context context) {
-        super(context);
     }
 
     @Override
-    protected void renderSafe(final MergingGlueBlockEntity be, final float partialTicks, final PoseStack ms, final MultiBufferSource bufferSource, final int light, final int overlay) {
+    protected void extractParts(final MergingGlueBlockEntity be, final float partialTicks, final Parts parts) {
+        final int light = parts.light();
         if (!be.isController()) {
             return;
         }
@@ -51,10 +49,10 @@ public class MergingGlueRenderer extends SmartBlockEntityRenderer<MergingGlueBlo
         final BlockState state = be.getBlockState();
         final Direction facing = state.getValue(SpringBlock.FACING);
         final Direction otherFacing = other.getBlockState().getValue(SpringBlock.FACING);
-        final Vector3dc normalA = JOMLConversion.atLowerCornerOf(facing.getNormal());
-        final Vector3d normalB = JOMLConversion.atLowerCornerOf(otherFacing.getNormal());
+        final Vector3dc normalA = new Vector3d(facing.getStepX(), facing.getStepY(), facing.getStepZ());
+        final Vector3d normalB = new Vector3d(otherFacing.getStepX(), otherFacing.getStepY(), otherFacing.getStepZ());
 
-        final VertexConsumer buffer = bufferSource.getBuffer(RenderType.entityCutout(Simulated.path("textures/block/merging_glue/strand.png")));
+        final var renderType = RenderTypes.entityCutout(Simulated.path("textures/block/merging_glue/strand.png"));
 
         final Pose3dc renderPose = subLevel != null ? ((ClientSubLevel) subLevel).renderPose() : null;
         final Pose3dc otherRenderPose = otherSubLevel != null ? ((ClientSubLevel) otherSubLevel).renderPose() : null;
@@ -63,11 +61,11 @@ public class MergingGlueRenderer extends SmartBlockEntityRenderer<MergingGlueBlo
         final boolean horizontal = facing.getAxis().isHorizontal();
 
         final Vector3dc rightA = horizontal ?
-                JOMLConversion.atLowerCornerOf(facing.getClockWise().getNormal(), new Vector3d()) :
+                new Vector3d(facing.getClockWise().getStepX(), facing.getClockWise().getStepY(), facing.getClockWise().getStepZ()) :
                 OrientedBoundingBox3d.FORWARD;
 
         final Vector3d rightB = horizontal ?
-                JOMLConversion.atLowerCornerOf(otherFacing.getCounterClockWise().getNormal(), new Vector3d()) :
+                new Vector3d(otherFacing.getCounterClockWise().getStepX(), otherFacing.getCounterClockWise().getStepY(), otherFacing.getCounterClockWise().getStepZ()) :
                 new Vector3d(OrientedBoundingBox3d.FORWARD);
 
         final Vector3dc upA = horizontal ?
@@ -95,8 +93,6 @@ public class MergingGlueRenderer extends SmartBlockEntityRenderer<MergingGlueBlo
 
         final Vector3d strandCenterA = center.sub(JOMLConversion.atLowerCornerOf(blockPos), new Vector3d());
         final Vector3d strandCenterB = otherCenter.sub(JOMLConversion.atLowerCornerOf(blockPos), new Vector3d());
-        final Vector3d strandPosA = new Vector3d();
-        final Vector3d strandPosB = new Vector3d();
 
         final Vector2d[] strandPositions = {
           new Vector2d(0.25, 0.25),
@@ -109,16 +105,12 @@ public class MergingGlueRenderer extends SmartBlockEntityRenderer<MergingGlueBlo
             final Vector2d strandA = strandPositions[i * 2].sub(0.5, 0.5, new Vector2d()).mul(0.75);
             final Vector2d strandB = strandPositions[i * 2 + 1].sub(0.5, 0.5, new Vector2d()).mul(0.75);
 
-            renderGlueCross(
-                    strandPosA.set(strandCenterA).fma(strandA.x, rightA).fma(strandA.y, upA),
-                    upA,
-                    rightA,
-
-                    strandPosB.set(strandCenterB).fma(strandB.x, rightB).fma(strandB.y, upB),
-                    upB,
-                    rightB,
-
-                    buffer, ms, light);
+            final Vector3dc positionA = new Vector3d(strandCenterA).fma(strandA.x, rightA).fma(strandA.y, upA);
+            final Vector3dc positionB = new Vector3d(strandCenterB).fma(strandB.x, rightB).fma(strandB.y, upB);
+            final Vector3dc capturedUpA = new Vector3d(upA), capturedUpB = new Vector3d(upB);
+            final Vector3dc capturedRightA = new Vector3d(rightA), capturedRightB = new Vector3d(rightB);
+            parts.addGeometry(renderType, (pose, buffer) -> renderGlueCross(positionA, capturedUpA, capturedRightA,
+                    positionB, capturedUpB, capturedRightB, buffer, pose, light), new PoseStack());
         }
 
     }
@@ -133,31 +125,31 @@ public class MergingGlueRenderer extends SmartBlockEntityRenderer<MergingGlueBlo
                                         final Vector3dc upB,
                                         final Vector3dc rightB,
                                         final VertexConsumer buffer,
-                                        final PoseStack ms,
+                                        final PoseStack.Pose poseState,
                                         final int light) {
-        final Matrix4f pose = ms.last().pose();
+        final Matrix4f pose = poseState.pose();
         final Vector3d vertex = new Vector3d();
 
         // vertical plane & backface
-        addVertex(buffer, pose, posA.fma(-0.5, upA, vertex)).setColor(0xffffffff).setUv(0.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
-        addVertex(buffer, pose, posA.fma(0.5, upA, vertex)).setColor(0xffffffff).setUv(0.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
-        addVertex(buffer, pose, posB.fma(0.5, upB, vertex)).setColor(0xffffffff).setUv(1.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
-        addVertex(buffer, pose, posB.fma(-0.5, upB, vertex)).setColor(0xffffffff).setUv(1.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posA.fma(-0.5, upA, vertex)).setColor(0xffffffff).setUv(0.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posA.fma(0.5, upA, vertex)).setColor(0xffffffff).setUv(0.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posB.fma(0.5, upB, vertex)).setColor(0xffffffff).setUv(1.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posB.fma(-0.5, upB, vertex)).setColor(0xffffffff).setUv(1.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
 
-        addVertex(buffer, pose, posB.fma(-0.5, upB, vertex)).setColor(0xffffffff).setUv(1.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
-        addVertex(buffer, pose, posB.fma(0.5, upB, vertex)).setColor(0xffffffff).setUv(1.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
-        addVertex(buffer, pose, posA.fma(0.5, upA, vertex)).setColor(0xffffffff).setUv(0.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
-        addVertex(buffer, pose, posA.fma(-0.5, upA, vertex)).setColor(0xffffffff).setUv(0.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posB.fma(-0.5, upB, vertex)).setColor(0xffffffff).setUv(1.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posB.fma(0.5, upB, vertex)).setColor(0xffffffff).setUv(1.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posA.fma(0.5, upA, vertex)).setColor(0xffffffff).setUv(0.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posA.fma(-0.5, upA, vertex)).setColor(0xffffffff).setUv(0.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
 
         // horizontal plane & backface
-        addVertex(buffer, pose, posA.fma(-0.5, rightA, vertex)).setColor(0xffffffff).setUv(0.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
-        addVertex(buffer, pose, posA.fma(0.5, rightA, vertex)).setColor(0xffffffff).setUv(0.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
-        addVertex(buffer, pose, posB.fma(0.5, rightB, vertex)).setColor(0xffffffff).setUv(1.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
-        addVertex(buffer, pose, posB.fma(-0.5, rightB, vertex)).setColor(0xffffffff).setUv(1.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posA.fma(-0.5, rightA, vertex)).setColor(0xffffffff).setUv(0.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posA.fma(0.5, rightA, vertex)).setColor(0xffffffff).setUv(0.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posB.fma(0.5, rightB, vertex)).setColor(0xffffffff).setUv(1.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posB.fma(-0.5, rightB, vertex)).setColor(0xffffffff).setUv(1.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
 
-        addVertex(buffer, pose, posB.fma(-0.5, rightB, vertex)).setColor(0xffffffff).setUv(1.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
-        addVertex(buffer, pose, posB.fma(0.5, rightB, vertex)).setColor(0xffffffff).setUv(1.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
-        addVertex(buffer, pose, posA.fma(0.5, rightA, vertex)).setColor(0xffffffff).setUv(0.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
-        addVertex(buffer, pose, posA.fma(-0.5, rightA, vertex)).setColor(0xffffffff).setUv(0.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(ms.last(), 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posB.fma(-0.5, rightB, vertex)).setColor(0xffffffff).setUv(1.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posB.fma(0.5, rightB, vertex)).setColor(0xffffffff).setUv(1.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posA.fma(0.5, rightA, vertex)).setColor(0xffffffff).setUv(0.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
+        addVertex(buffer, pose, posA.fma(-0.5, rightA, vertex)).setColor(0xffffffff).setUv(0.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(poseState, 0.0f, 1.0f, 0.0f);
     }
 }

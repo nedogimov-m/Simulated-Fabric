@@ -1,6 +1,6 @@
 package dev.simulated_team.simulated.content.items.merging_glue;
 
-import com.simibubi.create.AllSpecialTextures;
+import dev.simulated_team.simulated.index.SimSpecialTextures;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.simulated_team.simulated.data.SimLang;
@@ -103,7 +103,7 @@ public class MergingGlueItemHandler {
 
                     return true;
                 } else if (!this.firstPos.relative(this.firstDirection).equals(relative)) { //we are connecting!
-                    player.swing(hand);
+                    player.swing(hand,net.minecraft.world.item.component.SwingAnimation.DEFAULT,false);
                     VeilPacketManager.server().sendPacket(new PlaceMergingGluePacket(this.firstPos, pos, this.firstDirection, normal, hand));
                     this.reset(false);
                     return true;
@@ -133,7 +133,7 @@ public class MergingGlueItemHandler {
             final AABB linkAABB = new AABB(this.firstPos).contract(-linkVec.x, -linkVec.y, -linkVec.z).inflate(-0.1);
             Outliner.getInstance().showAABB(this.firstPos + "MergingGlue", linkAABB)
                     .colored(SimColors.SUCCESS_LIME)
-                    .withFaceTexture(AllSpecialTextures.GLUE)
+                    .withFaceTexture(SimSpecialTextures.MERGING_GLUE)
                     .lineWidth(1.0f / 16.0f);
 
             final HitResult clientHit = Minecraft.getInstance().hitResult;
@@ -175,7 +175,7 @@ public class MergingGlueItemHandler {
                 final Vec3 globalFirstPoint = Sable.HELPER.projectOutOfSubLevel(level, linkAABB.getCenter());
                 final Vec3 globalTarget = Sable.HELPER.projectOutOfSubLevel(level, hitAABB.getCenter());
 
-                final DustParticleOptions data = new DustParticleOptions(new net.createmod.catnip.theme.Color(color).asVectorF(), 1);
+                final DustParticleOptions data = new DustParticleOptions(0xff000000|color,1);
                 final int segments = 1;
 
                 for (int i = 0; i < segments; i++) {
@@ -189,7 +189,7 @@ public class MergingGlueItemHandler {
 
                 Outliner.getInstance().showAABB(this.firstPos + " Merging Glue Selection", hitAABB)
                         .colored(color)
-                        .withFaceTexture(AllSpecialTextures.GLUE)
+                        .withFaceTexture(SimSpecialTextures.MERGING_GLUE)
                         .lineWidth(1 / 16f);
             }
         }

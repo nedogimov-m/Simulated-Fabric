@@ -18,7 +18,7 @@ public class SingleBattery {
     }
 
     public void setEnergy(final int v) {
-        this.energy = v;
+        this.energy = Mth.clamp(v, 0, this.maxEnergy);
     }
 
     public int getThroughput() {
@@ -26,11 +26,11 @@ public class SingleBattery {
     }
 
     public void setThroughput(final int v) {
-        this.throughput = v;
+        this.throughput = Math.max(0, v);
     }
 
     public int receiveEnergy(final int toReceive, final boolean simulate) {
-        final int diff = Math.min(Math.min(toReceive, this.maxEnergy - this.energy), this.throughput);
+        final int diff = Math.max(0, Math.min(Math.min(toReceive, this.maxEnergy - this.energy), this.throughput));
         if (!simulate) {
             this.energy += diff;
         }
@@ -38,7 +38,7 @@ public class SingleBattery {
     }
 
     public int extractEnergy(final int toExtract, final boolean simulate) {
-        final int diff = Math.min(Math.min(toExtract, this.energy), this.throughput);
+        final int diff = Math.max(0, Math.min(Math.min(toExtract, this.energy), this.throughput));
         if (!simulate) {
             this.energy -= diff;
         }
@@ -54,7 +54,7 @@ public class SingleBattery {
     }
 
     public void read(final CompoundTag tag) {
-        this.energy = Mth.clamp(tag.getInt("Energy"), 0, this.maxEnergy);
+        this.energy = Mth.clamp(tag.getIntOr("Energy", 0), 0, this.maxEnergy);
     }
 
     public CompoundTag write() {

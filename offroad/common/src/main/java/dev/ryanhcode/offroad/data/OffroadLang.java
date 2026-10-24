@@ -2,8 +2,6 @@ package dev.ryanhcode.offroad.data;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.simibubi.create.foundation.utility.FilesHelper;
-import com.tterrag.registrate.providers.RegistrateLangProvider;
 import dev.ryanhcode.offroad.Offroad;
 import dev.ryanhcode.offroad.content.ponder.OffroadPonderPlugin;
 import dev.ryanhcode.offroad.index.OffroadAdvancements;
@@ -86,8 +84,8 @@ public class OffroadLang {
     }
 
 
-    public static void registrateLang(final RegistrateLangProvider provider) {
-        final BiConsumer<String, String> consumer = provider::add;
+    public static void provideLang(final BiConsumer<String, String> consumer) {
+
 
         final Map<String, String> lang = getLangMap("en_us");
         lang.forEach(consumer);
@@ -101,7 +99,11 @@ public class OffroadLang {
 
     private static Map<String, String> getLangMap(final String lang) {
         final String filepath = "datagen/lang/%s.json".formatted(lang);
-        final JsonObject langObject = FilesHelper.loadJsonResource(filepath).getAsJsonObject();
+        final JsonObject langObject;
+        try (var stream = OffroadLang.class.getResourceAsStream("/" + filepath)) {
+            if (stream == null) throw new IllegalStateException("Missing language source " + filepath);
+            langObject = com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(stream, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+        } catch (java.io.IOException failure) { throw new java.io.UncheckedIOException(failure); }
 
         final Map<String, String> langMap = new HashMap<>();
         flattenJson(langMap, langObject, null);

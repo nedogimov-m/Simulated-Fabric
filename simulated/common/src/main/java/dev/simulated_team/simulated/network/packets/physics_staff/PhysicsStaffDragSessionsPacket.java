@@ -4,11 +4,11 @@ import dev.simulated_team.simulated.Simulated;
 import dev.simulated_team.simulated.SimulatedClient;
 import dev.simulated_team.simulated.util.SimCodecUtil;
 import foundry.veil.api.network.handler.PacketContext;
-import net.createmod.catnip.codecs.stream.CatnipStreamCodecBuilders;
 import net.createmod.catnip.data.Pair;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceKey;
@@ -23,7 +23,7 @@ public record PhysicsStaffDragSessionsPacket(ResourceKey<Level> dimension, List<
 
     public static final StreamCodec<RegistryFriendlyByteBuf, PhysicsStaffDragSessionsPacket> CODEC = StreamCodec.composite(
             ResourceKey.streamCodec(Registries.DIMENSION), i -> i.dimension,
-            CatnipStreamCodecBuilders.list(Pair.streamCodec(UUIDUtil.STREAM_CODEC, SimCodecUtil.STREAM_VECTOR3D)), i -> i.sessions,
+            Pair.streamCodec(UUIDUtil.STREAM_CODEC, SimCodecUtil.STREAM_VECTOR3D).apply(ByteBufCodecs.list()), i -> i.sessions,
             PhysicsStaffDragSessionsPacket::new
     );
 

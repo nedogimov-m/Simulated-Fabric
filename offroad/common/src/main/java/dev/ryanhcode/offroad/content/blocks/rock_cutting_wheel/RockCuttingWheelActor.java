@@ -2,16 +2,11 @@ package dev.ryanhcode.offroad.content.blocks.rock_cutting_wheel;
 
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.content.contraptions.behaviour.MovementContext;
-import com.simibubi.create.content.contraptions.render.ActorVisual;
-import com.simibubi.create.content.contraptions.render.ContraptionMatrices;
-import com.simibubi.create.foundation.virtualWorld.VirtualRenderWorld;
-import dev.engine_room.flywheel.api.visualization.VisualizationContext;
 import dev.ryanhcode.offroad.content.blocks.borehead_bearing.BoreheadBearingBlockEntity;
 import dev.ryanhcode.offroad.content.entities.BoreheadContraptionEntity;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.api.SubLevelHelper;
 import net.createmod.catnip.animation.LerpedFloat;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
@@ -19,7 +14,6 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.Vec3;
-import org.jetbrains.annotations.Nullable;
 
 import static net.minecraft.world.level.block.state.properties.BlockStateProperties.FACING;
 
@@ -91,7 +85,7 @@ public class RockCuttingWheelActor implements MovementBehaviour {
 
     @Override
     public void tick(final MovementContext context) {
-        if (context.world.isClientSide && context.temporaryData == null) {
+        if (context.world.isClientSide() && context.temporaryData == null) {
             context.temporaryData = LerpedFloat.angular();
         }
 
@@ -99,7 +93,7 @@ public class RockCuttingWheelActor implements MovementBehaviour {
         final BlockEntity be = context.world.getBlockEntity(controllerPos);
         if (be instanceof final BoreheadBearingBlockEntity bhbe) {
             final boolean meetsSpeed = Math.abs(bhbe.getSpeed()) > 0.1;
-            if (!context.world.isClientSide) {
+            if (!context.world.isClientSide()) {
                 //apparently context.data.contraption.entity does not exist when we start moving...
                 if (!context.data.contains("Initialized")) {
                     final int newIndex = bhbe.requestNewIndexAndIncrement(context);
@@ -114,14 +108,14 @@ public class RockCuttingWheelActor implements MovementBehaviour {
                     final BlockPos pos = context.localPos;
                     final BlockState state = context.state;
 
-                    Vec3 centerPos = pos.getCenter();
-                    final Vec3i facingNormal = state.getValue(BlockStateProperties.FACING).getNormal();
+                    Vec3 centerPos = net.minecraft.world.phys.Vec3.atCenterOf(pos);
+                    final Vec3i facingNormal = state.getValue(BlockStateProperties.FACING).getUnitVec3i();
                     centerPos = centerPos.add(facingNormal.getX() * SEARCH_ORIGIN_OFFSET, facingNormal.getY() * SEARCH_ORIGIN_OFFSET, facingNormal.getZ() * SEARCH_ORIGIN_OFFSET);
 
                     final Vec3 contraptionProjectedPos = context.contraption.entity.toGlobalVector(centerPos, 1);
                     final Vec3 sublevelProjected = Sable.HELPER.projectOutOfSubLevel(context.world, contraptionProjectedPos);
 
-                    bhbe.updatePosition(context.data.getInt("Index"), sublevelProjected);
+                    bhbe.updatePosition(context.data.getIntOr("Index", 0), sublevelProjected);
                 }
             } else {
                 final LerpedFloat lerpingObject = (LerpedFloat) context.temporaryData;
@@ -155,28 +149,6 @@ public class RockCuttingWheelActor implements MovementBehaviour {
     @Override
     public boolean disableBlockEntityRendering() {
         return true;
-    }
-
-    @Override
-    public void renderInContraption(final MovementContext context, final VirtualRenderWorld renderWorld, final ContraptionMatrices matrices, final MultiBufferSource buffer) {
-        if (renderWorld.supportsVisualization()) {
-            return;
-        }
-
-        if (context.temporaryData == null) {
-            context.temporaryData = LerpedFloat.angular();
-        }
-
-        RockCuttingWheelRenderer.renderInContraption(context, renderWorld, matrices, buffer);
-    }
-
-    @Override
-    public @Nullable ActorVisual createVisual(final VisualizationContext visualizationContext, final VirtualRenderWorld simulationWorld, final MovementContext context) {
-        if (context.temporaryData == null) {
-            context.temporaryData = LerpedFloat.angular();
-        }
-
-        return new RockCuttingWheelActorVisual(visualizationContext, simulationWorld, context);
     }
 
     @Override

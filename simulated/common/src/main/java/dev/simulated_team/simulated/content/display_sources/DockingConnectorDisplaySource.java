@@ -3,7 +3,6 @@ package dev.simulated_team.simulated.content.display_sources;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkContext;
 import com.simibubi.create.content.redstone.displayLink.source.SingleLineDisplaySource;
 import com.simibubi.create.content.redstone.displayLink.target.DisplayTargetStats;
-import com.simibubi.create.foundation.gui.ModularGuiLineBuilder;
 import dev.ryanhcode.sable.Sable;
 import dev.ryanhcode.sable.api.SubLevelHelper;
 import dev.ryanhcode.sable.sublevel.SubLevel;
@@ -32,10 +31,7 @@ public class DockingConnectorDisplaySource extends SingleLineDisplaySource {
         return EMPTY_LINE.copy();
     }
 
-    @Override
-    public void initConfigurationWidgets(final DisplayLinkContext context, final ModularGuiLineBuilder builder, final boolean isFirstLine) {
-        super.initConfigurationWidgets(context, builder, isFirstLine);
-    }
+
 
     @Override
     protected String getTranslationKey() {

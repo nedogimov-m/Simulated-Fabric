@@ -58,7 +58,7 @@ public class SimArmInteractions {
     public static class NavTableType extends ArmInteractionPointType {
         @Override
         public boolean canCreatePoint(final Level level, final BlockPos pos, final BlockState state) {
-            return SimBlocks.NAVIGATION_TABLE.has(state);
+            return state.is(SimBlocks.NAVIGATION_TABLE);
         }
 
         @Override

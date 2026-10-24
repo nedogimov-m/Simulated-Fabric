@@ -1,23 +1,12 @@
 package dev.simulated_team.simulated.index;
 
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.foundation.gui.AllIcons;
-import dev.simulated_team.simulated.Simulated;
-import net.createmod.catnip.gui.element.DelegatedStencilElement;
-import net.createmod.catnip.theme.Color;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.phys.Vec3;
-import org.joml.Matrix4f;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.resources.Identifier;
 
-public class SimIcons extends AllIcons {
-    public static final ResourceLocation ICON_ATLAS = Simulated.path("textures/gui/icons.png");
+public class SimIcons extends AllIcons implements net.createmod.catnip.gui.element.ScreenElement {
+    public static final Identifier ICON_ATLAS = Identifier.parse("simulated:textures/gui/icons.png");
     public static final int ICON_ATLAS_SIZE = 64;
 
     private static int x = 0, y = -1;
@@ -55,46 +44,13 @@ public class SimIcons extends AllIcons {
         return new SimIcons(x = 0, ++y);
     }
 
-    public void bind() {
-        RenderSystem.setShaderTexture(0, ICON_ATLAS);
-    }
-
     @Override
-    public void render(final GuiGraphics graphics, final int x, final int y) {
-        graphics.blit(ICON_ATLAS, x, y, 0, this.iconX, this.iconY, 16, 16, 64, 64);
+    public void render(final GuiGraphicsExtractor graphics, final int x, final int y) {
+        render(graphics, x, y, -1);
     }
 
-    public void render(final PoseStack ms, final MultiBufferSource buffer, final int color) {
-        final VertexConsumer builder = buffer.getBuffer(RenderType.text(ICON_ATLAS));
-        final Matrix4f matrix = ms.last().pose();
-        final Color rgb = new Color(color);
-        final int light = LightTexture.FULL_BRIGHT;
-
-        final Vec3 vec1 = new Vec3(0, 0, 0);
-        final Vec3 vec2 = new Vec3(0, 1, 0);
-        final Vec3 vec3 = new Vec3(1, 1, 0);
-        final Vec3 vec4 = new Vec3(1, 0, 0);
-
-        final float u1 = this.iconX * 1f / ICON_ATLAS_SIZE;
-        final float u2 = (this.iconX + 16) * 1f / ICON_ATLAS_SIZE;
-        final float v1 = this.iconY * 1f / ICON_ATLAS_SIZE;
-        final float v2 = (this.iconY + 16) * 1f / ICON_ATLAS_SIZE;
-
-        this.vertex(builder, matrix, vec1, rgb, u1, v1, light);
-        this.vertex(builder, matrix, vec2, rgb, u1, v2, light);
-        this.vertex(builder, matrix, vec3, rgb, u2, v2, light);
-        this.vertex(builder, matrix, vec4, rgb, u2, v1, light);
+    public void render(final GuiGraphicsExtractor graphics, final int x, final int y, final int color) {
+        graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, ICON_ATLAS,
+                x, y, this.iconX, this.iconY, 16, 16, ICON_ATLAS_SIZE, ICON_ATLAS_SIZE, color);
     }
-
-    private void vertex(final VertexConsumer builder, final Matrix4f matrix, final Vec3 vec, final Color rgb, final float u, final float v, final int light) {
-        builder.addVertex(matrix, (float) vec.x, (float) vec.y, (float) vec.z)
-                .setColor(rgb.getRed(), rgb.getGreen(), rgb.getBlue(), 255)
-                .setUv(u, v)
-                .setLight(light);
-    }
-
-    public DelegatedStencilElement asStencil() {
-        return new DelegatedStencilElement().withStencilRenderer((ms, w, h, alpha) -> this.render(ms, 0, 0)).withBounds(16, 16);
-    }
-
 }

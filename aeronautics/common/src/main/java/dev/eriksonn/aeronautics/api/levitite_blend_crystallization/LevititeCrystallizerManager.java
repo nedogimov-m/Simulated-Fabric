@@ -3,81 +3,98 @@ package dev.eriksonn.aeronautics.api.levitite_blend_crystallization;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 
 import java.util.*;
 
-public class LevititeCrystallizerManager {
-	private static final Map<LevelAccessor, List<LevititeBlendTicker>> tickers = new HashMap<>();
-	private static final List<LevititeBlendTicker> queuedTickers = new ArrayList<>();
+public final class LevititeCrystallizerManager {
+    private static final Map<LevelAccessor, List<LevititeBlendTicker>> tickers = new IdentityHashMap<>();
+    private static final Map<LevelAccessor, List<LevititeBlendTicker>> queuedTickers = new IdentityHashMap<>();
 
-	public static void tick(final Level level) {
-		if (tickers.containsKey(level)) {
-			tickers.get(level).removeIf(LevititeBlendTicker::tick);
-		}
+    public static void tick(final Level level) {
+        if (!(level instanceof ServerLevel serverLevel)) return;
+        // Load before advancing: an unloaded save must never replace a newly queued world state.
+        final var data = CrystallizationWorldSaveData.get(serverLevel);
+        final var levelTickers = tickers.get(level);
+        if (levelTickers != null && !levelTickers.isEmpty()) {
+            levelTickers.removeIf(LevititeBlendTicker::tick);
+            // Age, attempts and removals all affect the persisted state.
+            data.setDirty();
+        }
+        addQueued(level, data);
+    }
 
-		addQueued(level);
-	}
+    private static void addQueued(final Level level, final CrystallizationWorldSaveData data) {
+        // Detach first, so callbacks may safely enqueue work for the next tick.
+        final var queued = queuedTickers.remove(level);
+        if (queued == null || queued.isEmpty()) return;
+        final Set<BlockPos> tickedPositions = getTickedPositions(level);
+        final var levelTickers = tickers.computeIfAbsent(level, ignored -> new ArrayList<>());
+        for (final var queuedTicker : queued) {
+            if (!tickedPositions.add(queuedTicker.getPos())) continue;
+            levelTickers.add(queuedTicker);
+            data.setDirty();
+            queuedTicker.getContext().onCrystallizationInitialize(level, queuedTicker.getPos(), queuedTicker.isDormant);
+        }
+    }
 
-	private static void addQueued(final Level level) {
-		final CrystallizationWorldSaveData data = CrystallizationWorldSaveData.get((ServerLevel) level);
+    /** Add a new ticker; each world drains its own queue after its active tickers finish. */
+    public static void addTicker(final Level level, final BlockPos pos, final int delay,
+                                 final boolean requiresCatalyst, final boolean isDormant,
+                                 final CrystalPropagationContext context) {
+        if (!(level instanceof ServerLevel serverLevel)) return;
+        final var data = CrystallizationWorldSaveData.get(serverLevel);
+        queuedTickers.computeIfAbsent(level, ignored -> new ArrayList<>())
+                .add(new LevititeBlendTicker(delay, pos, level, requiresCatalyst, isDormant, context));
+        data.setDirty();
+    }
 
-		final Set<BlockPos> tickedPositions = getTickedPositions(level);
-		final List<LevititeBlendTicker> levelTickers = tickers.get(level);
+    public static boolean hasTicker(final Level level, final BlockPos pos) {
+        return tickers.getOrDefault(level, List.of()).stream().anyMatch(ticker -> ticker.getPos().equals(pos))
+                || queuedTickers.getOrDefault(level, List.of()).stream().anyMatch(ticker -> ticker.getPos().equals(pos));
+    }
 
-		for (final LevititeBlendTicker queuedTicker : queuedTickers) {
-			if (tickedPositions.contains(queuedTicker.getPos())) {
-				continue;
-			}
+    public static Set<BlockPos> getTickedPositions(final Level level) {
+        final Set<BlockPos> positions = new HashSet<>();
+        final var active = tickers.get(level);
+        if (active != null) active.forEach(ticker -> positions.add(ticker.getPos()));
+        return positions;
+    }
 
-			levelTickers.add(queuedTicker);
-			queuedTicker.getContext().onCrystallizationInitialize(level, queuedTicker.getPos(), queuedTicker.isDormant);
-			data.setDirty();
-		}
+    public static void saveData(final ListTag list, final Level level) {
+        final Set<BlockPos> positions = new HashSet<>();
+        // A save between enqueue and END_WORLD_TICK must retain the queued entries too.
+        for (final var source : List.of(tickers.getOrDefault(level, List.of()),
+                                       queuedTickers.getOrDefault(level, List.of()))) {
+            for (final var ticker : source) {
+                if (positions.add(ticker.getPos())) list.add(ticker.serialize());
+            }
+        }
+    }
 
-		queuedTickers.clear();
-	}
+    public static void loadData(final CompoundTag tag, final Level level) {
+        final var loaded = new ArrayList<LevititeBlendTicker>();
+        final Set<BlockPos> positions = new HashSet<>();
+        for (final var entry : tag.getListOrEmpty("Levitite Manager Data")) {
+            if (!(entry instanceof CompoundTag compound)) continue;
+            final var ticker = new LevititeBlendTicker(compound, level);
+            if (positions.add(ticker.getPos())) loaded.add(ticker);
+        }
+        tickers.put(level, loaded);
+    }
 
-	/**
-	 * @usage Should only be called when adding *new* entries to the ticker group
-	 */
-	public static void addTicker(final Level level, final BlockPos pos, final int delay, final boolean requiresCatalyst, final boolean skipDormant, final CrystalPropagationContext context) {
-		queuedTickers.add(new LevititeBlendTicker(delay, pos, level, requiresCatalyst, skipDormant, context));
-	}
+    /** Flush while the live lists are still reachable; native storage may also close after UNLOAD. */
+    public static void saveAndClearLevel(final ServerLevel level) {
+        level.getDataStorage().saveAndJoin();
+        clearLevel(level);
+    }
 
-	public static Set<BlockPos> getTickedPositions(final Level level) {
-		final Set<BlockPos> tickedPositions = new HashSet<>();
+    public static void clearLevel(final LevelAccessor level) {
+        tickers.remove(level);
+        queuedTickers.remove(level);
+    }
 
-		tickers.putIfAbsent(level, new ArrayList<>());
-		tickers.get(level).forEach(t -> tickedPositions.add(t.getPos()));
-
-		return tickedPositions;
-	}
-
-	public static void saveData(final ListTag list, final Level level) {
-		if (tickers.containsKey(level)) {
-			for (final LevititeBlendTicker ticker : tickers.get(level)) {
-				list.add(ticker.serialize());
-			}
-		}
-	}
-
-	public static void loadData(final CompoundTag tag, final Level level) {
-		tickers.putIfAbsent(level, new ArrayList<>());
-
-		final ListTag data = tag.getList("Levitite Manager Data", Tag.TAG_COMPOUND);
-		final List<LevititeBlendTicker> newTickers = new ArrayList<>();
-		for (int i = 0; i < data.size(); i++) {
-			newTickers.add(new LevititeBlendTicker(data.getCompound(i), level));
-		}
-
-		tickers.put(level, newTickers);
-	}
-
-	public static void clearLevel(final LevelAccessor level) {
-		tickers.remove(level);
-	}
+    private LevititeCrystallizerManager() {}
 }

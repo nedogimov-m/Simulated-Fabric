@@ -11,7 +11,7 @@ import dev.ryanhcode.sable.sublevel.SubLevel;
 import dev.ryanhcode.sable.sublevel.plot.LevelPlot;
 import dev.ryanhcode.sable.sublevel.storage.SubLevelRemovalReason;
 import it.unimi.dsi.fastutil.objects.*;
-import net.createmod.catnip.data.WorldAttached;
+import dev.simulated_team.simulated.fabric.registry.NativeLevelData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
@@ -24,7 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 
 public class BalloonMap {
-    public static WorldAttached<BalloonMap> MAP = new WorldAttached<>(BalloonMap::new);
+    public static final NativeLevelData<BalloonMap> MAP = new NativeLevelData<>(net.minecraft.resources.Identifier.fromNamespaceAndPath("aeronautics", "balloon_map"), BalloonMap::new);
 
     private final Level level;
     private final ObjectSet<Balloon> balloons = new ObjectOpenHashSet<>();

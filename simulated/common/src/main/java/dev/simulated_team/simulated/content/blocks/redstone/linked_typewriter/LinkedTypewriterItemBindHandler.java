@@ -8,7 +8,6 @@ import com.simibubi.create.foundation.utility.CreateLang;
 import dev.simulated_team.simulated.content.blocks.redstone.AbstractLinkedReceiverBlockEntity;
 import dev.simulated_team.simulated.data.SimLang;
 import dev.simulated_team.simulated.index.SimBlocks;
-import dev.simulated_team.simulated.mixin.accessor.RedstoneLinkBlockEntityAccessor;
 import dev.simulated_team.simulated.network.packets.linked_typewriter.TypewriterSaveKeyToItemPacket;
 import dev.simulated_team.simulated.util.SimColors;
 import foundry.veil.api.network.VeilPacketManager;
@@ -18,8 +17,12 @@ import net.createmod.catnip.outliner.Outliner;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.LayeredDraw;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.resources.Identifier;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
@@ -33,7 +36,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import org.lwjgl.glfw.GLFW;
+
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +46,13 @@ import java.util.List;
  */
 public class LinkedTypewriterItemBindHandler {
 
-    public static final LayeredDraw.Layer OVERLAY = LinkedTypewriterItemBindHandler::renderOverlay;
+    public static final HudElement OVERLAY = LinkedTypewriterItemBindHandler::renderOverlay;
+
+    private static boolean registered;
+    public static void register() {
+        if(registered)return;registered=true;
+        HudElementRegistry.attachElementAfter(VanillaHudElements.HOTBAR,Identifier.parse("simulated:linked_typewriter_binding"),OVERLAY);
+    }
 
     private static BlockPos clickedPos;
     private static final List<AABB> outlines = new ArrayList<>();
@@ -65,7 +74,7 @@ public class LinkedTypewriterItemBindHandler {
         final LocalPlayer player = Minecraft.getInstance().player;
         final ItemStack mainHandItem = player.getMainHandItem();
         final ItemStack offhandItem = player.getOffhandItem();
-        if (Minecraft.getInstance().screen != null || (!(mainHandItem.getItem() instanceof LinkedTypewriterItem) && !(offhandItem.getItem() instanceof LinkedTypewriterItem))) {
+        if (Minecraft.getInstance().gui.screen() != null || (!(mainHandItem.getItem() instanceof LinkedTypewriterItem) && !(offhandItem.getItem() instanceof LinkedTypewriterItem))) {
             reset();
             return;
         }
@@ -103,14 +112,14 @@ public class LinkedTypewriterItemBindHandler {
             return;
         }
 
-        if (key != GLFW.GLFW_KEY_ESCAPE) {
+        if (key != InputConstants.KEY_ESCAPE) {
             final InteractionHand hand = getHand();
             if (hand != null) {
                 VeilPacketManager.server().sendPacket(new TypewriterSaveKeyToItemPacket(hand, new LinkedTypewriterEntries.KeyboardEntry(frequency.getFirst(), frequency.getSecond(), key, BlockPos.ZERO)));
                 LinkedTypewriterInteractionHandler.preventPress(key, scanCode);
 
                 SimLang.builder()
-                        .translate("linked_typewriter.bind_success", InputConstants.getKey(key, scanCode).getDisplayName().getString())
+                        .translate("linked_typewriter.bind_success", InputConstants.getKey(new KeyEvent(key,scanCode,modifiers)).getDisplayName().getString())
                         .sendStatus(Minecraft.getInstance().player);
             }
         }
@@ -118,17 +127,17 @@ public class LinkedTypewriterItemBindHandler {
         reset();
     }
 
-    public static void renderOverlay(final GuiGraphics guiGraphics, final DeltaTracker deltaTracker) {
+    public static void renderOverlay(final GuiGraphicsExtractor guiGraphics, final DeltaTracker deltaTracker) {
         if (LinkedTypewriterInteractionHandler.getMode() != LinkedTypewriterInteractionHandler.Mode.BINDING_FROM_ITEM) {
             return;
         }
 
         final Minecraft mc = Minecraft.getInstance();
-        if (mc.options.hideGui) {
+        if (mc.gui.hud.isHidden()) {
             return;
         }
 
-        guiGraphics.pose().pushPose();
+        guiGraphics.pose().pushMatrix();
         final List<Component> list = new ArrayList<>();
         list.add(CreateLang.translateDirect("linked_controller.bind_mode")
                 .withStyle(ChatFormatting.GOLD));
@@ -144,9 +153,9 @@ public class LinkedTypewriterItemBindHandler {
 
         final int x = (guiGraphics.guiWidth() / 3) - width / 2;
         final int y = guiGraphics.guiHeight() - height - 24;
-        guiGraphics.renderComponentTooltip(Minecraft.getInstance().font, list, x, y);
+        guiGraphics.setComponentTooltipForNextFrame(Minecraft.getInstance().font, list, x, y);
 
-        guiGraphics.pose().popPose();
+        guiGraphics.pose().popMatrix();
     }
 
     private static Couple<RedstoneLinkNetworkHandler.Frequency> isPosValid(final Level level) {
@@ -159,7 +168,7 @@ public class LinkedTypewriterItemBindHandler {
             }
 
             if (be instanceof final RedstoneLinkBlockEntity lbe) {
-                frequency = ((RedstoneLinkBlockEntityAccessor) lbe).getLink().getNetworkKey();
+                frequency = lbe.getLink().getNetworkKey();
             }
 
         }

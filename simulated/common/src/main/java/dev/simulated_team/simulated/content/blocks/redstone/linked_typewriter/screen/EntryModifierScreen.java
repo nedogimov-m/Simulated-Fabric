@@ -1,9 +1,9 @@
 package dev.simulated_team.simulated.content.blocks.redstone.linked_typewriter.screen;
 
-import com.mojang.blaze3d.vertex.PoseStack;
+import org.joml.Matrix3x2fStack;
 import com.simibubi.create.content.redstone.link.RedstoneLinkNetworkHandler;
 import com.simibubi.create.foundation.gui.AllIcons;
-import com.simibubi.create.foundation.gui.widget.IconButton;
+import dev.simulated_team.simulated.fabric.client.gui.NativeIconButton;
 import dev.simulated_team.simulated.content.blocks.redstone.linked_typewriter.LinkedTypewriterEntries;
 import dev.simulated_team.simulated.content.blocks.redstone.linked_typewriter.screen.widgets.ConfirmationWidgetBase;
 import dev.simulated_team.simulated.content.blocks.redstone.linked_typewriter.screen.widgets.PromptWidget;
@@ -11,7 +11,7 @@ import dev.simulated_team.simulated.data.SimLang;
 import dev.simulated_team.simulated.index.SimGUITextures;
 import dev.simulated_team.simulated.network.packets.linked_typewriter.TypewriterMenuModifySlots;
 import foundry.veil.api.network.VeilPacketManager;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
@@ -30,7 +30,7 @@ public class EntryModifierScreen {
     public boolean modifying = false;
 
     public PromptWidget promptWidget;
-    public IconButton confirmationWidget;
+    public NativeIconButton confirmationWidget;
 
     public ConfirmationWidgetBase cancelEntryWidget;
 
@@ -44,7 +44,7 @@ public class EntryModifierScreen {
                 .withMessage(SimLang.translate("linked_typewriter.delete.key").component())
                 .withCallback(this::finishWithoutEntry);
 
-        this.confirmationWidget = new IconButton(0, 0, AllIcons.I_CONFIRM).withCallback(() -> {
+        this.confirmationWidget = new NativeIconButton(0, 0, AllIcons.I_CONFIRM).withCallback(() -> {
             if (this.psuedoEntry != null) {
                 this.psuedoEntry.finishModifications();
             }
@@ -71,11 +71,11 @@ public class EntryModifierScreen {
     public PsuedoKeyboardEntry startModifying(@Nullable final LinkedTypewriterEntries.KeyboardEntry toModify, final Consumer<LinkedTypewriterEntries.KeyboardEntry> onFinish) {
         final PsuedoKeyboardEntry psuedoEntry = new PsuedoKeyboardEntry();
         if (toModify != null) {
-            psuedoEntry.keyCode(toModify.glfwKeyCode)
+            psuedoEntry.keyCode(toModify.scanCode)
                     .first(toModify.getFirst())
                     .second(toModify.getSecond());
 
-            this.parentScreen.getNewEntries().getKeyMap().remove(toModify.glfwKeyCode);
+            this.parentScreen.getNewEntries().getKeyMap().remove(toModify.scanCode);
         } else {
             psuedoEntry.first = RedstoneLinkNetworkHandler.Frequency.EMPTY;
             psuedoEntry.second = RedstoneLinkNetworkHandler.Frequency.EMPTY;
@@ -93,35 +93,35 @@ public class EntryModifierScreen {
         menu.slotsActive = true;
         final ItemStack first = psuedoEntry.first.getStack();
         final ItemStack second = psuedoEntry.second.getStack();
-        menu.ghostInventory.setStackInSlot(0, first);
-        menu.ghostInventory.setStackInSlot(1, second);
+        menu.setGhostSample(0, first);
+        menu.setGhostSample(1, second);
         VeilPacketManager.server().sendPacket(new TypewriterMenuModifySlots(first, second));
 
         return psuedoEntry;
     }
 
-    public void render(final GuiGraphics guiGraphics, final int mouseX, final int mouseY, final float pt, final PoseStack ps) {
+    public void render(final GuiGraphicsExtractor guiGraphics, final int mouseX, final int mouseY, final float pt, final Matrix3x2fStack ps) {
         if (this.modifying) {
-            ps.pushPose();
+            ps.pushMatrix();
 
-            this.confirmationWidget.render(guiGraphics, mouseX, mouseY, pt);
-            this.promptWidget.render(guiGraphics, mouseX, mouseY, pt);
-            this.cancelEntryWidget.render(guiGraphics, mouseX, mouseY, pt);
+            this.confirmationWidget.extractRenderState(guiGraphics, mouseX, mouseY, pt);
+            this.promptWidget.extractRenderState(guiGraphics, mouseX, mouseY, pt);
+            this.cancelEntryWidget.extractRenderState(guiGraphics, mouseX, mouseY, pt);
 
-            ps.popPose();
+            ps.popMatrix();
         }
     }
 
-    public void renderBG(final GuiGraphics guiGraphics) {
-        final PoseStack ps = guiGraphics.pose();
+    public void renderBG(final GuiGraphicsExtractor guiGraphics) {
+        final Matrix3x2fStack ps = guiGraphics.pose();
 
-        ps.pushPose();
-        guiGraphics.fillGradient(0, 0, this.parentScreen.width, this.parentScreen.height, 1, -1072689136, -804253680);
+        ps.pushMatrix();
+        guiGraphics.fillGradient(0, 0, this.parentScreen.width, this.parentScreen.height, -1072689136, -804253680);
 
-        ps.translate(0, 0, 2);
+        guiGraphics.nextStratum();
         MODIFICATION_MENU.render(guiGraphics, this.getCenterWidth(), this.getCenterHeight());
         this.parentScreen.renderPlayerInventory(guiGraphics, this.getCenterWidth() + 19, this.getCenterHeight() + (18 * 4));
-        ps.popPose();
+        ps.popMatrix();
     }
 
     public int getCenterWidth() {
@@ -149,18 +149,18 @@ public class EntryModifierScreen {
 
         this.finishedEntryCallback = null;
         menu.slotsActive = false;
-        menu.ghostInventory.setStackInSlot(0, ItemStack.EMPTY);
-        menu.ghostInventory.setStackInSlot(1, ItemStack.EMPTY);
+        menu.setGhostSample(0, ItemStack.EMPTY);
+        menu.setGhostSample(1, ItemStack.EMPTY);
         VeilPacketManager.server().sendPacket(new TypewriterMenuModifySlots(ItemStack.EMPTY, ItemStack.EMPTY));
     }
 
     public class PsuedoKeyboardEntry {
-        public int glfwKeyCode = -1;
+        public int scanCode = -1;
         private RedstoneLinkNetworkHandler.Frequency first;
         private RedstoneLinkNetworkHandler.Frequency second;
 
         public PsuedoKeyboardEntry keyCode(final int newCode) {
-            this.glfwKeyCode = newCode;
+            this.scanCode = newCode;
             return this;
         }
 
@@ -175,18 +175,19 @@ public class EntryModifierScreen {
         }
 
         public void finishModifications() {
-            if (this.glfwKeyCode != -1) {
-                this.first(RedstoneLinkNetworkHandler.Frequency.of(EntryModifierScreen.this.parentScreen.getMenu().ghostInventory.getStackInSlot(0)));
-                this.second(RedstoneLinkNetworkHandler.Frequency.of(EntryModifierScreen.this.parentScreen.getMenu().ghostInventory.getStackInSlot(1)));
+            if (this.scanCode != -1) {
+                this.first(RedstoneLinkNetworkHandler.Frequency.of(EntryModifierScreen.this.parentScreen.getMenu().ghostInventory.getItem(0)));
+                this.second(RedstoneLinkNetworkHandler.Frequency.of(EntryModifierScreen.this.parentScreen.getMenu().ghostInventory.getItem(1)));
 
                 final LinkedTypewriterEntries.KeyboardEntry entry = new LinkedTypewriterEntries.KeyboardEntry(EntryModifierScreen.this.psuedoEntry.first,
                         EntryModifierScreen.this.psuedoEntry.second,
-                        EntryModifierScreen.this.psuedoEntry.glfwKeyCode,
+                        EntryModifierScreen.this.psuedoEntry.scanCode,
                         EntryModifierScreen.this.parentScreen.clientBe.getBlockPos());
 
                 EntryModifierScreen.this.finishedEntryCallback.accept(entry);
             } else {
                 EntryModifierScreen.this.finishWithoutEntry();
+                return;
             }
 
             EntryModifierScreen.this.disable();

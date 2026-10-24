@@ -12,13 +12,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
-@Mixin(PonderUI.class)
+@Mixin(value = PonderUI.class, remap = false)
 public class PonderUIMixin {
     @Shadow @Final private List<PonderScene> scenes;
     @Shadow private int index;
 
-    @Inject(method = "scroll", at = @At(value = "INVOKE", target = "Lnet/createmod/ponder/foundation/PonderScene;begin()V"))
-    private void simulated$begin(final boolean forward, final CallbackInfoReturnable<Boolean> cir) {
+    // Native scroll delegates to select; index is committed here before the new
+    // scene begins, including selection through tags and navigation controls.
+    @Inject(method = "select(I)Z", at = @At(value = "INVOKE", target = "Lnet/createmod/ponder/foundation/PonderScene;begin()V"))
+    private void simulated$begin(final int next, final CallbackInfoReturnable<Boolean> cir) {
         NewPonderTooltipManager.setSceneWatched(this.scenes.get(this.index).getId());
     }
 }

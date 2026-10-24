@@ -66,7 +66,7 @@ public class CustomGyroBearingTiltInstruction extends TickingInstruction {
 		}
 		if (level.getBlockState(this.location).hasProperty(BlockStateProperties.FACING)) {
 			final Quaternionf q = getBlockStateOrientation(level.getBlockState(this.location).getValue(BlockStateProperties.FACING));
-			this.blockNormal = Vec3.atLowerCornerOf(level.getBlockState(this.location).getValue(BlockStateProperties.FACING).getNormal());
+			this.blockNormal = Vec3.atLowerCornerOf(level.getBlockState(this.location).getValue(BlockStateProperties.FACING).getUnitVec3i());
 			this.blockRot = new Quaternionf(q);
 		}
 	}

@@ -79,12 +79,12 @@ public class VelocitySensorBlockEntity extends SmartBlockEntity implements IHave
 
     @Override
     public void tick() {
-        this.currentNormal = JOMLConversion.toJOML(Vec3.atLowerCornerOf(AbstractDirectionalAxisBlock.getDirectionOfAxis(this.getBlockState()).getNormal()));
+        this.currentNormal = JOMLConversion.toJOML(Vec3.atLowerCornerOf(AbstractDirectionalAxisBlock.getDirectionOfAxis(this.getBlockState()).getUnitVec3i()));
         super.tick();
 
         final SubLevel subLevel = this.subLevelReference.get();
         final int redstoneStrengthBefore = this.signedRedstoneStrength;
-        if (!this.level.isClientSide) {
+        if (!this.level.isClientSide()) {
             if (subLevel != null) {
                 final float dot = (float) this.getGlobalVelocity().dot(subLevel.logicalPose().transformNormal(this.currentNormal, new Vector3d()));
                 if (Math.abs(dot) > 0.05) {
@@ -142,24 +142,24 @@ public class VelocitySensorBlockEntity extends SmartBlockEntity implements IHave
             return new Vector3d();
         }
 
-        final Vector3d jomlPos = JOMLConversion.toJOML(this.worldPosition.getCenter());
+        final Vector3d jomlPos = JOMLConversion.toJOML(net.minecraft.world.phys.Vec3.atCenterOf(this.worldPosition));
         return subLevel.logicalPose().transformPosition(jomlPos, new Vector3d()).sub(subLevel.lastPose().transformPosition(jomlPos, new Vector3d()), jomlPos).mul(20.0F);
     }
 
     @Override
-    protected void write(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.write(tag, registries, clientPacket);
+    protected void write(final net.minecraft.world.level.storage.ValueOutput tag, final boolean clientPacket) {
+        super.write(tag, clientPacket);
 
         tag.putFloat("AdjustedVelocity", this.getAdjustedVelocity());
         tag.putInt("SignedRedstoneStrength", this.signedRedstoneStrength);
     }
 
     @Override
-    protected void read(final CompoundTag tag, final HolderLookup.Provider registries, final boolean clientPacket) {
-        super.read(tag, registries, clientPacket);
+    protected void read(final net.minecraft.world.level.storage.ValueInput tag, final boolean clientPacket) {
+        super.read(tag, clientPacket);
 
-        this.adjustedVelocity = tag.getFloat("AdjustedVelocity");
-        this.signedRedstoneStrength = Mth.clamp(-15, 15, tag.getInt("SignedRedstoneStrength"));
+        this.adjustedVelocity = tag.getFloatOr("AdjustedVelocity", 0f);
+        this.signedRedstoneStrength = Mth.clamp(-15, 15, tag.getIntOr("SignedRedstoneStrength", 0));
     }
 
     public Vector3dc getCurrentNormal() {
@@ -246,15 +246,15 @@ public class VelocitySensorBlockEntity extends SmartBlockEntity implements IHave
         }
 
         @Override
-        public void read(final CompoundTag nbt, final HolderLookup.Provider registries, final boolean clientPacket) {
-            this.towards = nbt.getBoolean("ScrollValueTowards");
-            super.read(nbt, registries, clientPacket);
+        public void read(final net.minecraft.world.level.storage.ValueInput nbt, final boolean clientPacket) {
+            this.towards = nbt.getBooleanOr("ScrollValueTowards", false);
+            super.read(nbt, clientPacket);
         }
 
         @Override
-        public void write(final CompoundTag nbt, final HolderLookup.Provider registries, final boolean clientPacket) {
+        public void write(final net.minecraft.world.level.storage.ValueOutput nbt, final boolean clientPacket) {
             nbt.putBoolean("ScrollValueTowards", this.towards);
-            super.write(nbt, registries, clientPacket);
+            super.write(nbt, clientPacket);
         }
     }
 }

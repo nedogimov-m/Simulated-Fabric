@@ -1,104 +1,68 @@
 package dev.simulated_team.simulated.content.blocks.rope.rope_winch;
 
-
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.simibubi.create.AllSpriteShifts;
-import com.simibubi.create.content.contraptions.pulley.AbstractPulleyRenderer;
-import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
-import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
-import com.simibubi.create.foundation.blockEntity.behaviour.filtering.FilteringRenderer;
-import com.simibubi.create.foundation.blockEntity.renderer.SafeBlockEntityRenderer;
+import com.simibubi.create.AllPartialModels;
+import com.simibubi.create.foundation.model.PartialModelRenderState;
 import dev.simulated_team.simulated.content.blocks.rope.strand.client.RopeStrandRenderer;
+import dev.simulated_team.simulated.fabric.registry.NativePartsRenderer;
 import dev.simulated_team.simulated.index.SimPartialModels;
 import dev.simulated_team.simulated.index.SimSpriteShifts;
 import net.createmod.catnip.math.AngleHelper;
-import net.createmod.catnip.render.CachedBuffers;
-import net.createmod.catnip.render.SpriteShiftEntry;
-import net.createmod.catnip.render.SuperByteBuffer;
+import net.fabricmc.fabric.api.client.renderer.v1.Renderer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
+import net.minecraft.data.AtlasIds;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-
 import static com.simibubi.create.content.kinetics.base.DirectionalAxisKineticBlock.AXIS_ALONG_FIRST_COORDINATE;
 import static com.simibubi.create.content.kinetics.base.DirectionalKineticBlock.FACING;
 
-public class RopeWinchRenderer extends SafeBlockEntityRenderer<RopeWinchBlockEntity> {
-
-    public RopeWinchRenderer(final BlockEntityRendererProvider.Context context) {
-
-    }
-
-    private static SuperByteBuffer transform(final SuperByteBuffer buffer, final BlockState state, final boolean axisDirectionMatters) {
-        final Direction facing = state.getValue(FACING);
-
-        final float zRotLast =
-                axisDirectionMatters && (state.getValue(AXIS_ALONG_FIRST_COORDINATE) ^ facing.getAxis() == Direction.Axis.Z) ? 90
-                        : 0;
-        final float yRot = AngleHelper.horizontalAngle(facing) + (state.getValue(AXIS_ALONG_FIRST_COORDINATE) || facing.getAxis()
-                != Direction.Axis.Y ? 0.0f : 90.0f);
-        final float zRot = facing == Direction.UP ? 270 : facing == Direction.DOWN ? 90 : 0;
-
-        buffer.rotateCentered((float) ((zRot) / 180 * Math.PI), Direction.SOUTH);
-        buffer.rotateCentered((float) ((yRot) / 180 * Math.PI), Direction.UP);
-        buffer.rotateCentered((float) ((zRotLast) / 180 * Math.PI), Direction.SOUTH);
-        return buffer;
-    }
-
-    @Override
-    public boolean shouldRenderOffScreen(final RopeWinchBlockEntity be) {
-        return true;
-    }
-
-    @Override
-    public boolean shouldRender(final RopeWinchBlockEntity pBlockEntity, final Vec3 pCameraPos) {
-        return true;
-    }
-
-    protected void renderSafe(final RopeWinchBlockEntity be, final float partialTicks, final PoseStack ms, final MultiBufferSource buffer, final int light, final int overlay) {
-        FilteringRenderer.renderOnBlockEntity(be, partialTicks, ms, buffer, light, overlay);
-        this.renderComponents(be, partialTicks, ms, buffer, light, overlay);
-    }
-
-    protected void renderComponents(final RopeWinchBlockEntity be, final float partialTicks, final PoseStack ms, final MultiBufferSource buffer, final int light, final int overlay) {
-        ms.pushPose();
-        final VertexConsumer vb = buffer.getBuffer(RenderType.solid());
-
-        final BlockState state = be.getBlockState();
-        final SuperByteBuffer shaft = CachedBuffers.partial(SimPartialModels.ROPE_WINCH_SHAFT, state);
-        final SuperByteBuffer ropeCoil = CachedBuffers.partial(SimPartialModels.ROPE_WINCH_ROPE_COIL, state);
-
-        final Direction.Axis axis = KineticBlockEntityRenderer.getRotationAxisOf(be);
-        final float angle = KineticBlockEntityRenderer.getAngleForBe(be, be.getBlockPos(), axis);
-        KineticBlockEntityRenderer.kineticRotationTransform(shaft, be, axis, angle, light);
-        transform(shaft, state, true).renderInto(ms, vb);
-
-        if (be.getRopeHolder().isAttached() || (be.isVirtual() && be.getRopeHolder().renderAttached)) {
-            ropeCoil.light(light);
-
-            final Direction facing = state.getValue(FACING);
-            final float speed;
-
-            if (facing == Direction.DOWN) {
-                speed = facing.getAxisDirection() == Direction.AxisDirection.NEGATIVE ? 1.0f : -1.0f;
-            } else {
-                speed = facing.getAxisDirection() == Direction.AxisDirection.NEGATIVE == (state.getValue(AXIS_ALONG_FIRST_COORDINATE)) ? 1.0f : -1.0f;
-            }
-
-            AbstractPulleyRenderer.scrollCoil(ropeCoil, this.getCoilShift(), be.clientAngle.getValue(partialTicks), speed);
-
-            transform(ropeCoil, state, true).renderInto(ms, vb);
+public final class RopeWinchRenderer extends NativePartsRenderer<RopeWinchBlockEntity> {
+    public RopeWinchRenderer(BlockEntityRendererProvider.Context context) {}
+    @Override public boolean shouldRenderOffScreen() { return true; }
+    @Override public boolean shouldRender(RopeWinchBlockEntity entity, Vec3 camera) { return true; }
+    @Override protected void extractParts(RopeWinchBlockEntity entity, float partial, Parts parts) {
+        final var state = entity.getBlockState();
+        final var shaft = rotating(entity, partial, rotationAxis(entity));
+        transform(shaft, state);
+        parts.add(SimPartialModels.ROPE_WINCH_SHAFT, shaft);
+        final var holder = entity.getRopeHolder();
+        if (holder.isAttached() || entity.isVirtual() && holder.renderAttached) {
+            final var coil = new PartialModelRenderState();
+            AllPartialModels.extract(SimPartialModels.ROPE_WINCH_ROPE_COIL, coil);
+            final var facing = state.getValue(FACING);
+            final float speed = facing == Direction.DOWN ? 1 :
+                    (facing.getAxisDirection() == Direction.AxisDirection.NEGATIVE) == state.getValue(AXIS_ALONG_FIRST_COORDINATE) ? 1 : -1;
+            scrollCoil(coil, entity.clientAngle.getValue(partial), speed);
+            final var pose = new PoseStack(); transform(pose, state);
+            parts.add(coil, pose);
         }
-        ms.popPose();
-        RopeStrandRenderer.render(be, be.getRopeHolder(), partialTicks, ms, buffer);
+        RopeStrandRenderer.extract(entity, holder, partial, parts);
     }
-
-    protected SpriteShiftEntry getCoilShift() {
-        return SimSpriteShifts.ROPE_WINCH_COIL;
+    private static void transform(PoseStack pose, BlockState state) {
+        final var facing = state.getValue(FACING);
+        final boolean first = state.getValue(AXIS_ALONG_FIRST_COORDINATE);
+        rotateCentered(pose, Direction.Axis.Z, facing == Direction.UP ? 270 : facing == Direction.DOWN ? 90 : 0);
+        rotateCentered(pose, Direction.Axis.Y, AngleHelper.horizontalAngle(facing) + (first || facing.getAxis() != Direction.Axis.Y ? 0 : 90));
+        rotateCentered(pose, Direction.Axis.Z, (first ^ facing.getAxis() == Direction.Axis.Z) ? 90 : 0);
+    }
+    private static void scrollCoil(PartialModelRenderState model, float offset, float speed) {
+        if (offset == 0) return;
+        final var shift = SimSpriteShifts.ROPE_WINCH_COIL;
+        final var atlas = Minecraft.getInstance().getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS);
+        final var source = atlas.getSprite(shift.original());
+        final var target = atlas.getSprite(shift.target());
+        final float phase = offset * speed / 2 + 3f / 16;
+        final float scroll = -phase - (float) Math.floor(-2 * phase) / 2;
+        final var mesh = Renderer.get().mutableMesh();
+        final var emitter = mesh.emitter();
+        model.mesh.forEach(quad -> {
+            emitter.copyFrom(quad);
+            for (int i = 0; i < 4; i++) emitter.uv(i, quad.u(i) - source.getU0() + target.getU0(),
+                    quad.v(i) - source.getV0() + target.getV0() + scroll * (target.getV1() - target.getV0()));
+            emitter.emit();
+        });
+        model.mesh = mesh.immutableCopy();
     }
 }

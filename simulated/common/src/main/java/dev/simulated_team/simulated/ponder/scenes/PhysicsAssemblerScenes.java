@@ -88,7 +88,7 @@ public class PhysicsAssemblerScenes {
 
         scene.addKeyframe();
 
-        overlay.showControls(vector.centerOf(3, 3, 2), Pointing.RIGHT, 20).withItem(SimItems.HONEY_GLUE.asStack()).rightClick();
+        overlay.showControls(vector.centerOf(3, 3, 2), Pointing.RIGHT, 20).withItem(new net.minecraft.world.item.ItemStack(SimItems.HONEY_GLUE)).rightClick();
 
         scene.overlay().showOutline(PonderPalette.OUTPUT, "honey_glue", select.fromTo(3, 1, 1, 3, 1, 3)
                 .add(select.fromTo(3, 2, 3, 3, 4, 3))
@@ -139,7 +139,7 @@ public class PhysicsAssemblerScenes {
 
         world.setBlock(assembler1, Blocks.AIR.defaultBlockState(), false);
 
-        scene.addInstruction(new OffsetBreakParticlesInstruction(AABB.unitCubeFromLowerCorner(new Vec3(2.5, 2, 1)), SimBlocks.PHYSICS_ASSEMBLER.getDefaultState()));
+        scene.addInstruction(new OffsetBreakParticlesInstruction(AABB.unitCubeFromLowerCorner(new Vec3(2.5, 2, 1)), SimBlocks.PHYSICS_ASSEMBLER.defaultBlockState()));
 
         scene.idle(20);
 
@@ -177,12 +177,12 @@ public class PhysicsAssemblerScenes {
 
         scene.idle(100);
 
-        overlay.showControls(vector.centerOf(4, 0, 0), Pointing.RIGHT, 10).withItem(SimItems.HONEY_GLUE.asStack()).rightClick();
-        effects.emitParticles(vector.centerOf(4, 0, 0), effects.particleEmitterWithinBlockSpace(new DustParticleOptions((new Color(255, 232, 142)).asVectorF(), 1.0F), Vec3.ZERO), 10.0f, 2);
+        overlay.showControls(vector.centerOf(4, 0, 0), Pointing.RIGHT, 10).withItem(new net.minecraft.world.item.ItemStack(SimItems.HONEY_GLUE)).rightClick();
+        effects.emitParticles(vector.centerOf(4, 0, 0), effects.particleEmitterWithinBlockSpace(new DustParticleOptions(0xffffe88e, 1.0F), Vec3.ZERO), 10.0f, 2);
         final AABB funnyGlue = new AABB(new BlockPos(4, 0, 0));
         overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, funnyGlue, funnyGlue, 20);
         scene.idle(20);
-        overlay.showControls(vector.blockSurface(new BlockPos(0, 4, 4), Direction.WEST), Pointing.LEFT, 10).withItem(SimItems.HONEY_GLUE.asStack()).rightClick();
+        overlay.showControls(vector.blockSurface(new BlockPos(0, 4, 4), Direction.WEST), Pointing.LEFT, 10).withItem(new net.minecraft.world.item.ItemStack(SimItems.HONEY_GLUE)).rightClick();
         overlay.chaseBoundingBoxOutline(PonderPalette.OUTPUT, funnyGlue, funnyGlue.expandTowards(-4, 4, 4), 30);
 
         scene.idle(30);
@@ -424,7 +424,7 @@ public class PhysicsAssemblerScenes {
 
         final Class<MechanicalPressBlockEntity> type = MechanicalPressBlockEntity.class;
         final ItemStack iron = new ItemStack(Items.IRON_INGOT);
-        final ItemStack sheet = AllItems.IRON_SHEET.asStack();
+        final ItemStack sheet = new net.minecraft.world.item.ItemStack(AllItems.IRON_SHEET);
 
 //        for (int i = 0; i < 3; i++) {
 //            world.showSection(util.select().position(depot[i]), Direction.DOWN);
@@ -655,7 +655,7 @@ public class PhysicsAssemblerScenes {
 
         scene.idle(60);
 
-        final BlockPropertiesTooltip.Condition configValue;
+        final dev.simulated_team.simulated.config.client.items.SimItemConfigs.PropertyDisplay configValue;
         if (SimConfigService.INSTANCE.clientLoaded()) {
             configValue = SimConfigService.INSTANCE.client().itemConfig.displayProperties.get();
         } else {
@@ -671,8 +671,8 @@ public class PhysicsAssemblerScenes {
             case null, default -> "property_tooltip_how";
         };
 
-        if (configValue == BlockPropertiesTooltip.Condition.GOGGLES || configValue == BlockPropertiesTooltip.Condition.SHIFT_GOGGLES) {
-            overlay.showControls(vector.centerOf(2, 2, 2), Pointing.DOWN, 160).withItem(AllItems.GOGGLES.asStack());
+        if (configValue == dev.simulated_team.simulated.config.client.items.SimItemConfigs.PropertyDisplay.GOGGLES || configValue == dev.simulated_team.simulated.config.client.items.SimItemConfigs.PropertyDisplay.SHIFT_GOGGLES) {
+            overlay.showControls(vector.centerOf(2, 2, 2), Pointing.DOWN, 160).withItem(new net.minecraft.world.item.ItemStack(AllItems.GOGGLES));
         }
 
         scene.overlay().showText(160)

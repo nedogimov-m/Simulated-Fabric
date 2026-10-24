@@ -17,16 +17,10 @@ import dev.simulated_team.simulated.util.click_interactions.InteractCallback;
 import dev.simulated_team.simulated.util.click_interactions.InteractCallback.Result;
 import dev.simulated_team.simulated.util.hold_interaction.HoldInteractionManager;
 import dev.simulated_team.simulated.util.hold_interaction.HoldTipManager;
-import foundry.veil.api.client.render.MatrixStack;
 import foundry.veil.api.event.VeilRenderLevelStageEvent;
-import net.minecraft.client.Camera;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -37,7 +31,6 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Matrix4fc;
 
 import java.util.List;
 
@@ -64,7 +57,7 @@ public class SimulatedCommonClientEvents {
         final Minecraft mc = Minecraft.getInstance();
         final InteractCallback.KeyMappings mappings = InteractCallback.KeyMappings.getMappings();
 
-        if (mc.screen != null) {
+        if (mc.gui.screen() != null) {
             return Result.empty();
         }
 
@@ -89,7 +82,7 @@ public class SimulatedCommonClientEvents {
     public static Result onMouseMove(final double yaw, final double pitch) {
         final Minecraft mc = Minecraft.getInstance();
 
-        if (mc.screen != null) {
+        if (mc.gui.screen() != null) {
             return Result.empty();
         }
 
@@ -103,8 +96,8 @@ public class SimulatedCommonClientEvents {
         return Result.empty();
     }
 
-    public static void onRenderLevelStage(final VeilRenderLevelStageEvent.Stage stage, final LevelRenderer levelRenderer, final MultiBufferSource.BufferSource bufferSource, final MatrixStack matrixStack, final Matrix4fc matrix4fc, final Matrix4fc matrix4fc1, final int i, final DeltaTracker deltaTracker, final Camera camera, final Frustum frustum) {
-        PhysicsStaffRenderHandler.renderSelectionBox(stage, levelRenderer, bufferSource, matrixStack, matrix4fc, matrix4fc1, i, deltaTracker, camera, frustum);
+    public static void onRenderLevelStage(final VeilRenderLevelStageEvent.Stage stage,final VeilRenderLevelStageEvent.Context context) {
+        PhysicsStaffRenderHandler.renderSelectionBox(stage,context);
     }
 
     public static void onAfterKeyPress(final int key, final int scanCode, final int action, final int modifiers) {
@@ -118,7 +111,7 @@ public class SimulatedCommonClientEvents {
      * @param deltaY y scroll value
      */
     public static Result onMouseScroll(final double deltaX, final double deltaY) {
-        if (Minecraft.getInstance().screen == null) {
+        if (Minecraft.getInstance().gui.screen() == null) {
             for (final InteractCallback interactCallback : SimClickInteractions.CLICK_INTERACTION_ENTRIES) {
                 final Result result = interactCallback.onScroll(deltaX, deltaY);
 
@@ -136,7 +129,7 @@ public class SimulatedCommonClientEvents {
      *
      * @param graphics Minecraft's abstract GUIGraphics class
      */
-    public static void renderOverlays(final GuiGraphics graphics, final float pt) {
+    public static void renderOverlays(final GuiGraphicsExtractor graphics, final float pt) {
         final int width = graphics.guiWidth();
         final int height = graphics.guiHeight();
 
@@ -178,7 +171,7 @@ public class SimulatedCommonClientEvents {
         ZiplineClientManager.tick();
         LinkedTypewriterInteractionHandler.tick();
 
-        if (instance.screen != null) {
+        if (instance.gui.screen() != null) {
             HoldInteractionManager.stop();
         }
 
@@ -211,7 +204,7 @@ public class SimulatedCommonClientEvents {
      * @param player null when used for creative search filtering
      */
     public static void appendTooltip(final ItemStack stack, final TooltipFlag iTooltipFlag, final @Nullable Player player, final List<Component> itemTooltip) {
-        final BlockPropertiesTooltip.Condition propertiesCondition = SimConfigService.INSTANCE.client().itemConfig.displayProperties.get();
+        final dev.simulated_team.simulated.config.client.items.SimItemConfigs.PropertyDisplay propertiesCondition = SimConfigService.INSTANCE.client().itemConfig.displayProperties.get();
         if (BlockPropertiesTooltip.shouldShowTooltip(propertiesCondition, iTooltipFlag, player)) {
             BlockPropertiesTooltip.appendTooltip(stack, iTooltipFlag, player, itemTooltip);
         }

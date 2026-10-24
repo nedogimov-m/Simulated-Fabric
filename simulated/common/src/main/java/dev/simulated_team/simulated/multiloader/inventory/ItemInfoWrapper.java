@@ -1,13 +1,10 @@
 package dev.simulated_team.simulated.multiloader.inventory;
 
 import net.minecraft.core.component.DataComponentPatch;
-import net.minecraft.core.component.DataComponentType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Map;
-import java.util.Optional;
 
 /**
  * An info wrapper that holds an item type, and its associated component data. Primarly used for Simulated's multiloader inventory structure. <p>
@@ -37,19 +34,7 @@ public record ItemInfoWrapper(Item type, DataComponentPatch patchMap) {
      */
     public static @NotNull ItemStack generateFromInfo(final ItemInfoWrapper info) {
         final ItemStack newStack = info.type().getDefaultInstance();
-        final DataComponentPatch.Builder builder = DataComponentPatch.builder();
-        for (final Map.Entry<DataComponentType<?>, Optional<?>> set : info.patchMap().entrySet()) {
-            setDataComponent(set.getKey(), set.getValue(), builder);
-        }
-        newStack.applyComponents(builder.build());
+        newStack.applyComponents(info.patchMap());
         return newStack;
-    }
-
-    private static <T> void setDataComponent(final DataComponentType<?> type, final Optional<?> set, final DataComponentPatch.Builder builder) {
-        if (set.isEmpty()) {
-            builder.remove(type);
-        } else {
-            builder.set((DataComponentType<T>) type, (T) set.get());
-        }
     }
 }

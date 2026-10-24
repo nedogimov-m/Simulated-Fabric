@@ -1,11 +1,10 @@
 package dev.simulated_team.simulated.content.particle;
 
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.state.level.QuadParticleRenderState;
 import net.minecraft.client.Camera;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.*;
-import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -19,7 +18,7 @@ public class MagnetFieldParticle2 extends SimpleAnimatedParticle {
                                    final double prevX, final double prevY, final double prevZ,
                                    final double nextX, final double nextY, final double nextZ,
                                    final SpriteSet sprite, final boolean negative,final int timeUntilEnd) {
-        super(world, x, y, z, sprite, world.random.nextFloat() * .5f);
+        super(world, x, y, z, sprite, world.getRandom().nextFloat() * .5f);
         this.hasPhysics = false;
         this.lifetime = 5;
 
@@ -48,8 +47,8 @@ public class MagnetFieldParticle2 extends SimpleAnimatedParticle {
             this.setColor(1,0.7f,0.7f);
     }
 
-    public ParticleRenderType getRenderType() {
-        return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT;
+    public Layer getLayer() {
+        return Layer.TRANSLUCENT;
     }
 
     private void dissipate() {
@@ -58,26 +57,9 @@ public class MagnetFieldParticle2 extends SimpleAnimatedParticle {
 
 
     @Override
-    public void render(final VertexConsumer buffer, final Camera renderInfo, final float partialTicks) {
+    public void extract(final QuadParticleRenderState state, final Camera renderInfo, final float partialTicks) {
         final Quaternionf quaternionf = new Quaternionf();
-        this.getFacingCameraMode().setRotation(quaternionf, renderInfo, partialTicks);
-        if (this.roll != 0.0F) {
-            quaternionf.rotateZ(Mth.lerp(partialTicks, this.oRoll, this.roll));
-        }
-        final Vector3f v = new Vector3f(1,1,1);
-        float t = (Minecraft.getInstance().level.getGameTime()%1000)+partialTicks;
-        t*=0.2;
-
-        final Vector3f v2 = new Vector3f();
-
-
-        //quaternionf.rotateZ((float)(Math.PI/2.0)+t);
-
-
-        //quaternionf.set(1,1,-1,1);
-        //quaternionf.set(new Quaternionf().slerp(quaternionf,partialTicks));
-
-        final Vec3 vec3 = renderInfo.getPosition();
+        final Vec3 vec3 = renderInfo.position();
         final float x = (float)(this.x - vec3.x());
         final float y = (float)(this.y - vec3.y());
         final float z = (float)(this.z - vec3.z());
@@ -94,7 +76,7 @@ public class MagnetFieldParticle2 extends SimpleAnimatedParticle {
         quaternionf.lookAlong(new Vector3f(dirX,dirY,dirZ),new Vector3f(x,y,z)).conjugate();
         quaternionf.rotateX((float)(Math.PI/2.0));
 
-        this.renderRotatedQuad(buffer, quaternionf, x+offsetX, y+offsetY, z+offsetZ, partialTicks);
+        this.extractRotatedQuad(state, quaternionf, x+offsetX, y+offsetY, z+offsetZ, partialTicks);
     }
 
     @Override
@@ -115,9 +97,9 @@ public class MagnetFieldParticle2 extends SimpleAnimatedParticle {
         this.selectSprite(this.age +1);
     }
 
-    public int getLightColor(final float partialTick) {
+    public int getLightCoords(final float partialTick) {
         final BlockPos blockpos = new BlockPos((int) this.x, (int) this.y, (int) this.z);
-        return this.level.isLoaded(blockpos) ? LevelRenderer.getLightColor(this.level, blockpos) : 0;
+        return this.level.isLoaded(blockpos) ? LightCoordsUtil.getLightCoords(this.level, blockpos) : 0;
     }
 
     private void selectSprite(final int index) {
@@ -136,7 +118,7 @@ public class MagnetFieldParticle2 extends SimpleAnimatedParticle {
         }
 
         public Particle createParticle(final MagnetFieldParticleData2 data, final ClientLevel level, final double x, final double y, final double z,
-                                       final double xSpeed, final double ySpeed, final double zSpeed) {
+                                       final double xSpeed, final double ySpeed, final double zSpeed, final net.minecraft.util.RandomSource random) {
             return new MagnetFieldParticle2(level, x, y, z, data.previousOffset.x,data.previousOffset.y,data.previousOffset.z,data.nextOffset.x,data.nextOffset.y,data.nextOffset.z, this.spriteSet, data.isNegative(),data.getTimeUntilEnd());
         }
     }

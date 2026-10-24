@@ -1,7 +1,7 @@
 package dev.simulated_team.simulated.network.packets;
 
-import com.simibubi.create.content.kinetics.chainConveyor.ServerChainConveyorHandler;
 import dev.simulated_team.simulated.Simulated;
+import dev.simulated_team.simulated.content.blocks.rope.strand.server.ServerLevelRopeManager;
 import foundry.veil.api.network.handler.ServerPacketContext;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -29,14 +29,7 @@ public record RopeRidingPacket(UUID uuid, boolean stop) implements CustomPacketP
     public void handle(final ServerPacketContext ctx) {
         final ServerPlayer player = ctx.player();
 
-        player.connection.aboveGroundTickCount = 0;
-        player.connection.aboveGroundVehicleTickCount = 0;
-        player.fallDistance = 0.0f;
-
-        if (this.stop) {
-            ServerChainConveyorHandler.handleStopRidingPacket(player);
-        } else {
-            ServerChainConveyorHandler.handleTTLPacket(player);
-        }
+        final var manager = ServerLevelRopeManager.getOrCreate(player.level());
+        if (manager != null) manager.ridingHeartbeat(player, this.uuid, this.stop);
     }
 }

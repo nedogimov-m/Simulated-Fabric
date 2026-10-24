@@ -1,6 +1,8 @@
 package dev.simulated_team.simulated.client;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.simibubi.create.AllKeys;
+import net.createmod.ponder.foundation.ui.PonderUI;
 import com.simibubi.create.content.equipment.goggles.GogglesItem;
 import dev.ryanhcode.sable.mixinterface.block_properties.BlockStateExtension;
 import dev.ryanhcode.sable.physics.config.FloatingBlockMaterialDataHandler;
@@ -10,7 +12,7 @@ import dev.simulated_team.simulated.Simulated;
 import dev.simulated_team.simulated.index.SimRegistries;
 import dev.simulated_team.simulated.index.SimTags;
 import dev.simulated_team.simulated.mixin.accessor.BlockBehaviourAccessor;
-import dev.simulated_team.simulated.registrate.SimulatedRegistrate;
+import net.minecraft.core.Registry;
 import dev.simulated_team.simulated.util.SimColors;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.createmod.ponder.foundation.ui.PonderUI;
@@ -18,14 +20,14 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
+
 
 import java.text.DecimalFormat;
 import java.util.List;
@@ -53,32 +55,31 @@ public class BlockPropertiesTooltip {
         DECIMAL_FORMAT.setMinimumIntegerDigits(1);
     }
 
-    public static boolean shouldShowTooltip(final Condition condition, final TooltipFlag iTooltipFlag, final @Nullable Player player) {
-        if (Minecraft.getInstance().screen instanceof PonderUI) {
+    public static boolean shouldShowTooltip(final dev.simulated_team.simulated.config.client.items.SimItemConfigs.PropertyDisplay condition, final TooltipFlag iTooltipFlag, final @Nullable Player player) {
+        if (Minecraft.getInstance().gui.screen() instanceof PonderUI) {
             return true;
         }
 
         if (player == null) {
-            return condition.allows();
+            return condition.test(false, false);
         }
 
-        return condition.test(AllKeys.isKeyDown(GLFW.GLFW_KEY_LEFT_SHIFT), GogglesItem.isWearingGoggles(player));
+        return condition.test(AllKeys.isKeyDown(InputConstants.KEY_LSHIFT), GogglesItem.isWearingGoggles(player));
     }
 
-    public static void register(final SimulatedRegistrate registrate, final String name, final TooltipFunction tooltipFunction, final float priority) {
-        registrate.propertyTooltip(name, () -> new Entry(tooltipFunction, priority));
+    public static void register(final String name, final TooltipFunction tooltipFunction, final float priority) {
+        Registry.register(SimRegistries.PROPERTY_TOOLTIP, Simulated.path(name), new Entry(tooltipFunction, priority));
     }
 
     public static void init() {
-        final SimulatedRegistrate registrate = Simulated.getRegistrate();
         int priority = 0;
 
-        register(registrate, "mass", BlockPropertiesTooltip::getMassComponent, priority++);
-        register(registrate, "friction", BlockPropertiesTooltip::getFrictionComponent, priority++);
-        register(registrate, "restitution", BlockPropertiesTooltip::getRestitutionComponent, priority++);
-        register(registrate, "fragile", BlockPropertiesTooltip::getFragileComponent, priority++);
-        register(registrate, "airtight", BlockPropertiesTooltip::getAirtightComponent, priority++);
-        register(registrate, "floating", BlockPropertiesTooltip::getFloatingComponent, priority++);
+        register("mass", BlockPropertiesTooltip::getMassComponent, priority++);
+        register("friction", BlockPropertiesTooltip::getFrictionComponent, priority++);
+        register("restitution", BlockPropertiesTooltip::getRestitutionComponent, priority++);
+        register("fragile", BlockPropertiesTooltip::getFragileComponent, priority++);
+        register("airtight", BlockPropertiesTooltip::getAirtightComponent, priority++);
+        register("floating", BlockPropertiesTooltip::getFloatingComponent, priority++);
     }
 
     public static void appendTooltip(final ItemStack stack, final TooltipFlag iTooltipFlag, final Player player, final List<Component> itemTooltip) {
@@ -179,7 +180,7 @@ public class BlockPropertiesTooltip {
     }
 
     public static @Nullable Component getFloatingComponent(final BlockStateExtension properties, final BlockItem item, final boolean showNumbers) {
-        final ResourceLocation materialID = properties.sable$getProperty(PhysicsBlockPropertyTypes.FLOATING_MATERIAL.get());
+        final Identifier materialID = properties.sable$getProperty(PhysicsBlockPropertyTypes.FLOATING_MATERIAL.get());
         if (materialID == null) {
             return null;
         }
@@ -206,31 +207,7 @@ public class BlockPropertiesTooltip {
         return Component.literal(" (").append(Component.translatable(key, valueString)).append(")");
     }
 
-    public enum Condition {
-        ALWAYS(true, false, false),
-        SHIFT(true, true, false),
-        GOGGLES(true, false, true),
-        SHIFT_GOGGLES(true, true, true),
-        NEVER(false, false, false);
 
-        private final boolean allow;
-        private final boolean requireShift;
-        private final boolean requireGoggles;
-
-        Condition(final boolean allow, final boolean requireShift, final boolean requireGoggles) {
-            this.allow = allow;
-            this.requireShift = requireShift;
-            this.requireGoggles = requireGoggles;
-        }
-
-        public boolean test(final boolean shift, final boolean goggles) {
-            return this.allow && (!this.requireShift || shift) && (!this.requireGoggles || goggles);
-        }
-
-        public boolean allows() {
-            return this.allow;
-        }
-    }
 
     @FunctionalInterface
     public interface TooltipFunction {

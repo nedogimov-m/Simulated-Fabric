@@ -37,8 +37,7 @@ public class RedstoneSignalInstruction extends WorldModifyInstruction {
 				nixie.updateDisplayedStrings();
 			}
 			if (BE instanceof final AnalogLeverBlockEntity lever) {
-				final CompoundTag tag = new CompoundTag();
-				lever.write(tag, level.registryAccess(), false);
+				final CompoundTag tag = lever.getUpdateTag(level.registryAccess());
 				tag.putInt("State", this.signal);
 				lever.readClient(tag, level.registryAccess());
 			}

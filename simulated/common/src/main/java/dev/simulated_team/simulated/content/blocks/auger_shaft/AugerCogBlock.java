@@ -23,10 +23,10 @@ public class AugerCogBlock extends AugerShaftBlock implements ICogWheel {
     @Override
     public InteractionResult onWrenched(final BlockState state, final UseOnContext context) {
         final Level level = context.getLevel();
-        if (level.isClientSide)
+        if (level.isClientSide())
             return InteractionResult.SUCCESS;
 
-        return this.transformAuger(state, SimBlocks.AUGER_SHAFT.getDefaultState(), context, level);
+        return this.transformAuger(state, SimBlocks.AUGER_SHAFT.defaultBlockState(), context, level);
     }
 
     @Override

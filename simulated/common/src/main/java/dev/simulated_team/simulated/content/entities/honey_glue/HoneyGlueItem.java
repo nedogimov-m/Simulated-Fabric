@@ -16,7 +16,7 @@ public class HoneyGlueItem extends Item {
     }
 
     @Override
-    public boolean canAttackBlock(final BlockState pState, final Level pLevel, final BlockPos pPos, final Player pPlayer) {
+    public boolean canDestroyBlock(final net.minecraft.world.item.ItemStack stack,final BlockState pState,final Level pLevel,final BlockPos pPos,final net.minecraft.world.entity.LivingEntity user) {
         return false;
     }
 }

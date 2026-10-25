@@ -954,5 +954,7 @@ public class PropellerScenes {
                 60);
 
         scene.idle(30);
+        // The propeller keeps animating after the explanation ends.
+        scene.markAsFinished();
     }
 }

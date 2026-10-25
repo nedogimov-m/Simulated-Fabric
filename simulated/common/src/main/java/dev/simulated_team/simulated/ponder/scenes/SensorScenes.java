@@ -892,6 +892,8 @@ public class SensorScenes {
                 .placeNearTarget()
                 .pointAt(new Vec3(2.9, 2.35, 2.5));
         scene.idle(40);
+        // Visual rotation instructions remain active in the completed preview.
+        scene.markAsFinished();
     }
 
     //

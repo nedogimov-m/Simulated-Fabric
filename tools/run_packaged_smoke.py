@@ -24,7 +24,10 @@ parser.add_argument('--hand-depth', action='store_true', help='Run the new hand-
 parser.add_argument('--skip-activation', action='store_true', help='Reuse the separately recorded successful target application scope when its hooks are unchanged.')
 parser.add_argument('--services-only', action='store_true', help='Check only the new fuel/glue/assembly provider boundary in a genuine server world.')
 parser.add_argument('--services-checks', choices=['all','assembly'], default='all')
-parser.add_argument('--client-checks', choices=['all','ponder','endsea-visible','aeronautics-flight','item-resources','reported-crash','ponder-block-entities','borehead','warning-resources','user-regressions'], default='all', help='Resume only the unverified client scenes after an independent successful scope was preserved.')
+parser.add_argument('--client-checks', choices=['all','ponder','endsea-visible','aeronautics-flight','item-resources','reported-crash','ponder-block-entities','borehead','warning-resources','user-regressions','gameplay-audit'], default='all', help='Resume only the unverified client scenes after an independent successful scope was preserved.')
+parser.add_argument('--audit-checks', choices=['items','placement','ponder','tools'], default='items', help='Native addon inventory/model, finite-stock placement/use or full addon storyboard audit.')
+parser.add_argument('--audit-item', help='Investigate one exact registered item without repeating accepted item/placement rows.')
+parser.add_argument('--audit-case', help='Investigate one native tool-use scenario without replaying accepted cases.')
 parser.add_argument('--crash-checks', choices=['all','ponder','none'], default='all', help='Select only the new reported crash boundary; none isolates item resources and ponder reuses a separately accepted statistics scope.')
 parser.add_argument('--item-gui-only', action='store_true', help='Resume only the unverified EN/RU item GUI screenshots within reported-crash; accepted names, baked partials and hands are not repeated.')
 parser.add_argument('--ponder-owners-only', action='store_true', help='Check only the two newly migrated Create Ponder owner types; accepted portable-engine placement and restore is not repeated.')
@@ -48,7 +51,7 @@ if options.keep_open and (options.side != 'client' or options.client_checks != '
     parser.error('--keep-open requires --side client --client-checks aeronautics-flight')
 if options.client_checks == 'aeronautics-flight' and options.side != 'client':
     parser.error('--client-checks aeronautics-flight requires --side client')
-if options.client_checks in ('item-resources','reported-crash','ponder-block-entities','borehead','warning-resources','user-regressions') and options.side != 'client':
+if options.client_checks in ('item-resources','reported-crash','ponder-block-entities','borehead','warning-resources','user-regressions','gameplay-audit') and options.side != 'client':
     parser.error('Targeted resource/Ponder checks require --side client')
 if options.item_gui_only and (options.side != 'client' or options.client_checks != 'reported-crash'):
     parser.error('--item-gui-only requires --side client --client-checks reported-crash')
@@ -62,8 +65,9 @@ ponder_block_entities = options.side == 'client' and options.client_checks == 'p
 borehead = options.side == 'client' and options.client_checks == 'borehead'
 warning_resources = options.side == 'client' and options.client_checks == 'warning-resources'
 user_regressions = options.side == 'client' and options.client_checks == 'user-regressions'
+gameplay_audit = options.side == 'client' and options.client_checks == 'gameplay-audit'
 collision_probe = user_regressions and options.regression_checks in ('airship-reload', 'airship-propulsion')
-isolated_client = item_resources or reported_crash or ponder_block_entities or borehead or warning_resources or user_regressions
+isolated_client = item_resources or reported_crash or ponder_block_entities or borehead or warning_resources or user_regressions or gameplay_audit
 
 mods = [p.resolve() for p in options.mod]
 work = ROOT / 'build/porting/packaged-smoke' / options.name / options.side
@@ -185,6 +189,15 @@ if (item_resources or reported_crash) and options.crash_checks != 'none': source
 if ponder_block_entities: sources.append(ROOT/'tools/port-tests/PackagedPonderBlockEntities.java')
 if borehead: sources.append(ROOT/'tools/port-tests/PackagedBorehead.java')
 if warning_resources: sources.append(ROOT/'tools/port-tests/PackagedWarningResources.java')
+if gameplay_audit:
+    sources += [ROOT/'tools/port-tests/PackagedGameplayAudit.java',
+                ROOT/'tools/port-tests/port/observation/GameplayItems.java',
+                ROOT/'tools/port-tests/port/probe/GameplayItemResolverMixin.java']
+    if options.audit_checks == 'ponder':
+        sources += [ROOT/'tools/port-tests'/p for p in ['PackagedGameplayPonder.java',
+            'port/observation/GameplayPonder.java','port/probe/GameplayPonderExtractMixin.java',
+            'port/probe/GameplayPonderSubmitMixin.java','port/probe/GameplayPonderBlitMixin.java']]
+    if options.audit_checks == 'tools': sources.append(ROOT/'tools/port-tests/PackagedGameplayTools.java')
 if user_regressions:
     helper = {'diagram':'PackagedDiagramRegression.java', 'schematicannon':'PackagedSchematicannonRegression.java',
               'schematicannon-interaction':'PackagedSchematicannonInteraction.java', 'physical-walking':'PackagedPhysicalWalkingRegression.java', 'glue':'PackagedGlueVisibilityRegression.java', 'grass':'PackagedGrassStandingRegression.java', 'create-walking':'PackagedCreateWalkingRegression.java','create-micro-walking':'PackagedCreateMicroWalkingRegression.java', 'plot-interaction':'PackagedPlotInteractionRegression.java', 'assembler-lifecycle':'PackagedAssemblerLifecycleRegression.java', 'assembler-roundtrip':'PackagedAssemblerLifecycleRegression.java', 'airship-operation':'PackagedAirshipOperationRegression.java', 'airship-bootstrap':'PackagedAirshipBootstrapRegression.java', 'airship-preheat-launch':'PackagedAirshipPreheatLaunchRegression.java', 'airship-refuel':'PackagedAirshipRefuelRegression.java', 'airship-reload':'PackagedAirshipReloadRegression.java', 'airship-propulsion':'PackagedAirshipPropulsionRegression.java', 'plot-water':'PackagedPlotWaterRegression.java', 'airship-recovery':'PackagedAirshipRecoveryRegression.java', 'create-plot-retain':'PackagedCreatePlotRetainRegression.java', 'bundle-startup':'PackagedBundleStartupRegression.java','fabric-cleanup':'PackagedFabricCleanupRegression.java'}[options.regression_checks]
@@ -224,6 +237,11 @@ with zipfile.ZipFile(driver, 'w', zipfile.ZIP_DEFLATED) as jar:
     if collision_probe:
         driver_metadata['mixins'] = ['packaged-smoke-probes.mixins.json']
         jar.writestr('packaged-smoke-probes.mixins.json', json.dumps({'required':True,'package':'port.probe','compatibilityLevel':'JAVA_25','mixins':['RapierCollisionProbeMixin'],'injectors':{'defaultRequire':1}}))
+    if gameplay_audit:
+        driver_metadata.setdefault('mixins', []).append('packaged-gameplay-observation.mixins.json')
+        probes = ['GameplayItemResolverMixin']
+        if options.audit_checks == 'ponder': probes += ['GameplayPonderExtractMixin','GameplayPonderSubmitMixin','GameplayPonderBlitMixin']
+        jar.writestr('packaged-gameplay-observation.mixins.json', json.dumps({'required':True,'package':'port.probe','compatibilityLevel':'JAVA_25','client':probes,'injectors':{'defaultRequire':1}}))
     jar.writestr('fabric.mod.json', json.dumps(driver_metadata))
     if item_resources:
         jar.writestr('item-resource-expectations.json', (ROOT/'build/porting/item-localization/source-key-audit.json').read_bytes())
@@ -269,6 +287,9 @@ else:
     if 'aeronautics' in installed and options.client_checks=='all': args.append('-Dport.smoke.gustSync=true')
     if 'simulated' in installed and not isolated_client and options.client_checks not in ('endsea-visible','aeronautics-flight'): args.append('-Dport.smoke.addonScenes=true')
     if item_resources: args.append('-Dport.smoke.itemResources=true')
+    if gameplay_audit: args += ['-Dport.smoke.gameplayAudit=true', '-Dport.smoke.auditChecks='+options.audit_checks]
+    if gameplay_audit and options.audit_item: args.append('-Dport.smoke.auditItem='+options.audit_item)
+    if gameplay_audit and options.audit_case: args.append('-Dport.smoke.auditCase='+options.audit_case)
     if warning_resources: args += ['-Dport.smoke.warningResources=true', '-Dport.smoke.warningChecks='+options.warning_checks]
     if user_regressions:
         args += ['-Dport.smoke.userRegression='+options.regression_checks,
@@ -305,6 +326,8 @@ manifest = {'scope':'Actual packaged production activation/world and selected af
 manifest['activationTargets'] = sorted(targets)
 manifest['selectedChecks'] = {'activation':not (options.skip_activation or options.services_only or isolated_client or direction_matrix), 'servicesOnly':options.services_only, 'handDepth':options.hand_depth, 'gustSync':options.side=='client' and 'aeronautics' in installed, 'addonScenes':options.side=='client' and 'simulated' in installed}
 manifest['selectedChecks'].update({'clientSelection':options.client_checks, 'servicesSelection':options.services_checks})
+if gameplay_audit:
+    manifest['selectedChecks'].update({'gameplaySelection':options.audit_checks, 'itemFilter':options.audit_item, 'scenarioFilter':options.audit_case})
 manifest['selectedChecks']['gustSync'] &= options.client_checks=='all'
 manifest['selectedChecks']['addonScenes'] &= not isolated_client and options.client_checks not in ('endsea-visible','aeronautics-flight')
 manifest['selectedChecks']['endseaVisible'] = options.side=='client' and options.client_checks=='endsea-visible'
@@ -341,7 +364,7 @@ if direction_matrix: manifest['selectedChecks']['directionMatrix'] = {'group':op
 print('Launching complete production jars:', ', '.join(p.name for p in mods), flush=True)
 with (work/'runtime.log').open('w') as log:
     try:
-        result = subprocess.run([str(JAVA/'java'),'@'+str(argfile)], cwd=run, stdout=log, stderr=subprocess.STDOUT, timeout=None if options.keep_open else (3600 if direction_matrix else (900 if user_regressions and options.cannon_mode == 'full' else 300)))
+        result = subprocess.run([str(JAVA/'java'),'@'+str(argfile)], cwd=run, stdout=log, stderr=subprocess.STDOUT, timeout=None if options.keep_open else (3600 if direction_matrix else (900 if gameplay_audit or user_regressions and options.cannon_mode == 'full' else 300)))
     except subprocess.TimeoutExpired:
         raise SystemExit('Production startup timed out; inspect '+str(work/'runtime.log'))
 if result.returncode or not report.is_file():

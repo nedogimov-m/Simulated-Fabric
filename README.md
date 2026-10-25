@@ -32,6 +32,8 @@ All active source sets and services use Fabric. Global, client and per-world con
 
 The Fabric 26.3 build and native integrated-world check passed, including discovery of all three nested components and live physics configuration reload. Earlier flight, interactions and source-conservation checks retain their original scope; source cleanup does not claim a repeat of every gameplay test.
 
+[The 2026-10-25 gameplay audit](GAMEPLAY_AUDIT.md) records native item use, rendering, Ponder, physics and world-restart coverage, the reproduced bugs and their fixes. Each result retains the production JAR hash it actually tested.
+
 Optional ComputerCraft/JEI/compass APIs are compile-only. Genuine Fabric API references are SHA-pinned; older intermediary descriptors are mapped for compilation, never bundled as runtime mods.
 
 Original work: Simulated Team. Preserve `LICENSE.md` and upstream attribution.

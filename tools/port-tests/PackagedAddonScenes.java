@@ -157,7 +157,7 @@ public final class PackagedAddonScenes {
         }
         var ponder = test.computeOnClient(client -> PonderUI.of(SimBlocks.ALTITUDE_SENSOR.asItem().getDefaultInstance()));
         check(ponder.getActiveScene().getId().getNamespace().equals("simulated"), "Ponder compiled a foreign scene instead of the actual Sim registration");
-        test.setScreen(() -> ponder);
+        test.runOnClient(client -> client.setScreenAndShow(ponder));
         try {
             var ponderFrames = observeScreen(test, ponder);
             test.waitFor(client -> client.gui.screen() == ponder && ponder.getActiveScene().getCurrentTime() >= 25

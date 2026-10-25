@@ -40,7 +40,6 @@ public abstract class NativePanelScreen extends Screen {
         graphics.pose().pushMatrix();
         try {
             prepareFrame();
-            extractMenuBackground(graphics);
             renderWindowBackground(graphics, mouseX, mouseY, partial);
             renderWindow(graphics, mouseX, mouseY, partial);
             super.extractRenderState(graphics, mouseX, mouseY, partial);
@@ -66,7 +65,9 @@ public abstract class NativePanelScreen extends Screen {
         return focused;
     }
     protected void prepareFrame() {}
-    protected void renderWindowBackground(GuiGraphicsExtractor graphics, int x, int y, float partial) { extractBackground(graphics, x, y, partial); }
+    // Screen.extractRenderStateWithTooltipAndSubtitles already extracts the background.
+    // This hook is only for a panel-specific layer, such as the diagram's tint.
+    protected void renderWindowBackground(GuiGraphicsExtractor graphics, int x, int y, float partial) {}
     protected abstract void renderWindow(GuiGraphicsExtractor graphics, int x, int y, float partial);
     protected void renderWindowForeground(GuiGraphicsExtractor graphics, int x, int y, float partial) {}
     protected void endFrame() {}

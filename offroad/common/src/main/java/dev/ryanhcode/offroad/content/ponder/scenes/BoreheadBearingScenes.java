@@ -261,6 +261,8 @@ public class BoreheadBearingScenes {
                     new ItemStack(collectedItems[i]).copyWithCount(32));
             scene.idle(10);
         }
+        // Keep the preview rotating while allowing Ponder to offer the next scene.
+        scene.markAsFinished();
     }
 
     public static void boreheadExcavating(final SceneBuilder builder, final SceneBuildingUtil util) {
@@ -347,6 +349,7 @@ public class BoreheadBearingScenes {
                 .placeNearTarget();
 
         scene.idle(120);
+        scene.markAsFinished();
     }
 
     public static void boreheadEfficiency(final SceneBuilder builder, final SceneBuildingUtil util) {
@@ -519,6 +522,7 @@ public class BoreheadBearingScenes {
         for (final BlockPos blockPos : firstRock) {
             scene.addInstruction(new OffsetBreakParticlesInstruction(new AABB(blockPos), Blocks.STONE.defaultBlockState()));
         }
+        scene.markAsFinished();
     }
 
     public static void spinRockCutters(final CreateSceneBuilder scene, final SceneBuildingUtil util, final BlockPos

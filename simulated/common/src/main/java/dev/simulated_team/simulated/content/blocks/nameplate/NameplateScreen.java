@@ -88,12 +88,11 @@ public class NameplateScreen extends Screen {
 
    @Override
    public void extractRenderState(final GuiGraphicsExtractor gui, final int pMouseX, final int pMouseY, final float pPartialTick) {
-      this.extractBackground(gui, pMouseX, pMouseY, pPartialTick);
       gui.centeredText(this.font, this.title, this.width / 2, 40, 0xffffffff);
 
       this.renderSign(gui);
 
-      //we have to do this now because we are manually rendering the background, so we can't call super otherwise the background will be rendered twice
+      // The native Screen wrapper extracts the background before this content.
       this.button.extractRenderState(gui, pMouseX, pMouseY, pPartialTick);
    }
 

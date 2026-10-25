@@ -17,7 +17,7 @@ public final class PackagedSmokeClient implements FabricClientGameTest {
         var reload = new AtomicReference<CompletableFuture<Void>>();
         try {
             test.runOnClient(client -> {
-                boolean isolated = Boolean.getBoolean("port.smoke.itemResources") || Boolean.getBoolean("port.smoke.reportedCrash") || Boolean.getBoolean("port.smoke.ponderBlockEntities") || Boolean.getBoolean("port.smoke.borehead") || Boolean.getBoolean("port.smoke.warningResources") || System.getProperty("port.smoke.userRegression") != null;
+                boolean isolated = Boolean.getBoolean("port.smoke.gameplayAudit") || Boolean.getBoolean("port.smoke.itemResources") || Boolean.getBoolean("port.smoke.reportedCrash") || Boolean.getBoolean("port.smoke.ponderBlockEntities") || Boolean.getBoolean("port.smoke.borehead") || Boolean.getBoolean("port.smoke.warningResources") || System.getProperty("port.smoke.userRegression") != null;
                 if (!isolated) {
                     try { Class.forName("PackagedActivation").getMethod("verify").invoke(null); }
                     catch (ReflectiveOperationException failure) { throw new RuntimeException(failure); }
@@ -39,7 +39,12 @@ public final class PackagedSmokeClient implements FabricClientGameTest {
                 test.waitFor(client -> client.level != null && client.player != null
                         && client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState.initialized, 400);
                 checks.add("actual integrated world, player and extracted/rendered camera");
-                if (System.getProperty("port.smoke.userRegression") != null) {
+                if (Boolean.getBoolean("port.smoke.gameplayAudit")) {
+                    try { Class.forName("PackagedGameplayAudit").getMethod("run", ClientGameTestContext.class,
+                            net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext.class,
+                            java.util.List.class).invoke(null, test, world, checks); }
+                    catch (ReflectiveOperationException failure) { throw new RuntimeException(failure); }
+                } else if (System.getProperty("port.smoke.userRegression") != null) {
                     var helper = switch (System.getProperty("port.smoke.userRegression")) {
                         case "diagram" -> "PackagedDiagramRegression";
                         case "schematicannon" -> "PackagedSchematicannonRegression";
@@ -136,7 +141,7 @@ public final class PackagedSmokeClient implements FabricClientGameTest {
                 }
                 // The flight helper waits inside this live world until its control
                 // file arrives. Keep-open mode performs no resource reload here.
-                if (!Boolean.getBoolean("port.smoke.keepOpen") && !Boolean.getBoolean("port.smoke.itemResources") && !Boolean.getBoolean("port.smoke.reportedCrash") && !Boolean.getBoolean("port.smoke.ponderBlockEntities") && !Boolean.getBoolean("port.smoke.borehead") && !Boolean.getBoolean("port.smoke.warningResources") && System.getProperty("port.smoke.userRegression") == null) {
+                if (!Boolean.getBoolean("port.smoke.gameplayAudit") && !Boolean.getBoolean("port.smoke.keepOpen") && !Boolean.getBoolean("port.smoke.itemResources") && !Boolean.getBoolean("port.smoke.reportedCrash") && !Boolean.getBoolean("port.smoke.ponderBlockEntities") && !Boolean.getBoolean("port.smoke.borehead") && !Boolean.getBoolean("port.smoke.warningResources") && System.getProperty("port.smoke.userRegression") == null) {
                     test.runOnClient(client -> reload.set(client.reloadResourcePacks()));
                     test.waitFor(client -> reload.get() != null && reload.get().isDone(), 400);
                     test.runOnClient(client -> reload.get().join());

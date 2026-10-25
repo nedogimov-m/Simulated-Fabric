@@ -80,7 +80,8 @@ public class LaserPointerBlockEntity extends AbstractLaserBlockEntity implements
 
         if (!this.isVirtual()) {
             final BlockHitResult context = this.sensorInteraction.getBlockHitResult();
-            if (context.getType() != HitResult.Type.MISS) {
+            // The ray behaviour has no result until its first lazy tick (or when an entity intercepts it).
+            if (context != null && context.getType() != HitResult.Type.MISS) {
                 this.currentHitPos = context.getLocation();
             } else {
                 this.currentHitPos = Vec3.ZERO;

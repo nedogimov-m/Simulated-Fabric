@@ -63,14 +63,14 @@ def main():
         manifest = {'name': 'latest', 'minecraft': config['minecraft_version'], 'java': 25,
                     'fabricLoader': config['fabric_loader_version'], 'artifacts': records,
                     'policy': 'Current full set only. Updates replace this folder; historical builds and revision ZIPs are not retained.',
-                    'verification': 'See PORTING_TESTS.md and PORTING_VERIFIED.json in the project. Original historical hashes remain historical.'}
+                    'verification': 'See GAMEPLAY_AUDIT.md in the project for native gameplay checks and their exact input hashes. Original historical scopes and hashes remain historical.'}
         schematic = ROOT / 'build/porting/airshipbase/airshipbase.compat.nbt'
         if schematic.is_file():
             shutil.copy2(schematic, stage / 'airshipbase.nbt')
             manifest['schematic'] = {'file': 'airshipbase.nbt', 'sha256': sha(schematic),
                                      'change': 'One unavailable Aeroscapes Redstone Link channel uses paper/paper at both ends. Original block layout, inventories and other NBT are unchanged.'}
         (stage / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
-        (stage / 'README_RU.md').write_text('''# Актуальный комплект Fabric 26.3
+        readme = '''# Актуальный комплект Fabric 26.3
 
 В этой папке лежат четыре устанавливаемых JAR: Create, Sable, Aeronautics Bundle и Fabric API.
 Simulated, Aeronautics и Offroad входят в один Aeronautics Bundle; отдельно устанавливать их не нужно.
@@ -81,6 +81,11 @@ Veil, Sable Companion и остальные встроенные зависим�
 
 Обновление этой папки после сборки: python3 tools/update_latest.py из корня проекта.
 Новых папок ревизий и ZIP-архивов не создаём. Отчёты проверок остаются в проекте.
+
+Результаты проверки использования предметов и отображения: GAMEPLAY_AUDIT.md в проекте Aeronautics.
+'''
+        if schematic.is_file():
+            readme += '''
 
 airshipbase.nbt — совместимая копия схемы: частота отсутствующего предмета Aeroscapes заменена на бумагу в двух слотах одной пары Redstone Link. Пользовательский оригинал не изменён.
 Для уже построенного корабля выставьте бумагу в обоих слотах пары: передатчик (18,24,71), приёмник (19,37,52), координаты относительно начала схемы. Два остальных пустых приёмника не настраивайте этой частотой.
@@ -98,7 +103,8 @@ airshipbase.nbt — совместимая копия схемы: частота
 8. Для движения включите два главных пропеллерных подшипника пустой рукой: (6,19,78) и (34,19,78). Крайний правый регулятор пульта (23,24,74) управляет их передачами: выход 15 останавливает винты, выход 0 даёт полную тягу. Два регулятора пара (18,24,72) и (19,24,72) при этом оставьте открытыми. Все пять регуляторов на 15 нужны для этапа прогрева, затем тяга настраивается отдельно.
 
 Этот порядок проверен на исходной конструкции: подъём на 16,15 м выше старта без просадки за 112 тиков. Все восемь источников воды сохранились после сборки; оба котла и четыре паровых выхода продолжали работать. Без принудительной тяги, телепортации или удерживающего корабль ограничения.
-''')
+'''
+        (stage / 'README_RU.md').write_text(readme)
         (stage / 'SHA256SUMS').write_text(''.join(f'{sha(p)}  {p.name}\n' for p in sorted(stage.iterdir()) if p.is_file()))
         DEST.mkdir(exist_ok=True)
         expected = {p.name for p in stage.iterdir()}

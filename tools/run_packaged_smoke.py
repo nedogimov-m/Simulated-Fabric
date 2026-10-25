@@ -20,6 +20,10 @@ parser.add_argument('--client-args', type=Path, help='Existing native Fabric cli
 parser.add_argument('--side', choices=['server', 'client'], required=True)
 parser.add_argument('--name', required=True)
 parser.add_argument('--mod', type=Path, action='append', required=True)
+parser.add_argument('--driver-entrypoint', help='External test-only FabricClientGameTest entrypoint; production classes remain in the frozen JARs.')
+parser.add_argument('--driver-source', type=Path, action='append', default=[], help='Additional external test-only Java source, used with --driver-entrypoint.')
+parser.add_argument('--driver-resources', type=Path, action='append', default=[], help='Test resource directory; production assets cannot be replaced.')
+parser.add_argument('--driver-property', action='append', default=[], help='JVM key=value passed to an external test driver.')
 parser.add_argument('--hand-depth', action='store_true', help='Run the new hand-light depth regression; omit for already verified boundaries.')
 parser.add_argument('--skip-activation', action='store_true', help='Reuse the separately recorded successful target application scope when its hooks are unchanged.')
 parser.add_argument('--services-only', action='store_true', help='Check only the new fuel/glue/assembly provider boundary in a genuine server world.')
@@ -45,6 +49,14 @@ parser.add_argument('--airship-controls-accepted', type=Path, help='Retain alrea
 parser.add_argument('--cannon-mode', choices=['prefix','mini','full'], default='prefix')
 parser.add_argument('--resume-world', type=Path, help='Open the actual previously saved client test world in a new JVM.')
 options = parser.parse_args()
+external_driver = bool(options.driver_entrypoint)
+if external_driver and (options.side != 'client' or not options.driver_source):
+    parser.error('--driver-entrypoint requires --side client and at least one --driver-source')
+if not external_driver and (options.driver_source or options.driver_resources or options.driver_property):
+    parser.error('External driver inputs require --driver-entrypoint')
+for value in options.driver_property:
+    if '=' not in value or not value.split('=', 1)[0] or value.startswith('-'):
+        parser.error('--driver-property requires key=value')
 direction_matrix = options.direction_checks is not None
 if direction_matrix and options.side != 'server': parser.error('--direction-checks requires --side server')
 if options.keep_open and (options.side != 'client' or options.client_checks != 'aeronautics-flight'):
@@ -67,7 +79,7 @@ warning_resources = options.side == 'client' and options.client_checks == 'warni
 user_regressions = options.side == 'client' and options.client_checks == 'user-regressions'
 gameplay_audit = options.side == 'client' and options.client_checks == 'gameplay-audit'
 collision_probe = user_regressions and options.regression_checks in ('airship-reload', 'airship-propulsion')
-isolated_client = item_resources or reported_crash or ponder_block_entities or borehead or warning_resources or user_regressions or gameplay_audit
+isolated_client = item_resources or reported_crash or ponder_block_entities or borehead or warning_resources or user_regressions or gameplay_audit or external_driver
 
 mods = [p.resolve() for p in options.mod]
 work = ROOT / 'build/porting/packaged-smoke' / options.name / options.side
@@ -77,7 +89,7 @@ if (work/'inputs.json').is_file():
     history.mkdir(exist_ok=True)
     previous = history/str(len(list(history.iterdir()))+1)
     previous.mkdir()
-    for name in ['inputs.json', 'runtime.json', 'activation.json', 'runtime.log', 'compile.log', 'launch.args', 'mod-inputs', 'packaged-smoke-driver.jar', 'driver-classes']:
+    for name in ['inputs.json', 'runtime.json', 'activation.json', 'runtime.log', 'compile.log', 'launch.args', 'mod-inputs', 'packaged-smoke-driver.jar', 'driver-classes', 'driver-sources']:
         path = work/name
         if path.exists(): shutil.move(str(path), str(previous/name))
 snapshot_dir = work/'mod-inputs'
@@ -105,8 +117,12 @@ nested_compile = []
 mod_roots = {'veil':'../veil', 'sable':'../sable', 'simulated':'simulated', 'aeronautics':'aeronautics', 'offroad':'offroad'}
 installed = set()
 packaged = {}
+production_classes = set()
+production_assets = set()
 def inventory(raw):
     with zipfile.ZipFile(io.BytesIO(raw)) as jar:
+        production_classes.update(name for name in jar.namelist() if name.endswith('.class'))
+        production_assets.update(name for name in jar.namelist() if name.startswith(('assets/', 'data/')))
         if 'fabric.mod.json' not in jar.namelist(): return
         metadata = json.loads(jar.read('fabric.mod.json'))
         installed.add(metadata['id'])
@@ -176,6 +192,7 @@ for raw in base[index + 1].split(os.pathsep):
 cp += list(snapshots.values())
 source = ROOT / 'tools/port-tests' / ('DirectionMatrixServer.java' if direction_matrix else ('PackagedSmokeServer.java' if options.side == 'server' else 'PackagedSmokeClient.java'))
 sources = [source]
+if external_driver: sources = [p.resolve() for p in options.driver_source]
 if not isolated_client and not direction_matrix: sources.append(ROOT/'tools/port-tests/PackagedActivation.java')
 if direction_matrix:
     sources += [ROOT/'tools/port-tests/DirectionMatrixSupport.java', ROOT/'tools/port-tests'/('Direction'+options.direction_checks.capitalize()+'Matrix.java')]
@@ -213,12 +230,22 @@ if collision_probe:
                 ROOT/'tools/port-tests/port/observation/RapierCollisionProbeState.java']
 if options.side == 'server' and 'simulated' in installed and not options.services_only and not direction_matrix: sources.append(ROOT/'tools/port-tests/PackagedDyeRecipe.java')
 if options.side == 'server' and options.services_only and not direction_matrix: sources.append(ROOT/'tools/port-tests/PackagedNativeServices.java')
-compile_result = subprocess.run([str(JAVA/'javac'), '--release', '25', '-proc:none', '-sourcepath', '', '-cp', os.pathsep.join(map(str, [*cp, *nested_compile])), '-d', str(classes), *map(str, sources)], capture_output=True, text=True)
+source_hashes = {}
+frozen_sources = []
+for ordinal, source in enumerate(sources):
+    raw = source.read_bytes()
+    source_hashes[str(source.relative_to(ROOT)) if source.is_relative_to(ROOT) else str(source)] = hashlib.sha256(raw).hexdigest()
+    frozen = work/'driver-sources'/str(ordinal)/source.name
+    frozen.parent.mkdir(parents=True, exist_ok=True)
+    frozen.write_bytes(raw)
+    frozen_sources.append(frozen)
+compile_result = subprocess.run([str(JAVA/'javac'), '--release', '25', '-proc:none', '-sourcepath', '', '-cp', os.pathsep.join(map(str, [*cp, *nested_compile])), '-d', str(classes), *map(str, frozen_sources)], capture_output=True, text=True)
 (work/'compile.log').write_text(compile_result.stdout+compile_result.stderr)
 if compile_result.returncode:
     print(compile_result.stdout+compile_result.stderr)
     raise SystemExit(compile_result.returncode)
 driver = work / 'packaged-smoke-driver.jar'
+resource_hashes = {}
 with zipfile.ZipFile(driver, 'w', zipfile.ZIP_DEFLATED) as jar:
     jar.writestr('packaged-activation-targets.txt', '\n'.join(sorted(targets))+'\n')
     if warning_resources:
@@ -233,7 +260,7 @@ with zipfile.ZipFile(driver, 'w', zipfile.ZIP_DEFLATED) as jar:
         jar.writestr('assets/port_warning_test/models/bad_json.json', '{"elements": [')
         jar.writestr('assets/port_warning_test/models/bad_parent.json', json.dumps({'parent':'port_warning_test:absent_parent'}))
         jar.writestr('assets/port_warning_test/models/cyclic_parent.json', json.dumps({'parent':'port_warning_test:cyclic_parent'}))
-    driver_metadata = {'schemaVersion':1, 'id':'packaged_smoke_driver', 'version':'1.0.0', 'environment':'*', 'name':'Packaged production smoke driver (test only)', 'entrypoints':({'main':['DirectionMatrixServer' if direction_matrix else 'PackagedSmokeServer']} if options.side == 'server' else {'fabric-client-gametest':['PackagedSmokeClient']}), 'depends':{'fabricloader':'>=0.19.5', 'fabric-api':'*', 'minecraft':'26.3'}}
+    driver_metadata = {'schemaVersion':1, 'id':'packaged_smoke_driver', 'version':'1.0.0', 'environment':'*', 'name':'Packaged production smoke driver (test only)', 'entrypoints':({'main':['DirectionMatrixServer' if direction_matrix else 'PackagedSmokeServer']} if options.side == 'server' else {'fabric-client-gametest':[options.driver_entrypoint or 'PackagedSmokeClient']}), 'depends':{'fabricloader':'>=0.19.5', 'fabric-api':'*', 'minecraft':'26.3'}}
     if collision_probe:
         driver_metadata['mixins'] = ['packaged-smoke-probes.mixins.json']
         jar.writestr('packaged-smoke-probes.mixins.json', json.dumps({'required':True,'package':'port.probe','compatibilityLevel':'JAVA_25','mixins':['RapierCollisionProbeMixin'],'injectors':{'defaultRequire':1}}))
@@ -248,7 +275,19 @@ with zipfile.ZipFile(driver, 'w', zipfile.ZIP_DEFLATED) as jar:
     if ponder_block_entities and not options.ponder_owners_only:
         jar.writestr('ponder-engine-expectations.json', (ROOT/'build/porting/ponder-palettes/engine-be-regression-expectations.json').read_bytes())
     for p in classes.rglob('*.class'):
-        jar.write(p, str(p.relative_to(classes)))
+        name = str(p.relative_to(classes))
+        if name in production_classes: raise SystemExit('Test driver would replace a production class: '+name)
+        jar.write(p, name)
+    for folder in options.driver_resources:
+        if not folder.is_dir(): raise SystemExit('Missing test resource directory: '+str(folder))
+        for p in sorted(folder.resolve().rglob('*')):
+            if not p.is_file(): continue
+            name = str(p.relative_to(folder.resolve()))
+            if name in production_assets or name == 'fabric.mod.json' or name.endswith('.class'):
+                raise SystemExit('Test driver would replace production content: '+name)
+            raw = p.read_bytes()
+            resource_hashes[str(p)] = hashlib.sha256(raw).hexdigest()
+            jar.writestr(name, raw)
 cp.append(driver)
 run = work / 'run'
 run.mkdir(exist_ok=True)
@@ -283,8 +322,11 @@ if options.side == 'server':
     elif 'simulated' in installed: args.append('-Dport.smoke.dyeRecipe=true')
 else:
     args += ['-Dfabric.client.gametest=true', '-Dfabric.client.gametest.modid=packaged_smoke_driver', '-Dfabric.client.gametest.testModResourcesPath='+str(ROOT/'tools/port-tests')]
+    if external_driver:
+        args += ['-D'+value for value in options.driver_property]
+        if options.resume_world: args.append('-Dport.smoke.resumeWorld='+str(copied_world))
     if options.hand_depth and not isolated_client and options.client_checks!='aeronautics-flight': args.append('-Dport.smoke.handDepth=true')
-    if 'aeronautics' in installed and options.client_checks=='all': args.append('-Dport.smoke.gustSync=true')
+    if 'aeronautics' in installed and not isolated_client and options.client_checks=='all': args.append('-Dport.smoke.gustSync=true')
     if 'simulated' in installed and not isolated_client and options.client_checks not in ('endsea-visible','aeronautics-flight'): args.append('-Dport.smoke.addonScenes=true')
     if item_resources: args.append('-Dport.smoke.itemResources=true')
     if gameplay_audit: args += ['-Dport.smoke.gameplayAudit=true', '-Dport.smoke.auditChecks='+options.audit_checks]
@@ -322,13 +364,21 @@ else:
 args += ['-Dport.smoke.report='+str(report), '-Dport.smoke.activationReport='+str(work/'activation.json'), '-classpath', os.pathsep.join(map(str,cp)), *tail]
 argfile = work / 'launch.args'
 argfile.write_text('\n'.join('"'+a.replace('\\','\\\\').replace('"','\\"')+'"' for a in args)+'\n')
-manifest = {'scope':'Actual packaged production activation/world and selected affected integration scenes; does not certify every gameplay feature.', 'side':options.side, 'mods':mod_hashes, 'frozenMods':{str(p.relative_to(ROOT)):mod_hashes[str(original.relative_to(ROOT)) if original.is_relative_to(ROOT) else str(original)] for original,p in snapshots.items()}, 'driver':{str(s.relative_to(ROOT)):hashlib.sha256(s.read_bytes()).hexdigest() for s in sources}, 'scriptSha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
+manifest = {'scope':'Actual packaged production activation/world and selected affected integration scenes; does not certify every gameplay feature.', 'side':options.side, 'mods':mod_hashes, 'frozenMods':{str(p.relative_to(ROOT)):mod_hashes[str(original.relative_to(ROOT)) if original.is_relative_to(ROOT) else str(original)] for original,p in snapshots.items()}, 'driver':source_hashes, 'driverClasses':{str(p.relative_to(classes)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(classes.rglob('*.class'))}, 'scriptSha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}
 manifest['activationTargets'] = sorted(targets)
+manifest['driverJarSha256'] = hashlib.sha256(driver.read_bytes()).hexdigest()
 manifest['selectedChecks'] = {'activation':not (options.skip_activation or options.services_only or isolated_client or direction_matrix), 'servicesOnly':options.services_only, 'handDepth':options.hand_depth, 'gustSync':options.side=='client' and 'aeronautics' in installed, 'addonScenes':options.side=='client' and 'simulated' in installed}
 manifest['selectedChecks'].update({'clientSelection':options.client_checks, 'servicesSelection':options.services_checks})
+if external_driver:
+    manifest['externalDriver'] = {'entrypoint':options.driver_entrypoint, 'properties':options.driver_property,
+        'resources':resource_hashes}
+    manifest['selectedChecks']['clientSelection'] = 'external'
+if options.resume_world:
+    manifest['resumedWorld'] = str(options.resume_world.resolve())
+    manifest['resumedWorldInput'] = json.loads((run/'resumed-world-source.json').read_text())
 if gameplay_audit:
     manifest['selectedChecks'].update({'gameplaySelection':options.audit_checks, 'itemFilter':options.audit_item, 'scenarioFilter':options.audit_case})
-manifest['selectedChecks']['gustSync'] &= options.client_checks=='all'
+manifest['selectedChecks']['gustSync'] &= not isolated_client and options.client_checks=='all'
 manifest['selectedChecks']['addonScenes'] &= not isolated_client and options.client_checks not in ('endsea-visible','aeronautics-flight')
 manifest['selectedChecks']['endseaVisible'] = options.side=='client' and options.client_checks=='endsea-visible'
 manifest['selectedChecks']['aeronauticsFlight'] = options.side=='client' and options.client_checks=='aeronautics-flight'
@@ -364,7 +414,7 @@ if direction_matrix: manifest['selectedChecks']['directionMatrix'] = {'group':op
 print('Launching complete production jars:', ', '.join(p.name for p in mods), flush=True)
 with (work/'runtime.log').open('w') as log:
     try:
-        result = subprocess.run([str(JAVA/'java'),'@'+str(argfile)], cwd=run, stdout=log, stderr=subprocess.STDOUT, timeout=None if options.keep_open else (3600 if direction_matrix else (900 if gameplay_audit or user_regressions and options.cannon_mode == 'full' else 300)))
+        result = subprocess.run([str(JAVA/'java'),'@'+str(argfile)], cwd=run, stdout=log, stderr=subprocess.STDOUT, timeout=None if options.keep_open else (3600 if direction_matrix else (900 if external_driver or gameplay_audit or user_regressions and options.cannon_mode == 'full' else 300)))
     except subprocess.TimeoutExpired:
         raise SystemExit('Production startup timed out; inspect '+str(work/'runtime.log'))
 if result.returncode or not report.is_file():

@@ -63,7 +63,12 @@ def main():
         manifest = {'name': 'latest', 'minecraft': config['minecraft_version'], 'java': 25,
                     'fabricLoader': config['fabric_loader_version'], 'artifacts': records,
                     'policy': 'Current full set only. Updates replace this folder; historical builds and revision ZIPs are not retained.',
-                    'verification': 'See GAMEPLAY_AUDIT.md in the project for native gameplay checks and their exact input hashes. Original historical scopes and hashes remain historical.'}
+                    'verification': 'Native gameplay checks and exact input hashes: GAMEPLAY_AUDIT.md in Aeronautics and the sibling Sable, Veil and ImGuiMC projects. Historical scopes and hashes remain historical.',
+                    'auditReports': {
+                        'aeronautics': 'https://github.com/nedogimov-m/Simulated-Fabric/blob/26.3/GAMEPLAY_AUDIT.md',
+                        'sable': 'https://github.com/nedogimov-m/sable-fabric/blob/26.3/GAMEPLAY_AUDIT.md',
+                        'veil': 'https://github.com/nedogimov-m/Veil-Fabric/blob/26.3/GAMEPLAY_AUDIT.md',
+                        'imguimc': 'https://github.com/nedogimov-m/imguimc-fabric/blob/26.3/GAMEPLAY_AUDIT.md'}}
         schematic = ROOT / 'build/porting/airshipbase/airshipbase.compat.nbt'
         if schematic.is_file():
             shutil.copy2(schematic, stage / 'airshipbase.nbt')
@@ -77,12 +82,14 @@ Simulated, Aeronautics и Offroad входят в один Aeronautics Bundle; �
 Перед установкой bundle убери прежние отдельные simulated-fabric, aeronautics-fabric и offroad-fabric JAR из mods.
 Скопируй четыре JAR в папку mods, заменив прежние версии. Дубликатов оставаться не должно.
 Minecraft 26.3 / Java 25 / Fabric Loader 0.19.5. Fabric API включён; Loader устанавливается отдельно.
-Veil, Sable Companion и остальные встроенные зависимости отдельно добавлять не нужно.
+Veil, ImGuiMC, Sable Companion и остальные встроенные зависимости отдельно добавлять не нужно.
 
 Обновление этой папки после сборки: python3 tools/update_latest.py из корня проекта.
 Новых папок ревизий и ZIP-архивов не создаём. Отчёты проверок остаются в проекте.
 
 Результаты проверки использования предметов и отображения: GAMEPLAY_AUDIT.md в проекте Aeronautics.
+Проверки Sable, Veil и ImGuiMC, включая исправления инспектора, переходов между измерениями,
+ориентации и обрезки интерфейса: GAMEPLAY_AUDIT.md в соответствующих проектах; ссылки есть в manifest.json.
 '''
         if schematic.is_file():
             readme += '''
